@@ -522,7 +522,7 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
                 {/* Content */}
                 <div className="p-8 text-left">
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {theme.tags.slice(0, 2).map(tag => (
+                    {theme.tags.slice(0, 2).map((tag: string) => (
                       <span key={tag} className="px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-[10px] font-black uppercase tracking-wider">
                         {tag}
                       </span>

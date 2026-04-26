@@ -59,7 +59,7 @@ const providerConfig = {
 };
 
 export const EmailSettingsManager: React.FC = () => {
-  const { emailSettings, saveEmailSettings, verifyEmailSettings, sendTestEmail, sellers } = useData();
+  const { emailSettings, saveEmailSettings, verifyEmailSettings, sendTestEmail, sellers, user } = useData();
   const { showToast } = useToast();
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -117,7 +117,7 @@ export const EmailSettingsManager: React.FC = () => {
     }
     try {
       const result = await verifyEmailSettings(emailSettings.id);
-      showToast(result.message, result.success ? 'success' : 'error');
+      showToast(result.message, result.verified ? 'success' : 'error');
     } catch (error) {
       showToast('Verification failed. Please check your configuration.', 'error');
     }
@@ -128,7 +128,7 @@ export const EmailSettingsManager: React.FC = () => {
     setTestResult(null);
     try {
       const result = await sendTestEmail(
-        form.fromEmail || seller?.contactInfo?.email || '',
+        form.fromEmail || (user as any)?.contactInfo?.email || '',
         'Test Email - ShopRight',
         `<h1>Test Email Successful!</h1><p>Your email configuration is working correctly. You can now send transactional and promotional emails.</p>`
       );

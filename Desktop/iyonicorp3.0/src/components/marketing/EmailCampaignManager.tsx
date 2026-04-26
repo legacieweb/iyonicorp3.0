@@ -209,7 +209,7 @@ export const EmailCampaignManager: React.FC = () => {
     setIsSending(selectedCampaign.id);
     try {
       const result = await sendCampaign(selectedCampaign.id);
-      if (result.success) {
+      if (result.queued) {
         showToast(result.message || 'Campaign sent successfully!', 'success');
         setIsSendConfirmOpen(false);
         // Refresh all data including dashboard stats immediately
@@ -256,8 +256,8 @@ export const EmailCampaignManager: React.FC = () => {
         return 'Filtered segment';
       case 'custom':
         return `${form.customRecipients?.length || 0} custom emails`;
-      default:
-        return type;
+      case 'manual':
+        return 'Manual selection';
     }
   };
 
@@ -428,7 +428,7 @@ export const EmailCampaignManager: React.FC = () => {
                             <Button variant="ghost" size="sm" onClick={() => {
                               setSelectedCampaign(campaign);
                               setScheduleDate(new Date().toISOString().slice(0, 16));
-                              setIsScheduleModalOpen(true);
+                              setIsSchedulePopupOpen(true);
                             }} title="Schedule">
                               <Calendar className="w-4 h-4" />
                             </Button>

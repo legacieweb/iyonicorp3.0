@@ -97,7 +97,7 @@ export const Storefront: React.FC = () => {
   const { subdomain } = useParams<{ subdomain: string }>();
   const location = useLocation();
   const { tenant, isLoading: contextLoading, refreshTenant } = useTenant();
-  const { sellers, products, bots, isLoading, updateSeller } = useData();
+  const { sellers, products, updateSeller } = useData();
   const [editMode, setEditMode] = useState(false);
   const [sellerData, setSellerData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);

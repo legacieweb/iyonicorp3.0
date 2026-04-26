@@ -6,12 +6,14 @@ import { AlertTriangle } from 'lucide-react';
 interface ConfirmPopupProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
   title: string;
   message: string;
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'info';
+  isLoading?: boolean;
+  type?: 'danger' | 'warning' | 'info' | string;
 }
 
 export const ConfirmPopup: React.FC<ConfirmPopupProps> = ({
@@ -22,12 +24,16 @@ export const ConfirmPopup: React.FC<ConfirmPopupProps> = ({
   message,
   confirmText = 'Confirm',
   cancelText = 'Cancel',
-  variant = 'danger'
+  variant = 'danger',
+  isLoading = false,
+  type
 }) => {
-  const handleConfirm = () => {
-    onConfirm();
+  const handleConfirm = async () => {
+    await onConfirm();
     onClose();
   };
+
+  const finalVariant = (type as 'danger' | 'warning' | 'info') || variant;
 
   const variantColors = {
     danger: 'bg-red-50 text-red-600 border-red-100',
@@ -44,7 +50,7 @@ export const ConfirmPopup: React.FC<ConfirmPopupProps> = ({
   return (
     <Popup isOpen={isOpen} onClose={onClose} title={title} size="sm">
       <div className="space-y-6">
-        <div className={`flex items-center gap-4 p-4 rounded-2xl border ${variantColors[variant]}`}>
+        <div className={`flex items-center gap-4 p-4 rounded-2xl border ${variantColors[finalVariant as keyof typeof variantColors] || variantColors.danger}`}>
           <div className="flex-shrink-0">
             <AlertTriangle className="w-6 h-6" />
           </div>
@@ -56,13 +62,15 @@ export const ConfirmPopup: React.FC<ConfirmPopupProps> = ({
             variant="outline"
             onClick={onClose}
             className="flex-1"
+            disabled={isLoading}
           >
             {cancelText}
           </Button>
           <Button
-            variant={buttonVariants[variant]}
+            variant={buttonVariants[finalVariant as keyof typeof buttonVariants] || buttonVariants.danger}
             onClick={handleConfirm}
             className="flex-1"
+            isLoading={isLoading}
           >
             {confirmText}
           </Button>

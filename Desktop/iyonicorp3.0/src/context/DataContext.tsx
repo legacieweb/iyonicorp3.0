@@ -82,7 +82,7 @@ interface DataContextType {
   connectSocialMedia: (platform: SocialMediaAccount['platform'], accessToken: string, username: string, profileUrl: string) => Promise<SocialMediaAccount>;
   disconnectSocialMedia: (accountId: string) => Promise<void>;
   refreshSocialMedia: (accountId: string) => Promise<void>;
-  shareToSocialMedia: (accountId: string, content: string, imageUrl?: string, linkUrl: string) => Promise<{ success: boolean; postUrl?: string }>;
+  shareToSocialMedia: (accountId: string, content: string, linkUrl: string, imageUrl?: string) => Promise<{ success: boolean; postUrl?: string }>;
   socialMediaPosts: SocialMediaPost[];
   setSocialMediaPosts: (posts: SocialMediaPost[]) => void;
   createSocialPost: (post: Partial<SocialMediaPost>) => Promise<SocialMediaPost>;
@@ -113,7 +113,7 @@ interface DataContextType {
   createTemplate: (template: Partial<EmailTemplate>) => Promise<EmailTemplate>;
   updateTemplate: (id: string, updates: Partial<EmailTemplate>) => Promise<EmailTemplate>;
   deleteTemplate: (id: string) => Promise<void>;
-  loadDefaultTemplates: () => Promise<EmailTemplate[]>;
+  loadDefaultTemplates: () => Promise<void>;
 
   marketingStats: any | null;
 }
@@ -447,7 +447,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
      setSocialMediaAccounts(prev => prev.map(acc => acc.id === accountId ? updated : acc));
    };
 
-   const shareToSocialMedia = async (accountId: string, content: string, imageUrl?: string, linkUrl: string): Promise<{ success: boolean; postUrl?: string }> => {
+   const shareToSocialMedia = async (accountId: string, content: string, linkUrl: string, imageUrl?: string): Promise<{ success: boolean; postUrl?: string }> => {
      return await socialMediaAPI.shareToSocial(accountId, { content, imageUrl, linkUrl });
    };
 

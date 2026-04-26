@@ -84,7 +84,7 @@ const STREAMING_THEMES: any[] = [];
 
 const PAYMENT_THEMES: any[] = [];
 
-type TabType = 'overview' | 'products' | 'orders' | 'customers' | 'analytics' | 'themes' | 'settings' | 'messages' | 'reviews' | 'billing' | 'discounts' | 'refunds';
+type TabType = 'overview' | 'products' | 'orders' | 'customers' | 'analytics' | 'themes' | 'settings' | 'messages' | 'reviews' | 'billing' | 'discounts' | 'refunds' | 'marketing';
 
 const WebPreview = ({ id }: { id: string }) => {
   const url = `${window.location.origin}/#/shop/demo?theme=${id}&preview=true`;
@@ -2343,7 +2343,7 @@ export const SellerDashboard: React.FC = () => {
                             
                             {/* Theme Tags */}
                             <div className="absolute top-4 left-4 flex flex-wrap gap-2 z-30">
-                              {theme.tags?.map(tag => (
+                              {theme.tags?.map((tag: string) => (
                                 <span key={tag} className="px-2 py-1 bg-white/90 backdrop-blur-md rounded-md text-[10px] font-black text-slate-900 uppercase">
                                   {tag}
                                 </span>

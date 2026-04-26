@@ -105,6 +105,8 @@ const ModernWellness: React.FC<ThemeProps> = ({
   onUpdateThemeColor,
   onImageUpload
 }) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const seller = editMode && sellerData ? sellerData : initialSeller;
   const [view, setView] = useState<'home' | 'services'>('home');
 
