@@ -1,49 +1,65 @@
-# Coolify Deployment Configuration for ShopRight
+# Coolify Deployment Configuration for IyoniCorp
 #
-# This file defines the services needed to deploy ShopRight on Coolify.
+# This file defines the services needed to deploy IyoniCorp on Coolify.
 # 
 # Deployment approach:
 # - Single Node.js container runs both Express backend + serves built React frontend
 # - Uses PostgreSQL database
 #
 # Quick Deploy (recommended):
-#   1. Create a new "Docker" project in Coolify
-#   2. Add a PostgreSQL database from the Coolify marketplace
-#   3. Add a new "Node.js" application
-#   4. Point to this repository
-#   5. Set environment variables (see below)
+#   1. Create a new "Docker Compose" project in Coolify
+#   2. Point to this repository
+#   3. Coolify will automatically detect this coolify.yaml (or rename it to docker-compose.yaml)
+#   4. Set environment variables in the Coolify UI
 #
 # Environment Variables required:
 #   - NODE_ENV=production
-#   - DATABASE_URL=postgresql://user:password@host:5432/dbname
+#   - DATABASE_URL=postgresql://iyonicorp:changeme@postgres:5432/iyonicorp
 #   - JWT_SECRET=your-secure-random-string
-#   - POSTGRES_USER=your-db-user
-#   - POSTGRES_PASSWORD=your-db-password
-#   - POSTGRES_DB=shopright
+#   - POSTGRES_USER=iyonicorp
+#   - POSTGRES_PASSWORD=changeme
+#   - POSTGRES_DB=iyonicorp
 
 version: "3.8"
 
 services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-iyonicorp}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-iyonicorp}
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    networks:
+      - iyonicorp-network
+
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-shopright}
+      - POSTGRES_USER=${POSTGRES_USER:-iyonicorp}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
-      - POSTGRES_DB=${POSTGRES_DB:-shopright}
+      - POSTGRES_DB=${POSTGRES_DB:-iyonicorp}
     volumes:
-      - shopright-db:/var/lib/postgresql/data
+      - iyonicorp-db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shopright}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-iyonicorp}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    ports:
-      - "5432:5432"
+    networks:
+      - iyonicorp-network
 
 volumes:
-  shopright-db:
+  iyonicorp-db:
 
 networks:
-  default:
-    name: shopright-network
+  iyonicorp-network:
+    name: iyonicorp-network
