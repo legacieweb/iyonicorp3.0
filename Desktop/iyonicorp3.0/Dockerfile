@@ -17,9 +17,6 @@ COPY tsconfig.json tsconfig.node.json ./
 COPY vite.config.ts ./
 COPY tailwind.config.js postcss.config.js ./
 
-# Copy env file template (rename in Coolify)
-COPY .env .env.production
-
 # Build the frontend
 RUN npm run build
 
