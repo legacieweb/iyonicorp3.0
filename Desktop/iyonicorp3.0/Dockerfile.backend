@@ -1,0 +1,31 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy server files
+COPY server/ ./server/
+COPY server/package.json ./
+
+# Copy source files needed for server
+COPY src/utils/coolify.ts ./src/utils/
+COPY src/context/ ./src/context/
+
+# Copy config files
+COPY tsconfig.json tsconfig.node.json ./
+COPY vite.config.ts ./
+COPY .env* ./
+
+# Create production build
+RUN npm run build
+
+# Expose port
+EXPOSE 5000
+
+# Start server
+CMD ["node", "server/server.js"]

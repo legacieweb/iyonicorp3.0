@@ -1,0 +1,49 @@
+# Coolify Deployment Configuration for ShopRight
+#
+# This file defines the services needed to deploy ShopRight on Coolify.
+# 
+# Deployment approach:
+# - Single Node.js container runs both Express backend + serves built React frontend
+# - Uses PostgreSQL database
+#
+# Quick Deploy (recommended):
+#   1. Create a new "Docker" project in Coolify
+#   2. Add a PostgreSQL database from the Coolify marketplace
+#   3. Add a new "Node.js" application
+#   4. Point to this repository
+#   5. Set environment variables (see below)
+#
+# Environment Variables required:
+#   - NODE_ENV=production
+#   - DATABASE_URL=postgresql://user:password@host:5432/dbname
+#   - JWT_SECRET=your-secure-random-string
+#   - POSTGRES_USER=your-db-user
+#   - POSTGRES_PASSWORD=your-db-password
+#   - POSTGRES_DB=shopright
+
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-shopright}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_DB=${POSTGRES_DB:-shopright}
+    volumes:
+      - shopright-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-shopright}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+volumes:
+  shopright-db:
+
+networks:
+  default:
+    name: shopright-network
