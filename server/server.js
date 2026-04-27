@@ -80,6 +80,19 @@ const upload = multer({
 // Serving static files from public/uploads
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
+// ✅ Serve built frontend files from 'dist' directory
+const distPath = path.join(__dirname, '../dist');
+app.use(express.static(distPath));
+
+// ✅ Catch-all route to serve index.html for React Router
+app.get('*', (req, res, next) => {
+  // If it's an API request, don't serve index.html (let it fall through or 404)
+  if (req.url.startsWith('/api/')) {
+    return next();
+  }
+  res.sendFile(path.join(distPath, 'index.html'));
+});
+
 // ✅ NEW: Log database connection (for debugging in Coolify)
 console.log("DATABASE_URL:", process.env.DATABASE_URL ? "Loaded ✅" : "Missing ❌");
 
