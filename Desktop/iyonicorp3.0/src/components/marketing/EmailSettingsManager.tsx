@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 import { Card, CardHeader, Button, Badge, Input, Select } from '../ui';
 import type { EmailSettings } from '../../services/api';
 import {
@@ -59,7 +60,8 @@ const providerConfig = {
 };
 
 export const EmailSettingsManager: React.FC = () => {
-  const { emailSettings, saveEmailSettings, verifyEmailSettings, sendTestEmail, sellers, user } = useData();
+  const { emailSettings, saveEmailSettings, verifyEmailSettings, sendTestEmail, sellers } = useData();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -197,7 +199,7 @@ export const EmailSettingsManager: React.FC = () => {
                   value={form.fromName}
                   onChange={(e) => setForm({ ...form, fromName: e.target.value })}
                   placeholder={sellers[0]?.storeName || 'Your Store'}
-                  prefix={<User className="w-5 h-5 text-gray-400" />}
+                  leftIcon={<User className="w-5 h-5 text-gray-400" />}
                   required
                 />
               </div>
@@ -208,7 +210,7 @@ export const EmailSettingsManager: React.FC = () => {
                   value={form.fromEmail}
                   onChange={(e) => setForm({ ...form, fromEmail: e.target.value })}
                   placeholder="noreply@yourstore.com"
-                  prefix={<AtSign className="w-5 h-5 text-gray-400" />}
+                  leftIcon={<AtSign className="w-5 h-5 text-gray-400" />}
                   required
                 />
               </div>
@@ -221,7 +223,7 @@ export const EmailSettingsManager: React.FC = () => {
                 value={form.replyTo}
                 onChange={(e) => setForm({ ...form, replyTo: e.target.value })}
                 placeholder="support@yourstore.com"
-                prefix={<Mail className="w-5 h-5 text-gray-400" />}
+                leftIcon={<Mail className="w-5 h-5 text-gray-400" />}
               />
             </div>
 

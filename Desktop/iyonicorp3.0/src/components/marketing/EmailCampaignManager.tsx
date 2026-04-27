@@ -258,6 +258,8 @@ export const EmailCampaignManager: React.FC = () => {
         return `${form.customRecipients?.length || 0} custom emails`;
       case 'manual':
         return 'Manual selection';
+      default:
+        return type;
     }
   };
 
@@ -584,7 +586,7 @@ export const EmailCampaignManager: React.FC = () => {
                 </div>
               )}
 
-              {form.recipientType === 'manual' && (
+              {(form.recipientType as string) === 'manual' && (
                 <div className="animate-in fade-in duration-300">
                   <label className="block text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Email Addresses (one per line)</label>
                   <Textarea

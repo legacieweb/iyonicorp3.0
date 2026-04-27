@@ -834,7 +834,7 @@ const DiscountsSection = ({
       <ConfirmPopup
         isOpen={!!confirmDeleteId}
         onClose={() => setConfirmDeleteId(null)}
-        onConfirm={() => confirmDeleteId && handleDelete(confirmDeleteId)}
+        onConfirm={() => { if (confirmDeleteId) handleDelete(confirmDeleteId); }}
         title="Delete Discount"
         message="Are you sure you want to delete this discount? This action cannot be undone."
         confirmText="Delete"
@@ -4083,7 +4083,7 @@ export const SellerDashboard: React.FC = () => {
       <ConfirmPopup
         isOpen={!!confirmDeleteProductId}
         onClose={() => setConfirmDeleteProductId(null)}
-        onConfirm={() => confirmDeleteProductId && handleDeleteProduct(confirmDeleteProductId)}
+        onConfirm={() => { if (confirmDeleteProductId) handleDeleteProduct(confirmDeleteProductId); }}
         title="Delete Product"
         message="Are you sure you want to delete this product? This action cannot be undone."
         confirmText="Delete"
@@ -4093,7 +4093,7 @@ export const SellerDashboard: React.FC = () => {
       <ConfirmPopup
         isOpen={!!confirmDeleteMessageId}
         onClose={() => setConfirmDeleteMessageId(null)}
-        onConfirm={() => confirmDeleteMessageId && deleteMessage(confirmDeleteMessageId)}
+        onConfirm={() => { if (confirmDeleteMessageId) deleteMessage(confirmDeleteMessageId); }}
         title="Delete Message"
         message="Are you sure you want to delete this message permanently? This action cannot be undone."
         confirmText="Delete"

@@ -103,6 +103,7 @@ export const Storefront: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [localTenant, setLocalTenant] = useState<any>(null);
   const [tenantProducts, setTenantProducts] = useState<any[]>([]);
+  const [bots, setBots] = useState<any[]>([]);
   const { user } = useAuth();
 
   const isSellerOfThisStore = user && tenant && (user.id === tenant.userId || tenant.id === 'demo-seller');
@@ -275,7 +276,7 @@ export const Storefront: React.FC = () => {
     setEditMode(!editMode);
   };
 
-  const showLoading = (isLoading || contextLoading) && !products.length;
+  const showLoading = contextLoading && !products.length;
   if (showLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white">
