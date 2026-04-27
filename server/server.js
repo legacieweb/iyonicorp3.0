@@ -85,7 +85,7 @@ const distPath = path.join(__dirname, '../dist');
 app.use(express.static(distPath));
 
 // ✅ Catch-all route to serve index.html for React Router
-app.get('(.*)', (req, res, next) => {
+app.get(/.*/, (req, res, next) => {
   // If it's an API request, don't serve index.html (let it fall through or 404)
   if (req.url.startsWith('/api/')) {
     return next();
