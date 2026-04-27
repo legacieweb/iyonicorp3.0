@@ -135,8 +135,8 @@ export const SocialMediaManager: React.FC = () => {
       const result = await shareToSocialMedia(
         selectedAccount.id,
         shareContent,
-        shareImage || undefined,
-        shareLink
+        shareLink,
+        shareImage || undefined
       );
       setShareResult(result);
       if (result.success) {
@@ -308,7 +308,7 @@ export const SocialMediaManager: React.FC = () => {
                 id="social-username"
                 placeholder={platformConfig[selectedPlatform]?.placeholder}
                 className="font-medium"
-                prefix={<Users className="w-5 h-5 text-gray-400" />}
+                leftIcon={<Users className="w-5 h-5 text-gray-400" />}
               />
               <p className="text-xs text-gray-400 mt-1">Your public {platformConfig[selectedPlatform]?.name} username or page name</p>
             </div>
@@ -319,7 +319,7 @@ export const SocialMediaManager: React.FC = () => {
                 id="social-profile"
                 placeholder={platformConfig[selectedPlatform]?.urlTemplate('yourusername')}
                 className="font-mono text-sm"
-                prefix={<ExternalLink className="w-5 h-5 text-gray-400" />}
+                leftIcon={<ExternalLink className="w-5 h-5 text-gray-400" />}
               />
             </div>
 

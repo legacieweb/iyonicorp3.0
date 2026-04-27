@@ -1175,7 +1175,7 @@ export const ManagerAdminDashboard: React.FC = () => {
       <ConfirmPopup
         isOpen={!!confirmDeleteUserId}
         onClose={() => setConfirmDeleteUserId(null)}
-        onConfirm={() => confirmDeleteUserId && handleDeleteUser(confirmDeleteUserId)}
+        onConfirm={() => { if (confirmDeleteUserId) handleDeleteUser(confirmDeleteUserId); }}
         title="Delete User"
         message="Are you sure you want to delete this user? This action cannot be undone and all associated data will be removed."
         confirmText="Delete User"

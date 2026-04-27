@@ -1241,7 +1241,7 @@ export const SellerManagerDashboard: React.FC = () => {
       <ConfirmPopup
         isOpen={!!confirmUnassignId}
         onClose={() => setConfirmUnassignId(null)}
-        onConfirm={() => confirmUnassignId && handleUnassignSeller(confirmUnassignId)}
+        onConfirm={() => { if (confirmUnassignId) handleUnassignSeller(confirmUnassignId); }}
         title="Unassign Seller"
         message="Are you sure you want to remove this seller from your management? This will disconnect your management relationship."
         confirmText="Unassign"
