@@ -1,27 +1,43 @@
-FROM node:20-alpine
+# Stage 1: Build stage
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Copy package files first for layer caching
+# Copy package files for dependency installation
 COPY package.json package-lock.json* ./
 
-# Install all dependencies (including dev for build)
+# Install all dependencies (including devDependencies for building)
 RUN npm ci
 
-# Copy source files
-COPY server/ ./server/
-COPY src/ ./src/
-COPY public/ ./public/
-COPY index.html ./
-COPY tsconfig.json tsconfig.node.json ./
-COPY vite.config.ts ./
-COPY tailwind.config.js postcss.config.js ./
+# Copy the rest of the application code
+COPY . .
 
-# Build the frontend
+# Build the frontend assets
 RUN npm run build
 
-# Expose port
+# Stage 2: Production stage
+FROM node:20-slim
+
+WORKDIR /app
+
+# Copy package files and install only production dependencies
+COPY package.json package-lock.json* ./
+RUN npm ci --only=production
+
+# Copy built frontend assets from the builder stage
+COPY --from=builder /app/dist ./dist
+
+# Copy backend server files
+COPY --from=builder /app/server ./server
+
+# Copy public folder (for any static assets needed by server)
+COPY --from=builder /app/public ./public
+
+# Expose the application port
 EXPOSE 5000
 
-# Start the Express server (which serves built frontend)
+# Set environment to production
+ENV NODE_ENV=production
+
+# Start the server
 CMD ["node", "server/server.js"]

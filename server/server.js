@@ -84,23 +84,18 @@ app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 const distPath = path.join(__dirname, '../dist');
 app.use(express.static(distPath));
 
-// ✅ Catch-all route to serve index.html for React Router
-app.get(/.*/, (req, res, next) => {
-  // If it's an API request, don't serve index.html (let it fall through or 404)
-  if (req.url.startsWith('/api/')) {
-    return next();
-  }
-  res.sendFile(path.join(distPath, 'index.html'));
-});
-
 // ✅ NEW: Log database connection (for debugging in Coolify)
 console.log("DATABASE_URL:", process.env.DATABASE_URL ? "Loaded ✅" : "Missing ❌");
 
 // Initialize Database
-initDb().then(() => {
-  seedDefaultTemplates();
-  startBackgroundJobs();
-});
+initDb()
+  .then(() => {
+    seedDefaultTemplates();
+    startBackgroundJobs();
+  })
+  .catch(err => {
+    console.error('❌ Failed to initialize database on startup:', err);
+  });
 
 // Seed default email templates
 const seedDefaultTemplates = async () => {
@@ -5668,6 +5663,16 @@ const processCampaignEmails = async (campaignId) => {
     return { success: false, error: err.message };
   }
 };
+
+
+// ✅ Catch-all route to serve index.html for React Router
+app.get(/.*/, (req, res, next) => {
+  // If it's an API request or test-db, don't serve index.html
+  if (req.url.startsWith('/api/') || req.url === '/test-db') {
+    return next();
+  }
+  res.sendFile(path.join(distPath, 'index.html'));
+});
 
 // --- Background Jobs ---
 
