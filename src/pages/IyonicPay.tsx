@@ -43,7 +43,9 @@ import {
 Menu,
   Activity,
   RotateCcw,
-  RefreshCw
+  RefreshCw,
+  Link2,
+  Check
 } from 'lucide-react';
 
 declare const PaystackPop: any;
@@ -97,17 +99,24 @@ const IyonicPay: React.FC = () => {
   
   // Dashboard states
   const initialTab = searchParams.get('tab') as any;
-   const validTabs = ['dashboard', 'transactions', 'invoices', 'withdrawals', 'api', 'refunds'];
-   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'invoices' | 'withdrawals' | 'api' | 'refunds'>(
+   const validTabs = ['dashboard', 'transactions', 'invoices', 'withdrawals', 'api', 'refunds', 'cheques'];
+   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'invoices' | 'withdrawals' | 'api' | 'refunds' | 'cheques'>(
      validTabs.includes(initialTab) ? initialTab : 'dashboard'
    );
 
   useEffect(() => {
     const tab = searchParams.get('tab');
     const invoiceToken = searchParams.get('invoiceToken');
+    const claimToken = searchParams.get('claim');
     
     if (tab && validTabs.includes(tab)) {
       setActiveTab(tab as any);
+    }
+
+    if (claimToken) {
+      setClaimChequeData(prev => ({ ...prev, token: claimToken }));
+      setIsClaimChequeModalOpen(true);
+      fetchChequeDetails(claimToken);
     }
 
     if (invoiceToken) {
@@ -142,6 +151,13 @@ const IyonicPay: React.FC = () => {
   const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
   const [isRequestRefundModalOpen, setIsRequestRefundModalOpen] = useState(false);
   const [refundRequests, setRefundRequests] = useState<any[]>([]);
+  const [myCheques, setMyCheques] = useState<any[]>([]);
+  const [isIssueChequeModalOpen, setIsIssueChequeModalOpen] = useState(false);
+  const [isClaimChequeModalOpen, setIsClaimChequeModalOpen] = useState(false);
+  const [chequeFormData, setChequeFormData] = useState({ amount: '', pin: '', recipientEmail: '', expiryDays: '7' });
+  const [claimChequeData, setClaimChequeData] = useState({ token: '', pin: '' });
+  const [claimingCheque, setClaimingCheque] = useState<any>(null);
+  const [issuedCheque, setIssuedCheque] = useState<any>(null);
   const [refundRequestData, setRefundRequestData] = useState<any>({ token: '', amount: 0, currency: 'USD', reason: '', merchant: '' });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -204,6 +220,7 @@ const IyonicPay: React.FC = () => {
         fetchInvoices();
         fetchApiKey();
         fetchGlobalSettings();
+        fetchCheques();
       } else {
         setView('landing');
       }
@@ -227,6 +244,10 @@ const IyonicPay: React.FC = () => {
     
     if (activeTab === 'refunds' || (user?.role === 'seller' && activeTab === 'dashboard')) {
       fetchRefundRequests();
+    }
+
+    if (activeTab === 'cheques') {
+      fetchCheques();
     }
   }, [activeTab, user]);
 
@@ -399,6 +420,62 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
       if (err.response?.status === 404) {
         console.warn('Invoice endpoint not found. Please ensure the server is restarted with the latest routes.');
       }
+    }
+  };
+
+  const fetchCheques = async () => {
+    try {
+      const res = await api.get('/iyonicpay/cheques');
+      setMyCheques(toCamel(res.data));
+    } catch (err) {
+      console.error('Failed to fetch cheques:', err);
+    }
+  };
+
+  const handleIssueCheque = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await api.post('/iyonicpay/cheques/issue', chequeFormData);
+      setIssuedCheque(toCamel(res.data));
+      showToast('Cheque issued successfully!', 'success');
+      setChequeFormData({ amount: '', pin: '', recipientEmail: '', expiryDays: '7' });
+      fetchCheques();
+      fetchWalletData();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to issue cheque', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClaimCheque = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.post(`/iyonicpay/cheques/${claimChequeData.token}/claim`, { pin: claimChequeData.pin });
+      showToast('Cheque claimed successfully!', 'success');
+      setIsClaimChequeModalOpen(false);
+      setClaimChequeData({ token: '', pin: '' });
+      fetchCheques();
+      fetchWalletData();
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Failed to claim cheque', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchChequeDetails = async (token: string) => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/iyonicpay/cheques/${token}`);
+      setClaimingCheque(toCamel(res.data));
+    } catch (err: any) {
+      showToast(err.response?.data?.message || 'Cheque not found or invalid', 'error');
+      setClaimingCheque(null);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -968,6 +1045,131 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
     setIsStatementModalOpen(false);
   };
 
+  const renderCheques = () => {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-indigo-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-indigo-100">
+          <div className="relative z-10">
+            <h3 className="text-3xl font-black mb-2 tracking-tight">IyonicPay Cheques</h3>
+            <p className="text-indigo-200 font-medium max-w-md opacity-80">
+              Issue secure digital cheques to anyone. Recipients can claim them directly into their IyonicPay wallets using a secure PIN.
+            </p>
+          </div>
+          <div className="flex space-x-4 relative z-10">
+            <Button 
+              onClick={() => setIsIssueChequeModalOpen(true)}
+              className="bg-white text-indigo-600 font-black px-8 py-4 rounded-2xl hover:bg-gray-100 shadow-xl"
+            >
+              Issue New Cheque
+            </Button>
+            <Button 
+              onClick={() => setIsClaimChequeModalOpen(true)}
+              className="bg-indigo-700 text-white font-black px-8 py-4 rounded-2xl hover:bg-indigo-800 border border-indigo-500/30 shadow-xl"
+            >
+              Claim a Cheque
+            </Button>
+          </div>
+          <div className="absolute -right-12 -bottom-12 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6">
+          <h4 className="text-2xl font-black text-gray-900 flex items-center space-x-3">
+            <History className="w-6 h-6 text-indigo-600" />
+            <span>Cheque Registry</span>
+          </h4>
+          
+          {myCheques.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {myCheques.map((c) => (
+                <Card key={c.id} className="rounded-[2.5rem] border-none shadow-lg hover:shadow-2xl transition-all group overflow-hidden bg-white">
+                  <div className="p-8">
+                    <div className="flex justify-between items-start mb-6">
+                      <div className={`p-3 rounded-2xl ${c.issuerId === user.id ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'}`}>
+                        <Banknote className="w-6 h-6" />
+                      </div>
+                      <Badge variant={c.status === 'issued' ? 'warning' : c.status === 'claimed' ? 'success' : 'secondary'}>
+                        {c.status.toUpperCase()}
+                      </Badge>
+                    </div>
+                    
+                    <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">
+                      {c.issuerId === user.id ? 'To Recipient' : 'From Issuer'}
+                    </h5>
+                    <p className="font-black text-gray-900 mb-4 truncate">
+                      {c.issuerId === user.id ? (c.recipientEmail || 'Anyone with PIN') : (c.issuerName || 'Merchant')}
+                    </p>
+                    
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <p className="text-2xl font-black text-gray-900 tracking-tighter">{formatPrice(c.amount, c.currency)}</p>
+                        <p className="text-[10px] text-gray-400 font-bold mt-1">Expires: {new Date(c.expiresAt).toLocaleDateString()}</p>
+                      </div>
+                      {c.status === 'issued' && (
+                        <div className="flex space-x-2">
+                          <button 
+                            onClick={() => {
+                              const url = window.location.origin + window.location.pathname + '?tab=cheques&claim=' + c.token;
+                              copyToClipboard(url);
+                            }}
+                            className="p-3 bg-gray-50 text-gray-400 hover:text-indigo-600 rounded-xl transition-colors group-hover:bg-indigo-50"
+                            title="Copy Claim Link"
+                          >
+                            <Link2 className="w-4 h-4" />
+                          </button>
+                          {c.issuerId === user.id ? (
+                            <button 
+                              onClick={() => {
+                                navigator.clipboard.writeText(c.token);
+                                showToast('Cheque token copied!', 'success');
+                              }}
+                              className="p-3 bg-gray-50 text-gray-400 hover:text-indigo-600 rounded-xl transition-colors group-hover:bg-indigo-50"
+                              title="Copy Token Only"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => {
+                                setClaimChequeData({ token: c.token, pin: '' });
+                                setIsClaimChequeModalOpen(true);
+                                fetchChequeDetails(c.token);
+                              }}
+                              className="px-4 py-2 bg-indigo-600 text-white text-xs font-black rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+                            >
+                              Claim Now
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {c.status === 'issued' && c.issuerId === user.id && (
+                      <div className="mt-6 pt-6 border-t border-gray-50">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">Cheque Token</p>
+                        <div className="bg-gray-50 p-3 rounded-xl font-mono text-sm text-center text-gray-600 border border-gray-100 font-bold">
+                          {c.token}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="py-24 bg-white rounded-[3rem] border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
+              <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-6">
+                <Banknote className="w-8 h-8 text-indigo-200" />
+              </div>
+              <p className="text-gray-500 font-black">No cheques found</p>
+              <p className="text-gray-400 text-sm mt-2 max-w-xs mx-auto">Start issuing secure digital cheques to your business partners and friends.</p>
+              <Button onClick={() => setIsIssueChequeModalOpen(true)} variant="ghost" className="mt-6 text-indigo-600 font-black">Issue your first cheque</Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderLinkSettings = () => {
     if (!selectedInvoice) return null;
 
@@ -1251,6 +1453,7 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
     const sidebarItems: SidebarItem[] = [
       { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
       { id: 'transactions', label: 'Transactions', icon: <History className="w-5 h-5" /> },
+      { id: 'cheques', label: 'Cheques', icon: <Banknote className="w-5 h-5" /> },
        ...(user?.role === 'seller' ? [
          { id: 'invoices', label: 'Payment Links', icon: <CreditCard className="w-5 h-5" /> },
          { 
@@ -1882,6 +2085,17 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
                 </motion.div>
                )}
 
+              {activeTab === 'cheques' && (
+                <motion.div
+                  key="cheques"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  {renderCheques()}
+                </motion.div>
+              )}
+
               {activeTab === 'api' && (
                 <motion.div
                   key="api"
@@ -2298,6 +2512,207 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
               <span className="text-lg">Generate Cool PDF</span>
             </Button>
           </div>
+        </Popup>
+
+        {/* Issue Cheque Modal */}
+        <Popup isOpen={isIssueChequeModalOpen} onClose={() => { setIsIssueChequeModalOpen(false); setIssuedCheque(null); }} title="Issue Digital Cheque">
+          {!issuedCheque ? (
+            <form onSubmit={handleIssueCheque} className="space-y-6 py-6">
+              <div className="bg-indigo-50 p-6 rounded-[2rem] border border-indigo-100 flex items-start space-x-4 mb-4">
+                <ShieldCheck className="w-6 h-6 text-indigo-600 flex-shrink-0 mt-1" />
+                <div>
+                  <p className="text-sm font-black text-indigo-900">Bank-Grade Security</p>
+                  <p className="text-xs text-indigo-800/60 font-medium leading-relaxed">Funds are deducted and held in escrow until the recipient claims them using your chosen PIN.</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Cheque Amount ({sellerCurrency})</label>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    placeholder="0.00" 
+                    value={chequeFormData.amount}
+                    onChange={(e) => setChequeFormData({...chequeFormData, amount: e.target.value})}
+                    className="w-full bg-gray-50 border-0 rounded-3xl px-8 py-5 text-gray-900 font-black focus:ring-4 ring-indigo-50 transition-all placeholder:text-gray-300"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Recipient Email (Optional)</label>
+                  <input 
+                    type="email" 
+                    placeholder="For your records" 
+                    value={chequeFormData.recipientEmail}
+                    onChange={(e) => setChequeFormData({...chequeFormData, recipientEmail: e.target.value})}
+                    className="w-full bg-gray-50 border-0 rounded-3xl px-8 py-5 text-gray-900 font-bold focus:ring-4 ring-indigo-50 transition-all placeholder:text-gray-300"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Set 4-Digit PIN</label>
+                    <input 
+                      type="password" 
+                      maxLength={4}
+                      placeholder="••••" 
+                      value={chequeFormData.pin}
+                      onChange={(e) => setChequeFormData({...chequeFormData, pin: e.target.value})}
+                      className="w-full bg-gray-50 border-0 rounded-3xl px-8 py-5 text-gray-900 font-black text-center text-2xl tracking-[0.5em] focus:ring-4 ring-indigo-50 transition-all placeholder:text-gray-200"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Expiry (Days)</label>
+                    <select 
+                      value={chequeFormData.expiryDays}
+                      onChange={(e) => setChequeFormData({...chequeFormData, expiryDays: e.target.value})}
+                      className="w-full bg-gray-50 border-0 rounded-3xl px-8 py-5 text-gray-900 font-bold focus:ring-4 ring-indigo-50 transition-all"
+                    >
+                      <option value="1">1 Day</option>
+                      <option value="3">3 Days</option>
+                      <option value="7">7 Days</option>
+                      <option value="30">30 Days</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <Button type="submit" isLoading={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-6 rounded-3xl shadow-xl shadow-indigo-100 flex items-center justify-center space-x-3 transition-all transform active:scale-[0.98]">
+                <Banknote className="w-6 h-6" />
+                <span className="text-lg">Issue Digital Cheque</span>
+              </Button>
+            </form>
+          ) : (
+            <div className="py-8 space-y-8 text-center">
+              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Check className="w-10 h-10" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-gray-900 mb-2">Cheque Issued!</h3>
+                <p className="text-gray-500 font-medium">Share this link with the recipient to claim funds.</p>
+              </div>
+
+              <div className="bg-gray-50 p-6 rounded-[2.5rem] border border-gray-100 space-y-4">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Claim URL</p>
+                  <p className="text-sm font-mono font-bold text-indigo-600 break-all">
+                    {window.location.origin + window.location.pathname + '?tab=cheques&claim=' + issuedCheque.token}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => copyToClipboard(window.location.origin + window.location.pathname + '?tab=cheques&claim=' + issuedCheque.token)}
+                  className="w-full flex items-center justify-center space-x-2 py-4 bg-white border border-gray-200 rounded-2xl text-gray-900 font-bold hover:bg-gray-100 transition-all active:scale-[0.98]"
+                >
+                  <Copy className="w-4 h-4" />
+                  <span>Copy Claim Link</span>
+                </button>
+              </div>
+
+              <div className="p-6 bg-amber-50 rounded-3xl border border-amber-100 text-left flex items-start space-x-4">
+                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800 font-bold leading-relaxed">
+                  Security Reminder: Do not share the 4-digit PIN in the same message as the link. Funds are only safe if the PIN is kept secret.
+                </p>
+              </div>
+
+              <Button 
+                onClick={() => { setIsIssueChequeModalOpen(false); setIssuedCheque(null); }}
+                className="w-full bg-gray-900 hover:bg-black text-white font-black py-5 rounded-3xl transition-all"
+              >
+                Close & Return
+              </Button>
+            </div>
+          )}
+        </Popup>
+
+        {/* Claim Cheque Modal */}
+        <Popup isOpen={isClaimChequeModalOpen} onClose={() => { setIsClaimChequeModalOpen(false); setClaimingCheque(null); }} title="Claim a Cheque">
+          <form onSubmit={handleClaimCheque} className="space-y-6 py-6">
+            {!claimingCheque ? (
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Enter Cheque Token</label>
+                  <div className="flex space-x-2">
+                    <input 
+                      type="text" 
+                      placeholder="Enter the 12-char token" 
+                      value={claimChequeData.token}
+                      onChange={(e) => setClaimChequeData({...claimChequeData, token: e.target.value})}
+                      className="flex-1 bg-gray-50 border-0 rounded-3xl px-8 py-5 text-gray-900 font-mono font-bold focus:ring-4 ring-indigo-50 transition-all uppercase"
+                      required
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => fetchChequeDetails(claimChequeData.token)}
+                      disabled={loading || !claimChequeData.token}
+                      className="w-16 bg-white border border-gray-100 rounded-3xl flex items-center justify-center text-indigo-600 hover:bg-indigo-50 transition-all shadow-sm disabled:opacity-50"
+                    >
+                      {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="p-8 bg-gray-50 rounded-[2.5rem] border border-dashed border-gray-200 text-center">
+                  <p className="text-xs text-gray-400 font-medium leading-relaxed">
+                    Verify the cheque token first to see the amount and issuer before entering your PIN.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+                <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-green-100 relative overflow-hidden">
+                  <div className="relative z-10">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] mb-4 text-white/60">Verified Cheque Found</p>
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <h4 className="text-4xl font-black tracking-tighter mb-1">{formatPrice(claimingCheque.amount, claimingCheque.currency)}</h4>
+                        <p className="text-sm font-bold text-white/80">From: {claimingCheque.issuerName}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-white/60">Expires</p>
+                        <p className="font-bold">{new Date(claimingCheque.expiresAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="absolute -right-8 -top-8 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Enter Verification PIN</label>
+                  <input 
+                    type="password" 
+                    maxLength={4}
+                    placeholder="••••" 
+                    value={claimChequeData.pin}
+                    onChange={(e) => setClaimChequeData({...claimChequeData, pin: e.target.value})}
+                    className="w-full bg-gray-50 border-0 rounded-3xl px-8 py-5 text-gray-900 font-black text-center text-3xl tracking-[0.8em] focus:ring-4 ring-indigo-50 transition-all placeholder:text-gray-200"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex space-x-3">
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    className="flex-1 rounded-2xl font-black text-gray-400"
+                    onClick={() => setClaimingCheque(null)}
+                  >
+                    Back
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    isLoading={loading} 
+                    className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-black py-5 rounded-[2rem] shadow-xl shadow-indigo-100"
+                  >
+                    Claim Funds
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </form>
         </Popup>
 
         {/* Request Refund Modal */}

@@ -1,5 +1,14 @@
 -- Iyonicorp Database Schema
 
+-- Function to update the updated_at column
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -14,6 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
     last_selected_store_id UUID,
     role VARCHAR(50) NOT NULL CHECK (role IN ('seller', 'seller_manager', 'manager_admin', 'customer')),
     iyonicpay_opt_in BOOLEAN DEFAULT FALSE,
+    iyonicpay_theme VARCHAR(50) DEFAULT 'professional',
     avatar TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -32,15 +42,19 @@ CREATE TABLE IF NOT EXISTS sellers (
     return_policy TEXT,
     privacy_policy TEXT,
     terms_of_service TEXT,
+    requested_subdomain VARCHAR(255),
+    is_live BOOLEAN DEFAULT FALSE,
     additional_pages JSONB DEFAULT '[]'::JSONB,
     theme JSONB DEFAULT '{"primaryColor": "#3b82f6", "secondaryColor": "#1e40af", "fontFamily": "Inter"}'::JSONB,
     social_links JSONB DEFAULT '{"facebook": "", "instagram": "", "twitter": "", "linkedin": "", "youtube": "", "tiktok": ""}'::JSONB,
     contact_info JSONB DEFAULT '{"email": "", "phone": "", "address": "", "whatsapp": ""}'::JSONB,
+    payment_gateways JSONB DEFAULT '[]'::JSONB,
     currency VARCHAR(10) DEFAULT 'USD',
     delivery_locations JSONB DEFAULT '[]'::JSONB,
     payment_terms JSONB DEFAULT '{"methods": ["site"], "depositPercentage": 50, "rules": "all"}'::JSONB,
     subscription JSONB DEFAULT '{"plan": "starter", "status": "active", "startDate": null, "endDate": null}'::JSONB,
     stats JSONB DEFAULT '{"totalProducts": 0, "totalOrders": 0, "totalRevenue": 0, "totalCustomers": 0}'::JSONB,
+    manager_id UUID REFERENCES seller_managers(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -49,7 +63,22 @@ CREATE TABLE IF NOT EXISTS sellers (
 CREATE TABLE IF NOT EXISTS seller_managers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    slug VARCHAR(255) UNIQUE,
+    display_name VARCHAR(255),
+    description TEXT,
+    logo TEXT,
+    is_active BOOLEAN DEFAULT true,
     commission_rate DECIMAL(5, 2) DEFAULT 0.05,
+    pricing_config JSONB DEFAULT '{
+      "plans": {
+        "starter": {"price": 29, "status": "active", "features": ["Up to 50 products", "Basic analytics", "Email support"]},
+        "professional": {"price": 79, "status": "active", "features": ["Unlimited products", "Advanced analytics", "Priority support", "Custom domain"]},
+        "enterprise": {"price": 199, "status": "active", "features": ["Everything in Pro", "White-label options", "Dedicated support", "API access"]}
+      },
+      "currency": "USD",
+      "billingCycle": "monthly",
+      "customBranding": true
+    }'::JSONB,
     total_sellers INTEGER DEFAULT 0,
     active_sellers INTEGER DEFAULT 0,
     total_revenue DECIMAL(15, 2) DEFAULT 0,
@@ -86,6 +115,7 @@ CREATE TABLE IF NOT EXISTS customers (
     phone VARCHAR(50),
     total_orders INTEGER DEFAULT 0,
     total_spent DECIMAL(15, 2) DEFAULT 0,
+    manager_id UUID REFERENCES seller_managers(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, seller_id)
@@ -108,6 +138,27 @@ CREATE TABLE IF NOT EXISTS orders (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- IyonicPay Invoices
+CREATE TABLE IF NOT EXISTS invoices (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
+    amount DECIMAL(15, 2) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'USD',
+    description TEXT,
+    theme VARCHAR(50) DEFAULT 'professional',
+    link_token VARCHAR(50) UNIQUE NOT NULL,
+    status VARCHAR(50) DEFAULT 'unpaid' CHECK (status IN ('unpaid', 'paid', 'cancelled')),
+    is_reusable BOOLEAN DEFAULT FALSE,
+    usage_limit INTEGER DEFAULT NULL,
+    usage_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TRIGGER IF EXISTS update_invoices_updated_at ON invoices;
+CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON invoices FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
 -- Refund Requests table
 CREATE TABLE IF NOT EXISTS refund_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -122,15 +173,6 @@ CREATE TABLE IF NOT EXISTS refund_requests (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
--- Function to update the updated_at column
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
 
 -- Reviews table
 CREATE TABLE IF NOT EXISTS reviews (
@@ -192,6 +234,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     sender_wallet_id UUID REFERENCES wallets(id) ON DELETE SET NULL,
     receiver_wallet_id UUID REFERENCES wallets(id) ON DELETE SET NULL,
     amount DECIMAL(15, 2) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'USD',
     invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL,
     order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
     type VARCHAR(50) CHECK (type IN ('send', 'receive', 'request', 'deposit', 'withdrawal', 'invoice_payment', 'refund')),
@@ -217,27 +260,6 @@ CREATE TABLE IF NOT EXISTS withdrawals (
 DROP TRIGGER IF EXISTS update_withdrawals_updated_at ON withdrawals;
 CREATE TRIGGER update_withdrawals_updated_at BEFORE UPDATE ON withdrawals FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
--- IyonicPay Invoices
-CREATE TABLE IF NOT EXISTS invoices (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    order_id UUID REFERENCES orders(id) ON DELETE SET NULL,
-    amount DECIMAL(15, 2) NOT NULL,
-    currency VARCHAR(10) DEFAULT 'USD',
-    description TEXT,
-    theme VARCHAR(50) DEFAULT 'professional',
-    link_token VARCHAR(50) UNIQUE NOT NULL,
-    status VARCHAR(50) DEFAULT 'unpaid' CHECK (status IN ('unpaid', 'paid', 'cancelled')),
-    is_reusable BOOLEAN DEFAULT FALSE,
-    usage_limit INTEGER DEFAULT NULL,
-    usage_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-DROP TRIGGER IF EXISTS update_invoices_updated_at ON invoices;
-CREATE TRIGGER update_invoices_updated_at BEFORE UPDATE ON invoices FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
-
 -- API Keys table
 CREATE TABLE IF NOT EXISTS api_keys (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -256,6 +278,7 @@ CREATE TABLE IF NOT EXISTS bots (
     status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     training_data TEXT,
     deployments INTEGER DEFAULT 0,
+    interactions INTEGER DEFAULT 0,
     last_trained TIMESTAMP WITH TIME ZONE,
     widget_config JSONB DEFAULT '{"primaryColor": "#3b82f6", "greeting": "Hello! How can I help you today?", "bubbleIcon": "MessageSquare"}'::JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -264,6 +287,35 @@ CREATE TABLE IF NOT EXISTS bots (
 
 DROP TRIGGER IF EXISTS update_bots_updated_at ON bots;
 CREATE TRIGGER update_bots_updated_at BEFORE UPDATE ON bots FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- Discounts table
+CREATE TABLE IF NOT EXISTS discounts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+    code VARCHAR(100),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    type VARCHAR(50) NOT NULL CHECK (type IN ('percentage', 'fixed_amount', 'buy_x_get_y', 'free_shipping', 'cross_discount')),
+    value DECIMAL(15, 2) DEFAULT 0,
+    min_requirement JSONB DEFAULT NULL,
+    buy_x_get_y JSONB DEFAULT NULL,
+    cross_discount JSONB DEFAULT NULL,
+    applies_to VARCHAR(50) NOT NULL CHECK (applies_to IN ('all_products', 'specific_products', 'specific_categories')),
+    product_ids UUID[] DEFAULT NULL,
+    category_ids VARCHAR(100)[] DEFAULT NULL,
+    usage_limit INTEGER DEFAULT NULL,
+    usage_count INTEGER DEFAULT 0,
+    min_spend DECIMAL(15, 2) DEFAULT NULL,
+    min_quantity INTEGER DEFAULT NULL,
+    status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'scheduled', 'expired')),
+    start_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    end_date TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TRIGGER IF EXISTS update_discounts_updated_at ON discounts;
+CREATE TRIGGER update_discounts_updated_at BEFORE UPDATE ON discounts FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 -- Messages table (Contact Form submissions)
 CREATE TABLE IF NOT EXISTS messages (

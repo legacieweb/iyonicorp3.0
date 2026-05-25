@@ -71,7 +71,7 @@ export const Popup: React.FC<PopupProps> = ({
               exit={currentVariant.exit}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
               className={twMerge(
-                'pointer-events-auto w-full bg-white shadow-2xl overflow-hidden flex flex-col transition-all duration-300',
+                'pointer-events-auto w-full bg-white shadow-2xl overflow-hidden flex flex-col transition-all duration-300 max-h-full md:max-h-[90vh]',
                 position === 'center' ? twMerge('rounded-none md:rounded-3xl', sizes[size]) : '',
                 position === 'right' ? 'h-full max-w-full md:max-w-md' : '',
                 position === 'bottom' ? 'max-w-full md:max-w-3xl mx-auto rounded-t-3xl' : '',

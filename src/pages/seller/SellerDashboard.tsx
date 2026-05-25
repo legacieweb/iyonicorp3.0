@@ -1165,10 +1165,18 @@ export const SellerDashboard: React.FC = () => {
           secondaryColor: '#1e40af',
           fontFamily: 'Inter'
         },
-        paymentGateways: seller.paymentGateways || {
-          active: 'iyonicpay',
-          iyonicpay: { enabled: true },
-          custom: { enabled: false, provider: '', apiKey: '', publicKey: '', link: '' }
+        paymentGateways: {
+          active: seller.paymentGateways?.active || 'iyonicpay',
+          iyonicpay: { 
+            enabled: seller.paymentGateways?.iyonicpay?.enabled ?? true 
+          },
+          custom: { 
+            enabled: seller.paymentGateways?.custom?.enabled ?? false,
+            provider: seller.paymentGateways?.custom?.provider || '',
+            apiKey: seller.paymentGateways?.custom?.apiKey || '',
+            publicKey: seller.paymentGateways?.custom?.publicKey || '',
+            link: seller.paymentGateways?.custom?.link || ''
+          }
         },
         deliveryLocations: seller.deliveryLocations || [],
         paymentTerms: seller.paymentTerms || {
@@ -1496,7 +1504,7 @@ export const SellerDashboard: React.FC = () => {
       const starterGateways = {
         active: 'iyonicpay',
         iyonicpay: { enabled: true },
-        custom: { ...settingsForm.paymentGateways.custom, enabled: false }
+        custom: { ...settingsForm.paymentGateways?.custom, enabled: false }
       };
       updateSection('paymentGateways', { paymentGateways: starterGateways });
     } else {
@@ -3126,7 +3134,7 @@ export const SellerDashboard: React.FC = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* IyonicPay (Default) */}
-                  <Card className={`border-2 transition-all duration-300 ${settingsForm.paymentGateways.active === 'iyonicpay' ? 'border-indigo-600 shadow-xl shadow-indigo-100' : 'border-transparent shadow-md'}`}>
+                  <Card className={`border-2 transition-all duration-300 ${settingsForm.paymentGateways?.active === 'iyonicpay' ? 'border-indigo-600 shadow-xl shadow-indigo-100' : 'border-transparent shadow-md'}`}>
                     <div className="p-8">
                       <div className="flex items-center justify-between mb-8">
                         <div className="flex items-center gap-4">
@@ -3139,23 +3147,23 @@ export const SellerDashboard: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          <Badge variant={settingsForm.paymentGateways.iyonicpay.enabled ? 'success' : 'default'}>
-                            {settingsForm.paymentGateways.iyonicpay.enabled ? 'Enabled' : 'Disabled'}
+                          <Badge variant={settingsForm.paymentGateways.iyonicpay?.enabled ? 'success' : 'default'}>
+                            {settingsForm.paymentGateways.iyonicpay?.enabled ? 'Enabled' : 'Disabled'}
                           </Badge>
                           <label className="relative inline-flex items-center cursor-pointer">
                             <input 
                               type="checkbox" 
                               className="sr-only peer"
-                              checked={settingsForm.paymentGateways.iyonicpay.enabled}
+                              checked={settingsForm.paymentGateways.iyonicpay?.enabled}
                               onChange={(e) => {
                                 const isChecked = e.target.checked;
                                 setSettingsForm({
                                   ...settingsForm,
                                   paymentGateways: {
                                     ...settingsForm.paymentGateways,
-                                    active: isChecked ? 'iyonicpay' : (settingsForm.paymentGateways.custom.enabled ? 'custom' : 'iyonicpay'),
+                                    active: isChecked ? 'iyonicpay' : (settingsForm.paymentGateways?.custom?.enabled ? 'custom' : 'iyonicpay'),
                                     iyonicpay: { enabled: isChecked },
-                                    custom: { ...settingsForm.paymentGateways.custom, enabled: isChecked ? false : settingsForm.paymentGateways.custom.enabled }
+                                    custom: { ...settingsForm.paymentGateways?.custom, enabled: isChecked ? false : !!settingsForm.paymentGateways?.custom?.enabled }
                                   }
                                 });
                               }}
@@ -3178,19 +3186,19 @@ export const SellerDashboard: React.FC = () => {
 
                       <Button 
                         fullWidth
-                        variant={settingsForm.paymentGateways.active === 'iyonicpay' ? 'primary' : 'outline'}
+                        variant={settingsForm.paymentGateways?.active === 'iyonicpay' ? 'primary' : 'outline'}
                         onClick={() => setSettingsForm({
                           ...settingsForm,
                           paymentGateways: { ...settingsForm.paymentGateways, active: 'iyonicpay' }
                         })}
                       >
-                        {settingsForm.paymentGateways.active === 'iyonicpay' ? 'Currently Active Gateway' : 'Set as Active Gateway'}
+                        {settingsForm.paymentGateways?.active === 'iyonicpay' ? 'Currently Active Gateway' : 'Set as Active Gateway'}
                       </Button>
                     </div>
                   </Card>
 
                   {/* Custom Provider */}
-                  <Card className={`border-2 transition-all duration-300 ${settingsForm.paymentGateways.active === 'custom' ? 'border-emerald-600 shadow-xl shadow-emerald-100' : 'border-transparent shadow-md'} ${seller?.subscription?.plan === 'starter' ? 'opacity-50 grayscale pointer-events-none' : ''}`}>
+                  <Card className={`border-2 transition-all duration-300 ${settingsForm.paymentGateways?.active === 'custom' ? 'border-emerald-600 shadow-xl shadow-emerald-100' : 'border-transparent shadow-md'} ${seller?.subscription?.plan === 'starter' ? 'opacity-50 grayscale pointer-events-none' : ''}`}>
                     <div className="p-8 relative">
                       {seller?.subscription?.plan === 'starter' && (
                         <div className="absolute inset-0 z-10 flex items-center justify-center p-6 text-center">
@@ -3215,23 +3223,23 @@ export const SellerDashboard: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          <Badge variant={settingsForm.paymentGateways.custom.enabled ? 'success' : 'default'}>
-                            {settingsForm.paymentGateways.custom.enabled ? 'Enabled' : 'Disabled'}
+                          <Badge variant={settingsForm.paymentGateways.custom?.enabled ? 'success' : 'default'}>
+                            {settingsForm.paymentGateways.custom?.enabled ? 'Enabled' : 'Disabled'}
                           </Badge>
                           <label className="relative inline-flex items-center cursor-pointer">
                             <input 
                               type="checkbox" 
                               className="sr-only peer"
-                              checked={settingsForm.paymentGateways.custom.enabled}
+                              checked={settingsForm.paymentGateways.custom?.enabled}
                               onChange={(e) => {
                                 const isChecked = e.target.checked;
                                 setSettingsForm({
                                   ...settingsForm,
                                   paymentGateways: {
                                     ...settingsForm.paymentGateways,
-                                    active: isChecked ? 'custom' : (settingsForm.paymentGateways.iyonicpay.enabled ? 'iyonicpay' : 'custom'),
-                                    custom: { ...settingsForm.paymentGateways.custom, enabled: isChecked },
-                                    iyonicpay: { enabled: isChecked ? false : settingsForm.paymentGateways.iyonicpay.enabled }
+                                    active: isChecked ? 'custom' : (settingsForm.paymentGateways.iyonicpay?.enabled ? 'iyonicpay' : 'custom'),
+                                    custom: { ...settingsForm.paymentGateways?.custom, enabled: isChecked },
+                                    iyonicpay: { enabled: isChecked ? false : !!settingsForm.paymentGateways.iyonicpay?.enabled }
                                   }
                                 });
                               }}
@@ -3250,12 +3258,12 @@ export const SellerDashboard: React.FC = () => {
                             { value: 'stripe', label: 'Stripe' },
                             { value: 'paypal', label: 'PayPal' },
                           ]}
-                          value={settingsForm.paymentGateways.custom.provider}
+                          value={settingsForm.paymentGateways.custom?.provider}
                           onChange={(e) => setSettingsForm({
                             ...settingsForm,
                             paymentGateways: {
                               ...settingsForm.paymentGateways,
-                              custom: { ...settingsForm.paymentGateways.custom, provider: e.target.value }
+                              custom: { ...settingsForm.paymentGateways?.custom, provider: e.target.value }
                             }
                           })}
                         />
@@ -3263,12 +3271,12 @@ export const SellerDashboard: React.FC = () => {
                           label="API Secret Key"
                           placeholder="sk_live_..."
                           type="password"
-                          value={settingsForm.paymentGateways.custom.apiKey}
+                          value={settingsForm.paymentGateways.custom?.apiKey}
                           onChange={(e) => setSettingsForm({
                             ...settingsForm,
                             paymentGateways: {
                               ...settingsForm.paymentGateways,
-                              custom: { ...settingsForm.paymentGateways.custom, apiKey: e.target.value }
+                              custom: { ...settingsForm.paymentGateways?.custom, apiKey: e.target.value }
                             }
                           })}
                           helperText="Required for server-side initialization (e.g., sk_live_...)"
@@ -3276,12 +3284,12 @@ export const SellerDashboard: React.FC = () => {
                         <Input 
                           label="API Public Key"
                           placeholder="pk_live_..."
-                          value={settingsForm.paymentGateways.custom.publicKey || ''}
+                          value={settingsForm.paymentGateways.custom?.publicKey || ''}
                           onChange={(e) => setSettingsForm({
                             ...settingsForm,
                             paymentGateways: {
                               ...settingsForm.paymentGateways,
-                              custom: { ...settingsForm.paymentGateways.custom, publicKey: e.target.value }
+                              custom: { ...settingsForm.paymentGateways?.custom, publicKey: e.target.value }
                             }
                           })}
                           helperText="Required for frontend payment popup (e.g., pk_live_...)"
@@ -3289,12 +3297,12 @@ export const SellerDashboard: React.FC = () => {
                         <Input 
                           label="Direct Payment Link (Optional)"
                           placeholder="https://paystack.com/pay/..."
-                          value={settingsForm.paymentGateways.custom.link}
+                          value={settingsForm.paymentGateways.custom?.link}
                           onChange={(e) => setSettingsForm({
                             ...settingsForm,
                             paymentGateways: {
                               ...settingsForm.paymentGateways,
-                              custom: { ...settingsForm.paymentGateways.custom, link: e.target.value }
+                              custom: { ...settingsForm.paymentGateways?.custom, link: e.target.value }
                             }
                           })}
                         />

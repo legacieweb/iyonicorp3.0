@@ -47,9 +47,33 @@ const IyonicBots: React.FC = () => {
 
   // Bot states
   const [availableBots] = useState([
-    { id: 'support-pro', name: 'SupportPro', desc: 'Expert customer service bot trained for e-commerce.', icon: <MessageSquare className="w-6 h-6" />, category: 'Support' },
-    { id: 'sales-genie', name: 'SalesGenie', desc: 'Aggressive sales assistant that drives conversions.', icon: <Zap className="w-6 h-6" />, category: 'Sales' },
-    { id: 'tech-guru', name: 'TechGuru', desc: 'Technical documentation specialist and debugger.', icon: <Terminal className="w-6 h-6" />, category: 'Technical' },
+    { 
+      id: 'support-pro', 
+      name: 'SupportPro', 
+      desc: 'Expert customer service bot trained for e-commerce. Handles returns, shipping queries, and product FAQs with empathy.', 
+      icon: <MessageSquare className="w-8 h-8" />, 
+      category: 'Support',
+      color: 'bg-blue-50 text-blue-600',
+      features: ['24/7 Availability', 'Policy Awareness', 'Sentiment Analysis']
+    },
+    { 
+      id: 'sales-genie', 
+      name: 'SalesGenie', 
+      desc: 'Aggressive sales assistant that drives conversions. Specialized in upselling, cross-selling, and creating urgency.', 
+      icon: <Zap className="w-8 h-8" />, 
+      category: 'Sales',
+      color: 'bg-amber-50 text-amber-600',
+      features: ['Upsell Engine', 'Discount Logic', 'Abandoned Cart Recovery']
+    },
+    { 
+      id: 'tech-guru', 
+      name: 'TechGuru', 
+      desc: 'Technical documentation specialist and debugger. Perfect for SaaS and tech products needing complex explanations.', 
+      icon: <Terminal className="w-8 h-8" />, 
+      category: 'Technical',
+      color: 'bg-purple-50 text-purple-600',
+      features: ['API Docs Support', 'Troubleshooting', 'Version Control Tracking']
+    },
   ]);
 
   const [myBots, setMyBots] = useState<any[]>([]);
@@ -361,7 +385,9 @@ const IyonicBots: React.FC = () => {
                         <div className="flex justify-between items-start mb-12">
                           <div>
                             <p className="text-gray-400 text-xs font-black uppercase tracking-[0.2em] mb-3">Active Bot Interactions</p>
-                            <h2 className="text-6xl font-black tracking-tighter">8,420</h2>
+                            <h2 className="text-6xl font-black tracking-tighter">
+                              {myBots.reduce((sum, b) => sum + (b.interactions || 0), 0).toLocaleString()}
+                            </h2>
                           </div>
                           <div className="w-16 h-10 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 flex items-center justify-center">
                             <Bot className="w-6 h-6" />
@@ -410,16 +436,30 @@ const IyonicBots: React.FC = () => {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {availableBots.map(bot => (
-                        <Card key={bot.id} className="hover:shadow-2xl transition-all cursor-pointer group rounded-[2.5rem] border-none shadow-lg">
-                          <div className="p-2">
-                            <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                        <Card 
+                          key={bot.id} 
+                          className="hover:shadow-2xl transition-all cursor-pointer group rounded-[2.5rem] border-none shadow-lg overflow-hidden bg-white"
+                          onClick={() => {
+                            setNewBotData({...newBotData, type: bot.id});
+                            setIsCreatePopupOpen(true);
+                          }}
+                        >
+                          <div className="p-8">
+                            <div className={`w-14 h-14 ${bot.color} rounded-2xl flex items-center justify-center mb-6 group-hover:bg-blue-600 group-hover:text-white transition-all`}>
                               {bot.icon}
                             </div>
                             <h4 className="text-xl font-black text-gray-900 mb-2">{bot.name}</h4>
-                            <p className="text-sm text-gray-500 font-medium mb-6 leading-relaxed">{bot.desc}</p>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1 rounded-full">{bot.category}</span>
-                              <Button size="sm" variant="ghost" className="rounded-full">Select <ChevronRight className="ml-1 w-4 h-4" /></Button>
+                            <p className="text-sm text-gray-500 font-medium mb-6 leading-relaxed line-clamp-2">{bot.desc}</p>
+                            
+                            <div className="flex flex-wrap gap-2 mb-6">
+                              {bot.features.slice(0, 2).map((f: string) => (
+                                <span key={f} className="text-[9px] font-black uppercase tracking-tighter bg-gray-50 px-2 py-0.5 rounded-full text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">{f}</span>
+                              ))}
+                            </div>
+
+                            <div className="flex items-center justify-between pt-6 border-t border-gray-50">
+                              <span className="text-xs font-black uppercase tracking-widest text-blue-600">{bot.category}</span>
+                              <Button size="sm" variant="ghost" className="rounded-full font-black text-xs">Deploy <ChevronRight className="ml-1 w-4 h-4" /></Button>
                             </div>
                           </div>
                         </Card>
@@ -473,6 +513,10 @@ const IyonicBots: React.FC = () => {
                               </div>
                               
                               <div className="flex items-center space-x-8">
+                                <div className="text-center">
+                                  <p className="text-xl font-black text-gray-900">{bot.interactions || 0}</p>
+                                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Interactions</p>
+                                </div>
                                 <div className="text-center">
                                   <p className="text-xl font-black text-gray-900">{bot.deployments}</p>
                                   <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Deployments</p>
@@ -756,22 +800,36 @@ const IyonicBots: React.FC = () => {
               onChange={(e) => setNewBotData({...newBotData, name: e.target.value})}
             />
             <div className="space-y-2">
-              <label className="text-xs font-black uppercase tracking-widest text-gray-400 block ml-1">Bot Type</label>
-              <div className="grid grid-cols-1 gap-3">
+              <label className="text-xs font-black uppercase tracking-widest text-gray-400 block ml-1">Bot Personality & Template</label>
+              <div className="grid grid-cols-1 gap-4">
                 {availableBots.map(bot => (
                   <button 
                     key={bot.id}
                     onClick={() => setNewBotData({...newBotData, type: bot.id})}
-                    className={`p-4 rounded-2xl border-2 text-left flex items-center space-x-4 transition-all ${
-                      newBotData.type === bot.id ? 'border-blue-600 bg-blue-50 shadow-md' : 'border-gray-100 hover:border-gray-200'
+                    className={`p-6 rounded-[2rem] border-2 text-left flex items-start space-x-6 transition-all duration-300 ${
+                      newBotData.type === bot.id 
+                        ? 'border-blue-600 bg-blue-50 shadow-xl shadow-blue-100' 
+                        : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                     }`}
                   >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${newBotData.type === bot.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-400'}`}>
+                    <div className={`w-14 h-14 rounded-2xl flex-shrink-0 flex items-center justify-center transition-colors ${
+                      newBotData.type === bot.id ? 'bg-blue-600 text-white' : bot.color
+                    }`}>
                       {bot.icon}
                     </div>
                     <div>
-                      <p className="font-bold text-gray-900">{bot.name}</p>
-                      <p className="text-xs text-gray-500">{bot.desc}</p>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="font-black text-gray-900 text-lg">{bot.name}</p>
+                        {newBotData.type === bot.id && (
+                          <span className="text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white px-2 py-1 rounded-md">Selected</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-500 font-medium leading-relaxed mb-3">{bot.desc}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {bot.features.slice(0, 2).map((f: string) => (
+                          <span key={f} className="text-[9px] font-black uppercase tracking-tighter bg-white/50 border border-gray-100 px-2 py-0.5 rounded-full text-gray-400">{f}</span>
+                        ))}
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -945,6 +1003,48 @@ const IyonicBots: React.FC = () => {
               <p className="text-gray-500 font-medium leading-relaxed">{feature.desc}</p>
             </motion.div>
           ))}
+        </div>
+      </section>
+
+      {/* Bot Templates Section */}
+      <section id="templates" className="px-6 py-32 bg-gray-50/50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center max-w-3xl mx-auto mb-20">
+            <h2 className="text-5xl font-black text-gray-900 mb-6 tracking-tighter">Available Bot Templates</h2>
+            <p className="text-lg text-gray-500 font-medium">Choose a specialized agent personality for your specific business needs.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+            {availableBots.map((bot) => (
+              <motion.div 
+                key={bot.id}
+                whileHover={{ y: -10 }}
+                className="bg-white rounded-[3.5rem] p-10 border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 flex flex-col"
+              >
+                <div className={`w-20 h-20 ${bot.color} rounded-3xl flex items-center justify-center mb-10 shadow-lg`}>
+                  {bot.icon}
+                </div>
+                <h3 className="text-3xl font-black text-gray-900 mb-4">{bot.name}</h3>
+                <p className="text-gray-500 font-medium mb-8 flex-1 leading-relaxed">{bot.desc}</p>
+                
+                <div className="space-y-3 mb-10">
+                  {bot.features.map((feature: string, idx: number) => (
+                    <div key={idx} className="flex items-center space-x-3 text-sm font-bold text-gray-600">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Button 
+                  onClick={() => setIsRegisterPopupOpen(true)}
+                  className="w-full py-6 rounded-[2rem] bg-gray-900 hover:bg-black text-white font-black"
+                >
+                  Deploy {bot.name}
+                </Button>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 

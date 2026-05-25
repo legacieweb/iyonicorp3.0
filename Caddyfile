@@ -1,0 +1,17 @@
+https://iyonicorp.test, https://sellermuutu.test {
+    # Force Caddy to use internal self-signed local SSL certificates
+    tls internal
+
+    # Proxy all traffic to your Vite frontend server running on port 5173
+    reverse_proxy localhost:5173 {
+        # Modern header definitions for full proxy support
+        header_up Host {header.Host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        
+        # Enable WebSocket connections (Crucial for Vite dev scripts to load)
+        header_up Upgrade {header.Upgrade}
+        header_up Connection {header.Connection}
+    }
+}

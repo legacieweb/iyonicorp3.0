@@ -122,7 +122,7 @@ const seedDefaultTemplates = async () => {
 {{items}}
 </div>
 
-<p style="font-size: 18px; font-weight: bold; text-align: right;">Total: ${{orderTotal}}</p>
+<p style="font-size: 18px; font-weight: bold; text-align: right;">Total: \${{orderTotal}}</p>
 
 <p style="margin-top: 30px;">We will notify you when your order ships.</p>
 <p style="color: #888; font-size: 12px; margin-top: 40px;">Thank you for shopping with us!</p>
@@ -178,7 +178,7 @@ const seedDefaultTemplates = async () => {
 {{items}}
 </div>
 
-<p style="font-size: 18px; font-weight: bold; text-align: right;">Order Total: ${{orderTotal}}</p>
+<p style="font-size: 18px; font-weight: bold; text-align: right;">Order Total: \${{orderTotal}}</p>
 
 <p style="margin-top: 30px;">Thank you for your patience!</p>
 </div>`,
@@ -1354,6 +1354,153 @@ app.post('/api/iyonicpay/send', authenticateToken, async (req, res) => {
     res.status(500).json({ message: err.message || 'Server error' });
   } finally {
     client.release();
+  }
+});
+
+// --- Cheque Routes ---
+
+// Issue a cheque
+app.post('/api/iyonicpay/cheques/issue', authenticateToken, async (req, res) => {
+  const { amount, pin, recipientEmail, expiryDays = 7 } = req.body;
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Get issuer wallet
+    const issuerWalletRes = await client.query('SELECT id, balance FROM wallets WHERE user_id = $1', [req.user.id]);
+    if (issuerWalletRes.rows.length === 0) throw new Error('Wallet not found');
+    const issuerWallet = issuerWalletRes.rows[0];
+
+    if (parseFloat(issuerWallet.balance) < parseFloat(amount)) {
+      return res.status(400).json({ message: 'Insufficient funds in wallet' });
+    }
+
+    // Hash the PIN
+    const salt = await bcrypt.genSalt(10);
+    const pinHash = await bcrypt.hash(pin.toString(), salt);
+
+    // Generate unique token
+    const token = nanoid(12);
+
+    // Calculate expiry
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + parseInt(expiryDays));
+
+    // Deduct from wallet immediately (escrow)
+    await client.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [amount, issuerWallet.id]);
+
+    // Create cheque
+    const chequeRes = await client.query(
+      'INSERT INTO cheques (issuer_id, recipient_email, amount, token, pin_hash, expires_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [req.user.id, recipientEmail, amount, token, pinHash, expiresAt]
+    );
+
+    // Record transaction
+    await client.query(`
+      INSERT INTO transactions (sender_wallet_id, amount, type, status, description) 
+      VALUES ($1, $2, 'withdrawal', 'completed', $3)
+    `, [issuerWallet.id, amount, `Issued cheque ${token}`]);
+
+    await client.query('COMMIT');
+    res.status(201).json(toCamel(chequeRes.rows[0]));
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Issue Cheque Error:', err);
+    res.status(500).json({ message: 'Failed to issue cheque', error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Get cheque details (Public-ish)
+app.get('/api/iyonicpay/cheques/:token', async (req, res) => {
+  try {
+    const chequeRes = await db.query(`
+      SELECT c.amount, c.status, c.expires_at, u.name as issuer_name 
+      FROM cheques c 
+      JOIN users u ON c.issuer_id = u.id 
+      WHERE c.token = $1
+    `, [req.params.token]);
+
+    if (chequeRes.rows.length === 0) return res.status(404).json({ message: 'Cheque not found' });
+    
+    const cheque = chequeRes.rows[0];
+    if (cheque.status !== 'issued') return res.status(400).json({ message: `Cheque is already ${cheque.status}` });
+    if (new Date(cheque.expires_at) < new Date()) return res.status(400).json({ message: 'Cheque has expired' });
+
+    res.json(toCamel(cheque));
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Claim a cheque
+app.post('/api/iyonicpay/cheques/:token/claim', authenticateToken, async (req, res) => {
+  const { pin } = req.body;
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Get cheque
+    const chequeRes = await client.query('SELECT * FROM cheques WHERE token = $1', [req.params.token]);
+    if (chequeRes.rows.length === 0) return res.status(404).json({ message: 'Cheque not found' });
+    const cheque = chequeRes.rows[0];
+
+    if (cheque.status !== 'issued') return res.status(400).json({ message: `Cheque is already ${cheque.status}` });
+    if (new Date(cheque.expires_at) < new Date()) return res.status(400).json({ message: 'Cheque has expired' });
+
+    // Verify PIN
+    const isPinValid = await bcrypt.compare(pin.toString(), cheque.pin_hash);
+    if (!isPinValid) return res.status(400).json({ message: 'Invalid PIN' });
+
+    // Get claimer wallet
+    const claimerWalletRes = await client.query('SELECT id FROM wallets WHERE user_id = $1', [req.user.id]);
+    let claimerWalletId;
+    
+    if (claimerWalletRes.rows.length === 0) {
+      // Auto-create wallet if user opted in but wallet missing (rare)
+      const newWalletRes = await client.query('INSERT INTO wallets (user_id, balance) VALUES ($1, 0) RETURNING id', [req.user.id]);
+      claimerWalletId = newWalletRes.rows[0].id;
+    } else {
+      claimerWalletId = claimerWalletRes.rows[0].id;
+    }
+
+    // Update cheque status
+    await client.query(
+      'UPDATE cheques SET status = \'claimed\', claimed_by = $1, claimed_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [req.user.id, cheque.id]
+    );
+
+    // Add to claimer wallet
+    await client.query('UPDATE wallets SET balance = balance + $1 WHERE id = $2', [cheque.amount, claimerWalletId]);
+
+    // Record transaction
+    await client.query(`
+      INSERT INTO transactions (receiver_wallet_id, amount, type, status, description) 
+      VALUES ($1, $2, 'receive', 'completed', $3)
+    `, [claimerWalletId, cheque.amount, `Claimed cheque ${cheque.token}`]);
+
+    await client.query('COMMIT');
+    res.json({ message: 'Cheque claimed successfully', amount: cheque.amount });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Claim Cheque Error:', err);
+    res.status(500).json({ message: 'Failed to claim cheque', error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// List user cheques
+app.get('/api/iyonicpay/cheques', authenticateToken, async (req, res) => {
+  try {
+    const chequesRes = await db.query(
+      'SELECT * FROM cheques WHERE issuer_id = $1 OR claimed_by = $1 ORDER BY created_at DESC',
+      [req.user.id]
+    );
+    res.json(toCamel(chequesRes.rows));
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -4357,6 +4504,9 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
     const bot = botRes.rows[0];
     const sellerId = bot.seller_id;
     const trainingData = bot.training_data || '';
+
+    // Increment interaction count
+    await db.query('UPDATE bots SET interactions = interactions + 1 WHERE id = $1', [req.params.id]);
     
     let response = "";
     const lowerMessage = message.toLowerCase().trim();
@@ -4373,23 +4523,36 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
       returns: /\b(return|refund|exchange|back my money)\b/i
     };
 
+    // Bot type specific personality
+    const botPrefix = {
+      'support-pro': "As your support specialist, ",
+      'sales-genie': "Listen, I've got the best deals for you! ",
+      'tech-guru': "Analyzing technical specifications... "
+    }[bot.type] || "";
+
     // 1. Identity / Who are you
     if (patterns.identity.test(lowerMessage)) {
-      response = `I am ${bot.name}, your intelligent AI shopping assistant. I can help you find products, check prices, and recommend the best items for your needs. What can I help you with today?`;
+      if (bot.type === 'sales-genie') {
+        response = "I'm SalesGenie, and my only mission is to find you the absolute best products at prices you won't believe! What can I sell you today?";
+      } else if (bot.type === 'tech-guru') {
+        response = "I am TechGuru. I specialize in technical analysis, specifications, and ensuring you get the most efficient solution for your requirements.";
+      } else {
+        response = `I am ${bot.name}, your intelligent AI shopping assistant. I can help you find products, check prices, and recommend the best items for your needs. What can I help you with today?`;
+      }
     }
     // 2. Greeting
     else if (patterns.greeting.test(lowerMessage)) {
-      response = `Hello! I am ${bot.name}, your AI assistant. How can I help you find what you're looking for today?`;
+      response = `${botPrefix}Hello! I am ${bot.name}, your AI assistant. How can I help you find what you're looking for today?`;
     } 
     // 3. Shipping Info
     else if (patterns.shipping.test(lowerMessage)) {
       const sellerRes = await db.query('SELECT shipping_policy FROM sellers WHERE id = $1', [sellerId]);
-      response = sellerRes.rows[0]?.shipping_policy || "We offer standard shipping on all orders. Please proceed to checkout for specific rates and timelines.";
+      response = `${botPrefix}` + (sellerRes.rows[0]?.shipping_policy || "We offer standard shipping on all orders. Please proceed to checkout for specific rates and timelines.");
     }
     // 4. Return Info
     else if (patterns.returns.test(lowerMessage)) {
       const sellerRes = await db.query('SELECT return_policy FROM sellers WHERE id = $1', [sellerId]);
-      response = sellerRes.rows[0]?.return_policy || "Our return policy varies by product. Please contact our support team for any refund or exchange requests.";
+      response = `${botPrefix}` + (sellerRes.rows[0]?.return_policy || "Our return policy varies by product. Please contact our support team for any refund or exchange requests.");
     }
     // 5. Price Query for specific product
     else if (patterns.priceQuery.test(lowerMessage)) {
@@ -4401,15 +4564,15 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
         );
         if (productRes.rows.length > 0) {
           const p = productRes.rows[0];
-          response = `The ${p.name} costs $${p.price}. ${p.stock > 0 ? 'It is currently in stock!' : 'It is currently out of stock.'}`;
+          response = `${botPrefix}The ${p.name} costs $${p.price}. ${p.stock > 0 ? 'It is currently in stock!' : 'It is currently out of stock.'}`;
           if (p.images && p.images.length > 0) {
             response += `\nIMAGE: ${p.images[0]}`;
           }
         } else {
-          response = `I couldn't find the price for "${productName}". Let me show you our cheapest items instead?`;
+          response = `${botPrefix}I couldn't find the price for "${productName}". Let me show you our cheapest items instead?`;
         }
       } else {
-        response = "Which product's price would you like to know?";
+        response = `${botPrefix}Which product's price would you like to know?`;
       }
     }
     // 6. Intent: Cheapest Product
@@ -4419,14 +4582,14 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
         [sellerId]
       );
       if (cheapestRes.rows.length > 0) {
-        response = "I found these budget-friendly options for you:\n" + 
+        response = `${botPrefix}I found these budget-friendly options for you:\n` + 
           cheapestRes.rows.map(p => {
             let line = `• ${p.name}: $${p.price}`;
             if (p.images && p.images.length > 0) line += ` (IMAGE: ${p.images[0]})`;
             return line;
           }).join('\n');
       } else {
-        response = "I'm sorry, I couldn't find any items in stock right now.";
+        response = `${botPrefix}I'm sorry, I couldn't find any items in stock right now.`;
       }
     }
     // 7. Intent: Recommendations / "Best for"
@@ -4440,7 +4603,7 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
       );
       
       if (recommendRes.rows.length > 0) {
-        response = `Here are my top recommendations for ${searchTerms || 'you'}:\n` + 
+        response = `${botPrefix}Here are my top recommendations for ${searchTerms || 'you'}:\n` + 
           recommendRes.rows.map(p => {
             let line = `• ${p.name} ($${p.price}) - ${p.description.substring(0, 100)}...`;
             if (p.images && p.images.length > 0) line += `\nIMAGE: ${p.images[0]}`;
@@ -4448,7 +4611,7 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
           }).join('\n');
       } else {
         const popularRes = await db.query('SELECT name, price, images FROM products WHERE seller_id = $1 AND status = \'active\' AND stock > 0 LIMIT 3', [sellerId]);
-        response = `I couldn't find something specifically for "${searchTerms}", but check out our most popular items:\n` + 
+        response = `${botPrefix}I couldn't find something specifically for "${searchTerms}", but check out our most popular items:\n` + 
           popularRes.rows.map(p => {
             let line = `• ${p.name} ($${p.price})`;
             if (p.images && p.images.length > 0) line += ` (IMAGE: ${p.images[0]})`;
@@ -4464,12 +4627,12 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
       );
       if (productsRes.rows.length > 0) {
         const categories = productsRes.rows.map(r => r.category).join(', ');
-        response = `We have a great selection! We specialize in: ${categories}. Is there a specific category you're interested in?`;
+        response = `${botPrefix}We have a great selection! We specialize in: ${categories}. Is there a specific category you're interested in?`;
       } else {
-        response = "We have many exciting products! What are you looking for today?";
+        response = `${botPrefix}We have many exciting products! What are you looking for today?`;
       }
     }
-    // 7. Fallback to Training Data Keyword Matching (More granular)
+    // 9. Fallback to Training Data Keyword Matching (More granular)
     else if (trainingData) {
       const sentences = trainingData.split(/[.!\n]/).filter(s => s.trim().length > 10);
       const userWords = lowerMessage.split(/\s+/).filter(w => w.length > 3);
@@ -4481,12 +4644,12 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
       }).filter(s => s.score > 0).sort((a, b) => b.score - a.score);
       
       if (rankedSentences.length > 0) {
-        response = rankedSentences.slice(0, 2).map(s => s.sentence).join('. ') + '.';
+        response = `${botPrefix}` + rankedSentences.slice(0, 2).map(s => s.sentence).join('. ') + '.';
       } else {
-        response = `I'm here to help! I can answer questions about our products, prices, and categories. What would you like to know?`;
+        response = `${botPrefix}I'm here to help! I can answer questions about our products, prices, and categories. What would you like to know?`;
       }
     } else {
-      response = "I'm currently being trained to better assist you. Please ask about our products, categories, or the best deals!";
+      response = `${botPrefix}I'm currently being trained to better assist you. Please ask about our products, categories, or the best deals!`;
     }
     
     res.json({ response });

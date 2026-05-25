@@ -1618,27 +1618,27 @@ const InvoicePage: React.FC = () => {
   const renderLayout = () => {
     if (!invoice) return null;
     switch (activeTheme) {
-      case 'glassmorphism': return <GlassmorphismLayout />;
-      case 'neobrutalism': return <NeoBrutalismLayout />;
-      case 'terminal': return <TerminalLayout />;
-      case 'minimal': return <MinimalLayout />;
-      case 'luxury': return <LuxuryLayout />;
-      case 'cyber': return <CyberLayout />;
-      case 'sunset': return <SunsetLayout />;
-      case 'ocean': return <OceanLayout />;
-      case 'forest': return <ForestLayout />;
-      case 'retro': return <RetroLayout />;
-      case 'galaxy': return <GalaxyLayout />;
-      case 'holographic': return <HolographicLayout />;
-      case 'aurora': return <AuroraLayout />;
-      case 'liquid': return <LiquidLayout />;
-      case 'vaporwave': return <VaporwaveLayout />;
-      case 'matrix': return <MatrixLayout />;
-      case 'steampunk': return <SteampunkLayout />;
-      case 'underwater': return <UnderwaterLayout />;
-      case 'magma': return <MagmaLayout />;
-      case 'exclusive': return <ExclusiveLayout />;
-      default: return <ProfessionalLayout />;
+      case 'glassmorphism': return GlassmorphismLayout();
+      case 'neobrutalism': return NeoBrutalismLayout();
+      case 'terminal': return TerminalLayout();
+      case 'minimal': return MinimalLayout();
+      case 'luxury': return LuxuryLayout();
+      case 'cyber': return CyberLayout();
+      case 'sunset': return SunsetLayout();
+      case 'ocean': return OceanLayout();
+      case 'forest': return ForestLayout();
+      case 'retro': return RetroLayout();
+      case 'galaxy': return GalaxyLayout();
+      case 'holographic': return HolographicLayout();
+      case 'aurora': return AuroraLayout();
+      case 'liquid': return LiquidLayout();
+      case 'vaporwave': return VaporwaveLayout();
+      case 'matrix': return MatrixLayout();
+      case 'steampunk': return SteampunkLayout();
+      case 'underwater': return UnderwaterLayout();
+      case 'magma': return MagmaLayout();
+      case 'exclusive': return ExclusiveLayout();
+      default: return ProfessionalLayout();
     }
   };
 
@@ -1871,7 +1871,7 @@ const InvoicePage: React.FC = () => {
         )}
       </AnimatePresence>
       {renderLayout()}
-      <RefundPopup />
+      {RefundPopup()}
     </div>
   );
 };
