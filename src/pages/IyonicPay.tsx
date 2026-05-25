@@ -1084,19 +1084,19 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
                 <Card key={c.id} className="rounded-[2.5rem] border-none shadow-lg hover:shadow-2xl transition-all group overflow-hidden bg-white">
                   <div className="p-8">
                     <div className="flex justify-between items-start mb-6">
-                      <div className={`p-3 rounded-2xl ${c.issuerId === user.id ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'}`}>
+                      <div className={`p-3 rounded-2xl ${c.issuerId === user?.id ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'}`}>
                         <Banknote className="w-6 h-6" />
                       </div>
-                      <Badge variant={c.status === 'issued' ? 'warning' : c.status === 'claimed' ? 'success' : 'secondary'}>
+                      <Badge variant={c.status === 'issued' ? 'warning' : c.status === 'claimed' ? 'success' : 'default'}>
                         {c.status.toUpperCase()}
                       </Badge>
                     </div>
                     
                     <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">
-                      {c.issuerId === user.id ? 'To Recipient' : 'From Issuer'}
+                      {c.issuerId === user?.id ? 'To Recipient' : 'From Issuer'}
                     </h5>
                     <p className="font-black text-gray-900 mb-4 truncate">
-                      {c.issuerId === user.id ? (c.recipientEmail || 'Anyone with PIN') : (c.issuerName || 'Merchant')}
+                      {c.issuerId === user?.id ? (c.recipientEmail || 'Anyone with PIN') : (c.issuerName || 'Merchant')}
                     </p>
                     
                     <div className="flex justify-between items-end">
@@ -1116,7 +1116,7 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
                           >
                             <Link2 className="w-4 h-4" />
                           </button>
-                          {c.issuerId === user.id ? (
+                          {c.issuerId === user?.id ? (
                             <button 
                               onClick={() => {
                                 navigator.clipboard.writeText(c.token);
@@ -1143,7 +1143,7 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
                       )}
                     </div>
                     
-                    {c.status === 'issued' && c.issuerId === user.id && (
+                    {c.status === 'issued' && c.issuerId === user?.id && (
                       <div className="mt-6 pt-6 border-t border-gray-50">
                         <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-2">Cheque Token</p>
                         <div className="bg-gray-50 p-3 rounded-xl font-mono text-sm text-center text-gray-600 border border-gray-100 font-bold">
