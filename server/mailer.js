@@ -313,3 +313,83 @@ export const sendRefundRequestEmail = async (customer, seller, order, adminEmail
     await sendEmail({ to: adminEmail, subject: adminSubject, html: adminHtml });
   }
 };
+
+// Cheque Emails
+export const sendChequeIssuedEmail = async ({ issuer, recipientEmail, amount, currency, token, pin, includePin }) => {
+  const amountFormatted = `${currency} ${amount}`;
+  const claimUrl = `${process.env.VITE_APP_URL}/#/iyonicpay?tab=cheques&claim=${token}`;
+
+  // To Issuer
+  const issuerSubject = `Digital Cheque Issued - ${amountFormatted}`;
+  const issuerHtml = `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #4f46e5;">Cheque Issued Successfully</h2>
+      <p>You have issued a digital cheque for <strong>${amountFormatted}</strong>.</p>
+      <p><strong>Recipient:</strong> ${recipientEmail || 'Anyone with the link & PIN'}</p>
+      <p><strong>Token:</strong> ${token}</p>
+      <p><strong>Claim Link:</strong> <a href="${claimUrl}">${claimUrl}</a></p>
+      <p style="color: #ef4444; font-weight: bold;">Security: Keep your PIN secret unless you've chosen to include it in the recipient's email.</p>
+    </div>
+  `;
+  await sendEmail({ to: issuer.email, subject: issuerSubject, html: issuerHtml });
+
+  // To Recipient (if email provided)
+  if (recipientEmail) {
+    const recipientSubject = `You received a Digital Cheque - ${amountFormatted}`;
+    const recipientHtml = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h2 style="color: #10b981;">Funds Received!</h2>
+        <p><strong>${issuer.name}</strong> has sent you a digital cheque for <strong>${amountFormatted}</strong>.</p>
+        <p>You can claim this money directly into your IyonicPay wallet.</p>
+        <div style="background: #f3f4f6; padding: 20px; border-radius: 10px; margin: 20px 0;">
+          <p><strong>Token:</strong> ${token}</p>
+          ${includePin ? `<p><strong>Security PIN:</strong> ${pin}</p>` : '<p><em>Please ask the sender for the 4-digit security PIN to claim.</em></p>'}
+          <p style="margin-top: 15px;"><a href="${claimUrl}" style="background: #4f46e5; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold;">Claim My Funds</a></p>
+        </div>
+        <p style="font-size: 12px; color: #666;">New to IyonicPay? Simply create an account after clicking the link above to claim your money.</p>
+      </div>
+    `;
+    await sendEmail({ to: recipientEmail, subject: recipientSubject, html: recipientHtml });
+  }
+};
+
+export const sendChequeClaimedEmail = async ({ issuer, claimer, amount, currency, token }) => {
+  const amountFormatted = `${currency} ${amount}`;
+
+  // To Issuer
+  const issuerSubject = `Cheque Claimed - ${amountFormatted}`;
+  const issuerHtml = `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #10b981;">Cheque Cashed Out!</h2>
+      <p>The digital cheque you issued (Token: ${token}) for <strong>${amountFormatted}</strong> has been successfully claimed by <strong>${claimer.name}</strong> (${claimer.email}).</p>
+      <p>The funds have been transferred from escrow to their wallet.</p>
+    </div>
+  `;
+  await sendEmail({ to: issuer.email, subject: issuerSubject, html: issuerHtml });
+
+  // To Claimer
+  const claimerSubject = `Funds Claimed Successfully - ${amountFormatted}`;
+  const claimerHtml = `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #10b981;">Success!</h2>
+      <p>You have successfully claimed <strong>${amountFormatted}</strong> from the cheque issued by ${issuer.name}.</p>
+      <p>The funds are now available in your IyonicPay balance.</p>
+      <p><a href="${process.env.VITE_APP_URL}/#/iyonicpay" style="color: #4f46e5; font-weight: bold;">View My Dashboard</a></p>
+    </div>
+  `;
+  await sendEmail({ to: claimer.email, subject: claimerSubject, html: claimerHtml });
+};
+
+export const sendChequeExpiredEmail = async ({ issuer, amount, currency, token }) => {
+  const amountFormatted = `${currency} ${amount}`;
+
+  const subject = `Cheque Expired & Refunded - ${amountFormatted}`;
+  const html = `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #f59e0b;">Cheque Expired</h2>
+      <p>The digital cheque you issued (Token: ${token}) for <strong>${amountFormatted}</strong> has expired without being claimed.</p>
+      <p style="font-weight: bold; color: #10b981;">The full amount has been automatically refunded to your IyonicPay wallet balance.</p>
+    </div>
+  `;
+  await sendEmail({ to: issuer.email, subject, html });
+};

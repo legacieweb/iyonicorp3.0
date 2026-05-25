@@ -1361,17 +1361,17 @@ app.post('/api/iyonicpay/send', authenticateToken, async (req, res) => {
 
 // Issue a cheque
 app.post('/api/iyonicpay/cheques/issue', authenticateToken, async (req, res) => {
-  const { amount, pin, recipientEmail, expiryDays = 7 } = req.body;
+  const { amount, pin, recipientEmail, expiryDays = 7, includePinInEmail = false } = req.body;
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
 
     // Get issuer wallet
-    const issuerWalletRes = await client.query('SELECT id, balance FROM wallets WHERE user_id = $1', [req.user.id]);
-    if (issuerWalletRes.rows.length === 0) throw new Error('Wallet not found');
-    const issuerWallet = issuerWalletRes.rows[0];
+    const issuerRes = await client.query('SELECT u.id, u.name, u.email, w.id as wallet_id, w.balance FROM users u JOIN wallets w ON u.id = w.user_id WHERE u.id = $1', [req.user.id]);
+    if (issuerRes.rows.length === 0) throw new Error('Wallet not found');
+    const issuer = issuerRes.rows[0];
 
-    if (parseFloat(issuerWallet.balance) < parseFloat(amount)) {
+    if (parseFloat(issuer.balance) < parseFloat(amount)) {
       return res.status(400).json({ message: 'Insufficient funds in wallet' });
     }
 
@@ -1387,22 +1387,35 @@ app.post('/api/iyonicpay/cheques/issue', authenticateToken, async (req, res) => 
     expiresAt.setDate(expiresAt.getDate() + parseInt(expiryDays));
 
     // Deduct from wallet immediately (escrow)
-    await client.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [amount, issuerWallet.id]);
+    await client.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [amount, issuer.wallet_id]);
 
     // Create cheque
     const chequeRes = await client.query(
-      'INSERT INTO cheques (issuer_id, recipient_email, amount, token, pin_hash, expires_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [req.user.id, recipientEmail, amount, token, pinHash, expiresAt]
+      'INSERT INTO cheques (issuer_id, recipient_email, amount, token, pin_hash, include_pin_in_email, expires_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [req.user.id, recipientEmail, amount, token, pinHash, includePinInEmail, expiresAt]
     );
 
     // Record transaction
     await client.query(`
       INSERT INTO transactions (sender_wallet_id, amount, type, status, description) 
       VALUES ($1, $2, 'withdrawal', 'completed', $3)
-    `, [issuerWallet.id, amount, `Issued cheque ${token}`]);
+    `, [issuer.wallet_id, amount, `Issued cheque ${token}`]);
 
     await client.query('COMMIT');
-    res.status(201).json(toCamel(chequeRes.rows[0]));
+    const cheque = toCamel(chequeRes.rows[0]);
+
+    // Send Emails
+    await mailer.sendChequeIssuedEmail({
+      issuer: { name: issuer.name, email: issuer.email },
+      recipientEmail,
+      amount,
+      currency: cheque.currency,
+      token,
+      pin: pin.toString(),
+      includePin: includePinInEmail
+    });
+
+    res.status(201).json(cheque);
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Issue Cheque Error:', err);
@@ -1480,7 +1493,30 @@ app.post('/api/iyonicpay/cheques/:token/claim', authenticateToken, async (req, r
       VALUES ($1, $2, 'receive', 'completed', $3)
     `, [claimerWalletId, cheque.amount, `Claimed cheque ${cheque.token}`]);
 
+    // Get issuer and claimer info for email
+    const infoRes = await client.query(`
+      SELECT 
+        u_issuer.name as issuer_name, u_issuer.email as issuer_email,
+        u_claimer.name as claimer_name, u_claimer.email as claimer_email
+      FROM cheques c
+      JOIN users u_issuer ON c.issuer_id = u_issuer.id
+      JOIN users u_claimer ON u_claimer.id = $1
+      WHERE c.id = $2
+    `, [req.user.id, cheque.id]);
+    
+    const info = infoRes.rows[0];
+
     await client.query('COMMIT');
+
+    // Send Emails
+    await mailer.sendChequeClaimedEmail({
+      issuer: { name: info.issuer_name, email: info.issuer_email },
+      claimer: { name: info.claimer_name, email: info.claimer_email },
+      amount: cheque.amount,
+      currency: cheque.currency,
+      token: cheque.token
+    });
+
     res.json({ message: 'Cheque claimed successfully', amount: cheque.amount });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -5871,11 +5907,55 @@ const startBackgroundJobs = () => {
           [`https://social-platform.com/post/${nanoid(10)}`, post.id]
         );
       }
+
+      // 3. Process expired cheques and refund issuers
+      const expiredChequesRes = await db.query(
+        "SELECT c.*, u.name as issuer_name, u.email as issuer_email, w.id as wallet_id FROM cheques c JOIN users u ON c.issuer_id = u.id JOIN wallets w ON u.id = w.user_id WHERE c.status = 'issued' AND c.expires_at <= $1",
+        [now]
+      );
+
+      for (const cheque of expiredChequesRes.rows) {
+        console.log(`[BACKGROUND] Refunding expired cheque: ${cheque.token}`);
+        const client = await db.pool.connect();
+        try {
+          await client.query('BEGIN');
+          
+          // Refund to issuer wallet
+          await client.query('UPDATE wallets SET balance = balance + $1 WHERE id = $2', [cheque.amount, cheque.wallet_id]);
+          
+          // Mark cheque as expired
+          await client.query("UPDATE cheques SET status = 'expired', updated_at = CURRENT_TIMESTAMP WHERE id = $1", [cheque.id]);
+          
+          // Record refund transaction
+          await client.query(`
+            INSERT INTO transactions (receiver_wallet_id, amount, type, status, description) 
+            VALUES ($1, $2, 'receive', 'completed', $3)
+          `, [cheque.wallet_id, cheque.amount, `Refund for expired cheque ${cheque.token}`]);
+          
+          await client.query('COMMIT');
+
+          // Send Email
+          await mailer.sendChequeExpiredEmail({
+            issuer: { name: cheque.issuer_name, email: cheque.issuer_email },
+            amount: cheque.amount,
+            currency: cheque.currency,
+            token: cheque.token
+          });
+        } catch (err) {
+          await client.query('ROLLBACK');
+          console.error(`Error refunding cheque ${cheque.id}:`, err);
+        } finally {
+          client.release();
+        }
+      }
     } catch (err) {
       console.error('Background Job Error:', err);
     }
   }, 60000);
 };
+
+// Start background jobs
+startBackgroundJobs();
 
 // ✅ IMPORTANT: bind to 0.0.0.0 for Coolify
 app.listen(PORT, "0.0.0.0", () => {

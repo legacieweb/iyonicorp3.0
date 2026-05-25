@@ -127,6 +127,7 @@ export const initDb = async () => {
             currency VARCHAR(10) DEFAULT 'USD',
             token VARCHAR(100) UNIQUE NOT NULL,
             pin_hash TEXT NOT NULL,
+            include_pin_in_email BOOLEAN DEFAULT FALSE,
             status VARCHAR(50) DEFAULT 'issued' CHECK (status IN ('issued', 'claimed', 'cancelled', 'expired')),
             expires_at TIMESTAMP WITH TIME ZONE,
             claimed_by UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -134,6 +135,9 @@ export const initDb = async () => {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Ensure include_pin_in_email column exists for existing cheques table
+        ALTER TABLE cheques ADD COLUMN IF NOT EXISTS include_pin_in_email BOOLEAN DEFAULT FALSE;
 
         -- Ensure invoices has is_reusable and usage columns
         ALTER TABLE invoices ADD COLUMN IF NOT EXISTS is_reusable BOOLEAN DEFAULT FALSE;

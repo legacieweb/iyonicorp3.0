@@ -1,12 +1,21 @@
 services:
-  - type: web
+  - type: static
     name: iyonicorp-frontend
     env: static
-    buildCommand: npm run build
-    publishPath: dist
-    # Optional: Set Node.js version
-    # nodeVersion: 18.x
-    # Optional: Set build environment variables
-    # envVars:
-    #   - key: NODE_ENV
-    #     value: production
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        sync: false # Set this in Render Dashboard to your public backend URL (e.g., https://your-ngrok-url.io/api)
+      - key: VITE_APP_NAME
+        value: ShopRight
+      - key: VITE_PAYSTACK_PUBLIC_KEY
+        value: pk_test_232531a5c927ef2cc67ed1b85af3f26e3b8ed2f2

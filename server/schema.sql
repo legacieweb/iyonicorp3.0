@@ -456,3 +456,24 @@ CREATE TABLE IF NOT EXISTS social_media_posts (
 
 DROP TRIGGER IF EXISTS update_social_media_posts_updated_at ON social_media_posts;
 CREATE TRIGGER update_social_media_posts_updated_at BEFORE UPDATE ON social_media_posts FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- Cheques table
+CREATE TABLE IF NOT EXISTS cheques (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    issuer_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    recipient_email VARCHAR(255),
+    amount DECIMAL(15, 2) NOT NULL,
+    currency VARCHAR(10) DEFAULT 'USD',
+    token VARCHAR(100) UNIQUE NOT NULL,
+    pin_hash TEXT NOT NULL,
+    include_pin_in_email BOOLEAN DEFAULT FALSE,
+    status VARCHAR(50) DEFAULT 'issued' CHECK (status IN ('issued', 'claimed', 'cancelled', 'expired')),
+    expires_at TIMESTAMP WITH TIME ZONE,
+    claimed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    claimed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TRIGGER IF EXISTS update_cheques_updated_at ON cheques;
+CREATE TRIGGER update_cheques_updated_at BEFORE UPDATE ON cheques FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
