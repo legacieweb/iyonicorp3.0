@@ -154,7 +154,7 @@ const IyonicPay: React.FC = () => {
   const [myCheques, setMyCheques] = useState<any[]>([]);
   const [isIssueChequeModalOpen, setIsIssueChequeModalOpen] = useState(false);
   const [isClaimChequeModalOpen, setIsClaimChequeModalOpen] = useState(false);
-  const [chequeFormData, setChequeFormData] = useState({ amount: '', pin: '', recipientEmail: '', expiryDays: '7' });
+  const [chequeFormData, setChequeFormData] = useState({ amount: '', pin: '', recipientEmail: '', expiryDays: '7', includePinInEmail: false });
   const [claimChequeData, setClaimChequeData] = useState({ token: '', pin: '' });
   const [claimingCheque, setClaimingCheque] = useState<any>(null);
   const [issuedCheque, setIssuedCheque] = useState<any>(null);
@@ -439,7 +439,7 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
       const res = await api.post('/iyonicpay/cheques/issue', chequeFormData);
       setIssuedCheque(toCamel(res.data));
       showToast('Cheque issued successfully!', 'success');
-      setChequeFormData({ amount: '', pin: '', recipientEmail: '', expiryDays: '7' });
+      setChequeFormData({ amount: '', pin: '', recipientEmail: '', expiryDays: '7', includePinInEmail: false });
       fetchCheques();
       fetchWalletData();
     } catch (err: any) {
@@ -1108,7 +1108,7 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
                         <div className="flex space-x-2">
                           <button 
                             onClick={() => {
-                              const url = window.location.origin + window.location.pathname + '?tab=cheques&claim=' + c.token;
+                              const url = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/#/iyonicpay?tab=cheques&claim=' + c.token;
                               copyToClipboard(url);
                             }}
                             className="p-3 bg-gray-50 text-gray-400 hover:text-indigo-600 rounded-xl transition-colors group-hover:bg-indigo-50"
@@ -2578,6 +2578,28 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
                     </select>
                   </div>
                 </div>
+
+                {chequeFormData.recipientEmail && (
+                  <div className="p-5 bg-gray-50 rounded-[2rem] border border-gray-100">
+                    <label className="flex items-center justify-between cursor-pointer group">
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${chequeFormData.includePinInEmail ? 'bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-200' : 'border-gray-300 bg-white group-hover:border-indigo-400'}`}>
+                          {chequeFormData.includePinInEmail && <CheckCircle2 className="w-4 h-4 text-white" />}
+                        </div>
+                        <span className="text-xs font-black text-gray-700 uppercase tracking-widest">Include PIN in Email</span>
+                      </div>
+                      <input 
+                        type="checkbox" 
+                        className="hidden"
+                        checked={chequeFormData.includePinInEmail}
+                        onChange={(e) => setChequeFormData({...chequeFormData, includePinInEmail: e.target.checked})}
+                      />
+                    </label>
+                    <p className="text-[9px] text-gray-400 font-medium mt-2 leading-tight">
+                      Enabling this will send the 4-digit PIN directly to the recipient via email. Use with caution.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <Button type="submit" isLoading={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-6 rounded-3xl shadow-xl shadow-indigo-100 flex items-center justify-center space-x-3 transition-all transform active:scale-[0.98]">
@@ -2599,11 +2621,11 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
                 <div className="space-y-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Claim URL</p>
                   <p className="text-sm font-mono font-bold text-indigo-600 break-all">
-                    {window.location.origin + window.location.pathname + '?tab=cheques&claim=' + issuedCheque.token}
+                    {window.location.origin + window.location.pathname.replace(/\/$/, '') + '/#/iyonicpay?tab=cheques&claim=' + issuedCheque.token}
                   </p>
                 </div>
                 <button 
-                  onClick={() => copyToClipboard(window.location.origin + window.location.pathname + '?tab=cheques&claim=' + issuedCheque.token)}
+                  onClick={() => copyToClipboard(window.location.origin + window.location.pathname.replace(/\/$/, '') + '/#/iyonicpay?tab=cheques&claim=' + issuedCheque.token)}
                   className="w-full flex items-center justify-center space-x-2 py-4 bg-white border border-gray-200 rounded-2xl text-gray-900 font-bold hover:bg-gray-100 transition-all active:scale-[0.98]"
                 >
                   <Copy className="w-4 h-4" />

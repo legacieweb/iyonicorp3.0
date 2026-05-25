@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: iyonicorp-frontend
+    env: static
+    buildCommand: npm run build
+    publishPath: dist
+    # Optional: Set Node.js version
+    # nodeVersion: 18.x
+    # Optional: Set build environment variables
+    # envVars:
+    #   - key: NODE_ENV
+    #     value: production
