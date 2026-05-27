@@ -1,8 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /admin
-Disallow: /seller
-Disallow: /manager
-Disallow: /customer
-
-Sitemap: https://iyonicorp.com/sitemap.xml
