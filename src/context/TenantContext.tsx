@@ -104,11 +104,11 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if ((path.startsWith('/shop/') || hash.startsWith('#/shop/')) && 
         !path.includes('/shop/demo') && !hash.includes('#/shop/demo')) {
       
-      const shopSubdomain = path.startsWith('/shop/') 
-        ? path.split('/')[2] 
-        : hash.split('?')[0].split('/').pop();
-        
-      if (!isValidSubdomain(shopSubdomain)) {
+const shopSubdomain = (path.startsWith('/shop/')
+         ? path.split('/')[2]
+         : hash.split('?')[0].split('/').pop()) || null;
+
+       if (!isValidSubdomain(shopSubdomain)) {
         setIsMainPlatform(true);
         setTenant(null);
         setIsLoading(false);
