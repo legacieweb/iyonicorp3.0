@@ -81,6 +81,15 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const location = useLocation();
 
+  const isValidSubdomain = (subdomain: string | null): boolean => {
+    if (!subdomain) return false;
+    const reserved = ['www', 'localhost', 'web', 'api', 'admin', 'shop', 'store', 'app', ''];
+    if (reserved.includes(subdomain.toLowerCase())) return false;
+    if (subdomain.length < 2) return false;
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/.test(subdomain)) return false;
+    return true;
+  };
+
   const detectTenant = async () => {
     const hostname = window.location.hostname;
     const parts = hostname.split('.');
@@ -99,7 +108,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ? path.split('/')[2] 
         : hash.split('?')[0].split('/').pop();
         
-      if (!shopSubdomain) {
+      if (!isValidSubdomain(shopSubdomain)) {
         setIsMainPlatform(true);
         setTenant(null);
         setIsLoading(false);
@@ -198,10 +207,11 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     let subdomain = storeParam;
     if (!subdomain) {
-      subdomain = parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost' ? parts[0] : null;
+      const extractedSubdomain = parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost' ? parts[0] : null;
+      subdomain = isValidSubdomain(extractedSubdomain) ? extractedSubdomain : null;
     }
 
-    if (!subdomain || subdomain === 'www' || subdomain === 'localhost' || hostname === '127.0.0.1') {
+    if (!subdomain || hostname === '127.0.0.1') {
       setIsMainPlatform(true);
       setTenant(null);
       setIsLoading(false);
