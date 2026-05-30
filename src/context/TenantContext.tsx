@@ -160,7 +160,7 @@ const shopSubdomain = (path.startsWith('/shop/')
     // Handle demo mode - treat as a tenant storefront
     // Also check query params for theme parameter (both from URL and hash)
     let themeParam = 'modern-ecommerce';
-    const isDemoPath = path === '/shop/demo' || hash === '#/shop/demo' || path.startsWith('/shop/demo');
+    const isDemoPath = (path === '/shop/demo' || path.startsWith('/shop/demo')) || (hash === '#/shop/demo' || hash.startsWith('#/shop/demo'));
     if (isDemoPath) {
       // Get theme from either query params or hash query params
       let urlParams = new URLSearchParams(window.location.search);

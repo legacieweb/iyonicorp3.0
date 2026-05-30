@@ -500,7 +500,7 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
                 <div className="aspect-[16/10] overflow-hidden relative bg-gray-50">
                   <div className="absolute inset-0 origin-top-left" style={{ width: '200%', height: '200%', transform: 'scale(0.5)' }}>
                     <iframe 
-                      src={`/shop/demo?theme=${theme.id}`} 
+                      src={`#/shop/demo?theme=${theme.id}`} 
                       title={theme.name}
                       className="w-full h-full border-none pointer-events-none"
                       loading="lazy"
@@ -510,7 +510,7 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
                   {/* Overlay to intercept clicks and provide UX */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
                     <Button 
-                      onClick={() => window.open(`/shop/demo?theme=${theme.id}`, '_blank')}
+                      onClick={() => window.open(`#/shop/demo?theme=${theme.id}`, '_blank')}
                       className="opacity-0 group-hover:opacity-100 bg-white text-gray-900 hover:bg-gray-100 rounded-full px-8 py-3 font-bold shadow-xl transition-all duration-300 scale-90 group-hover:scale-100"
                     >
                       Live Preview
@@ -538,7 +538,7 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
                   <div className="flex items-center justify-between">
                     <div className={`h-1.5 w-12 bg-gradient-to-r ${theme.color} rounded-full`} />
                     <button 
-                      onClick={() => window.open(`/shop/demo?theme=${theme.id}`, '_blank')}
+                      onClick={() => window.open(`#/shop/demo?theme=${theme.id}`, '_blank')}
                       className="text-sm font-bold text-gray-900 flex items-center hover:gap-2 transition-all"
                     >
                       Explore <ChevronRight className="w-4 h-4" />
