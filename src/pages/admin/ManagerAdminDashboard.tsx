@@ -681,7 +681,7 @@ export const ManagerAdminDashboard: React.FC = () => {
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <a 
-                            href={`/shop/${seller.subdomain}`} 
+                            href={`#/shop/${seller.subdomain}`} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"

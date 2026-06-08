@@ -342,10 +342,10 @@ app.post('/api/auth/register', async (req, res) => {
           secondaryColor: '#1d4ed8',
           fontFamily: 'Inter'
         });
-        await client.query(
-          'INSERT INTO sellers (user_id, store_name, subdomain, shop_type, subscription, theme, manager_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-          [user.id, storeName || 'My Store', generatedSubdomain, shopType || 'product', defaultSubscription, defaultTheme, managerIdFromUrl]
-        );
+await client.query(
+           'INSERT INTO sellers (user_id, store_name, subdomain, shop_type, subscription, theme, manager_id, is_live) VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)',
+           [user.id, storeName || 'My Store', generatedSubdomain, shopType || 'product', defaultSubscription, defaultTheme, managerIdFromUrl]
+         );
       } else if (role === 'seller_manager') {
         const slug = (name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36)).replace(/[^a-z0-9-]/g, '');
         await client.query(

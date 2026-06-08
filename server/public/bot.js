@@ -211,7 +211,7 @@
 
     try {
       // For now, use the public chat endpoint
-      const response = await fetch(\`\${IYONICBOTS_API_URL}/public/bots/\${botId}/chat\`, {
+      const response = await fetch(`${IYONICBOTS_API_URL}/public/bots/${botId}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text })

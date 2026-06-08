@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, useScroll, useTransform, AnimatePresence, useInView } from 'framer-motion';
+import { motion, AnimatePresence, useInView } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { 
@@ -110,11 +110,7 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
   const [email, setEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const { scrollYProgress } = useScroll();
   
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0]);
-  const heroScale = useTransform(scrollYProgress, [0, 0.2], [1, 0.95]);
-  const heroY = useTransform(scrollYProgress, [0, 0.2], [0, -50]);
 
   const products = [
     {
@@ -265,114 +261,41 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
             </motion.div>
           )}
         </AnimatePresence>
-      </nav>
+</nav>
 
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
-        {/* Modern Immersive Background */}
+        {/* Background */}
         <div className="absolute inset-0 -z-10 overflow-hidden">
-          {/* Noise Texture Overlay */}
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3C%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }} />
-          
           {/* Radial Mesh Gradients */}
-          <motion.div 
-            animate={{ 
-              scale: [1, 1.2, 1],
-              x: [0, 50, 0],
-              y: [0, -30, 0]
-            }}
-            transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-            className="absolute top-[-20%] left-[-10%] w-[80%] h-[80%] bg-gradient-to-br from-blue-500/20 via-indigo-400/10 to-transparent rounded-full blur-[120px]"
-          />
-          <motion.div 
-            animate={{ 
-              scale: [1.2, 1, 1.2],
-              x: [0, -50, 0],
-              y: [0, 30, 0]
-            }}
-            transition={{ duration: 18, repeat: Infinity, ease: "linear" }}
-            className="absolute bottom-[-10%] right-[-10%] w-[70%] h-[70%] bg-gradient-to-br from-purple-500/15 via-rose-400/5 to-transparent rounded-full blur-[100px]"
-          />
+          <div className="absolute top-[-20%] left-[-10%] w-[80%] h-[80%] bg-gradient-to-br from-blue-500/20 via-indigo-400/10 to-transparent rounded-full blur-[120px]" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[70%] h-[70%] bg-gradient-to-br from-purple-500/15 via-rose-400/5 to-transparent rounded-full blur-[100px]" />
           
           {/* Grid Background */}
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
         </div>
 
-        {/* Floating Decorative Elements */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {[
-            { Icon: Store, color: 'text-blue-500', top: '20%', left: '15%', delay: 0 },
-            { Icon: CreditCard, color: 'text-purple-500', top: '15%', right: '20%', delay: 1 },
-            { Icon: Bot, color: 'text-emerald-500', bottom: '40%', left: '10%', delay: 2 },
-            { Icon: Zap, color: 'text-amber-500', bottom: '35%', right: '15%', delay: 3 },
-            { Icon: Globe, color: 'text-indigo-500', top: '45%', right: '10%', delay: 4 },
-            { Icon: Shield, color: 'text-rose-500', bottom: '50%', left: '25%', delay: 5 },
-          ].map((item, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ 
-                opacity: [0.4, 0.8, 0.4],
-                scale: [1, 1.1, 1],
-                y: [-20, 20, -20],
-                rotate: [0, 10, 0]
-              }}
-              transition={{ 
-                duration: 5 + Math.random() * 5, 
-                repeat: Infinity, 
-                ease: "easeInOut",
-                delay: item.delay 
-              }}
-              style={{ top: item.top, left: item.left, right: item.right, bottom: item.bottom }}
-              className="absolute w-12 h-12 lg:w-16 lg:h-16 bg-white/40 backdrop-blur-md rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] border border-white/20 flex items-center justify-center"
-            >
-              <item.Icon className={`w-6 h-6 lg:w-8 lg:h-8 ${item.color}`} />
-            </motion.div>
-          ))}
-        </div>
-
         <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <motion.div style={{ opacity: heroOpacity, scale: heroScale, y: heroY }} className="text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="inline-flex items-center space-x-2 px-4 py-2 bg-gray-900/5 backdrop-blur-md border border-gray-900/10 rounded-full mb-8"
-            >
+          <div className="text-center">
+            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-gray-900/5 backdrop-blur-md border border-gray-900/10 rounded-full mb-8">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
               </span>
               <span className="text-xs font-bold tracking-tight text-gray-900">Revolutionizing Digital Commerce</span>
-            </motion.div>
+            </div>
 
-            <motion.h1 
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="text-5xl sm:text-6xl lg:text-[7rem] font-black tracking-tight text-gray-900 mb-8 leading-[0.9] text-balance"
-            >
+            <h1 className="text-5xl sm:text-6xl lg:text-[7rem] font-black tracking-tight text-gray-900 mb-8 leading-[0.9] text-balance">
               The Next Gen of<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 inline-block">
                 Commerce.
               </span>
-            </motion.h1>
+            </h1>
 
-            <motion.p 
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
-              className="text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 leading-relaxed font-medium"
-            >
+            <p className="text-xl lg:text-2xl text-gray-600 max-w-3xl mx-auto mb-12 leading-relaxed font-medium">
               A modular platform engineered for growth. IyonicShop for stores, IyonicPay for payments, and IyonicBots for intelligence. All in one place.
-            </motion.p>
+            </p>
 
-            <motion.div 
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.6 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-4"
-            >
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button 
                 size="lg" 
                 className="bg-gray-900 text-white hover:bg-black rounded-2xl px-10 py-8 text-lg font-bold shadow-2xl shadow-gray-900/20 hover:scale-[1.02] transition-all group"
@@ -390,8 +313,8 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
                 Watch Demo
                 <ArrowUpRight className="ml-2 w-5 h-5" />
               </Button>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -500,7 +423,7 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
                 <div className="aspect-[16/10] overflow-hidden relative bg-gray-50">
                   <div className="absolute inset-0 origin-top-left" style={{ width: '200%', height: '200%', transform: 'scale(0.5)' }}>
                     <iframe 
-                      src={`#/shop/demo?theme=${theme.id}`} 
+                      src={`${window.location.origin}#/shop/demo?theme=${theme.id}`} 
                       title={theme.name}
                       className="w-full h-full border-none pointer-events-none"
                       loading="lazy"
@@ -510,7 +433,7 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
                   {/* Overlay to intercept clicks and provide UX */}
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
                     <Button 
-                      onClick={() => window.open(`#/shop/demo?theme=${theme.id}`, '_blank')}
+                      onClick={() => window.open(`${window.location.origin}#/shop/demo?theme=${theme.id}`, '_blank')}
                       className="opacity-0 group-hover:opacity-100 bg-white text-gray-900 hover:bg-gray-100 rounded-full px-8 py-3 font-bold shadow-xl transition-all duration-300 scale-90 group-hover:scale-100"
                     >
                       Live Preview
@@ -538,7 +461,7 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
                   <div className="flex items-center justify-between">
                     <div className={`h-1.5 w-12 bg-gradient-to-r ${theme.color} rounded-full`} />
                     <button 
-                      onClick={() => window.open(`#/shop/demo?theme=${theme.id}`, '_blank')}
+                      onClick={() => window.open(`${window.location.origin}#/shop/demo?theme=${theme.id}`, '_blank')}
                       className="text-sm font-bold text-gray-900 flex items-center hover:gap-2 transition-all"
                     >
                       Explore <ChevronRight className="w-4 h-4" />
