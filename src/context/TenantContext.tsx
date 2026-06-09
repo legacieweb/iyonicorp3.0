@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:5000/api';
+import { api } from '../services/api';
 
 interface TenantConfig {
   id: string;
@@ -117,7 +115,7 @@ const shopSubdomain = (path.startsWith('/shop/')
       
       // If we have a shop subdomain in URL, use it to fetch tenant
       try {
-        const response = await axios.get(`${API_URL}/sellers/subdomain/${shopSubdomain}`, { timeout: 5000 });
+        const response = await api.get(`/sellers/subdomain/${shopSubdomain}`, { timeout: 5000 });
         const seller = response.data;
         
         setTenant({
@@ -177,24 +175,25 @@ const shopSubdomain = (path.startsWith('/shop/')
         themeParam = queryTheme;
       }
       setIsMainPlatform(false);
-      setTenant({
-        id: 'demo-seller',
-        name: 'Demo Store',
-        subdomain: 'demo',
-        shopType: 'product',
-        description: 'Welcome to our demo store. This is a preview of our theme.',
-        themeId: themeParam,
-        theme: { 
-          selectedTheme: themeParam,
-          primaryColor: '#000000'
-        },
-        deliveryLocations: [
-          { id: 'dl1', name: 'Nairobi CBD', fee: 200, enabled: true },
-          { id: 'dl2', name: 'Westlands', fee: 300, enabled: true },
-          { id: 'dl3', name: 'Mombasa Road', fee: 400, enabled: true }
-        ],
-        currency: 'KES'
-      });
+setTenant({
+         id: 'demo-seller',
+         name: 'Demo Store',
+         subdomain: 'demo',
+         shopType: 'product',
+         description: 'Welcome to our demo store. This is a preview of our theme.',
+         themeId: themeParam,
+         theme: { 
+           selectedTheme: themeParam,
+           primaryColor: '#000000'
+         },
+         deliveryLocations: [
+           { id: 'dl1', name: 'Nairobi CBD', fee: 200, enabled: true },
+           { id: 'dl2', name: 'Westlands', fee: 300, enabled: true },
+           { id: 'dl3', name: 'Mombasa Road', fee: 400, enabled: true }
+         ],
+         currency: 'KES',
+         paymentTerms: { methods: ['site', 'pod', 'deposit'], depositPercentage: 50, rules: 'all' }
+       });
       setIsLoading(false);
       return;
     }
@@ -211,13 +210,13 @@ const shopSubdomain = (path.startsWith('/shop/')
       subdomain = isValidSubdomain(extractedSubdomain) ? extractedSubdomain : null;
     }
 
-    if (!subdomain || hostname === '127.0.0.1') {
+    if (!subdomain || hostname === 'localhost') {
       setIsMainPlatform(true);
       setTenant(null);
       setIsLoading(false);
     } else {
       try {
-        const response = await axios.get(`${API_URL}/sellers/subdomain/${subdomain}`, { timeout: 5000 });
+        const response = await api.get(`/sellers/subdomain/${subdomain}`, { timeout: 5000 });
         const seller = response.data;
         
         setTenant({

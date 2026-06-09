@@ -99,7 +99,12 @@ export const initDb = async () => {
         ALTER TABLE seller_managers ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
         ALTER TABLE seller_managers ADD COLUMN IF NOT EXISTS pricing_config JSONB DEFAULT '{"plans": {"starter": {"price": 29, "status": "active", "features": ["Up to 50 products", "Basic analytics", "Email support"]}, "professional": {"price": 79, "status": "active", "features": ["Unlimited products", "Advanced analytics", "Priority support", "Custom domain"]}, "enterprise": {"price": 199, "status": "active", "features": ["Everything in Pro", "White-label options", "Dedicated support", "API access"]}}, "currency": "USD", "billingCycle": "monthly", "customBranding": true}'::JSONB;
 
-        -- Ensure customers columns exist
+        -- Ensure orders columns exist
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS subtotal DECIMAL(15, 2);
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS original_total DECIMAL(15, 2);
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount JSONB;
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(15, 2) DEFAULT 0;
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_location TEXT;
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES seller_managers(id) ON DELETE SET NULL;
         

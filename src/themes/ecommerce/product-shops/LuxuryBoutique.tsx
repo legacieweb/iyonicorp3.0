@@ -501,8 +501,8 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
           amount: discountAmount
         } : undefined,
         currency: seller.currency || 'USD',
-        status: 'pending',
-        paymentMethod: activePaymentMethod,
+        status: checkoutData.paymentMethod === 'pod' ? 'pending' : 'pending',
+        paymentMethod: checkoutData.paymentMethod === 'pod' ? 'pod' : activePaymentMethod,
         shippingAddress: {
           street: checkoutData.address || 'N/A',
           city: selectedDeliveryLocation?.name || 'N/A',
@@ -511,10 +511,22 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
           zipCode: 'N/A'
         },
         deliveryFee: deliveryFee,
-        deliveryLocation: selectedDeliveryLocation?.name
+        deliveryLocation: selectedDeliveryLocation?.name,
+        paymentType: checkoutData.paymentMethod,
+        remainingBalance: checkoutData.paymentMethod === 'deposit' ? remainingBalance : undefined
       } as any;
 
       const response = await ordersAPI.create(orderData);
+
+      if (checkoutData.paymentMethod === 'pod') {
+        setCart([]);
+        setAppliedDiscount(null);
+        localStorage.removeItem(`cart_${seller.id}`);
+        localStorage.removeItem(`discount_${seller.id}`);
+        setCouponCode('');
+        setView('order-success');
+        return;
+      }
 
       if (response.paymentMethod === 'iyonicpay' && response.paymentLink) {
         const autoPayLink = response.paymentLink.includes('?') 
@@ -529,7 +541,7 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
         return;
       }
 
-      if (response.paymentLink && response.reference) {
+if (response.paymentLink && response.reference) {
         if ((response as any).isCustomPaystack) {
           window.location.href = response.paymentLink;
           return;
@@ -548,25 +560,25 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
           onClose: () => {
             alert('Payment cancelled. Your order has been cancelled.');
           },
-          callback: async (paystackResponse: any) => {
-            try {
-              const res = await ordersAPI.verifyPayment(paystackResponse.reference, response.id);
-              if (res.success) {
-                setCart([]);
-                setAppliedDiscount(null);
-                localStorage.removeItem(`cart_${seller.id}`);
-                localStorage.removeItem(`discount_${seller.id}`);
-                setCouponCode('');
-                setView('order-success');
-              } else {
-                alert('Payment verification failed. Please contact support.');
-              }
-            } catch (error) {
-              console.error('Verification error:', error);
-              alert('An error occurred during payment verification.');
-            }
+          callback: (paystackResponse: any) => {
+            ordersAPI.verifyPayment(paystackResponse.reference, response.id)
+              .then(res => {
+                if (res.success) {
+                  setCart([]);
+                  setAppliedDiscount(null);
+                  localStorage.removeItem(`cart_${seller.id}`);
+                  localStorage.removeItem(`discount_${seller.id}`);
+                  setCouponCode('');
+                  setView('order-success');
+                } else {
+                  alert('Payment verification failed. Please contact support.');
+                }
+              }).catch(() => {
+                console.error('Verification error');
+                alert('An error occurred during payment verification.');
+              });
           }
-        });
+});
         handler.openIframe();
       } else {
         alert('No payment method configured. Please contact the seller.');
@@ -1058,7 +1070,7 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
               {!appliedDiscount ? (
                 <div className="mb-8 p-6 border border-white/10 bg-white/[0.02] backdrop-blur-sm rounded-lg group">
                   <div className="flex items-center gap-2 mb-4 text-[10px] font-bold uppercase tracking-[0.3em] text-[#c5a059]">
-                    <Sparkles size={14} className="animate-pulse" />
+                    <Sparkles size={14} />
                     <span>Exclusive Offers</span>
                   </div>
                   <div className="flex gap-2">
@@ -1109,173 +1121,403 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
     </section>
   );
 
-  const renderCheckout = () => {
+const renderCheckout = () => {
+    const cartItemCount = cart.reduce((s, i) => s + i.quantity, 0);
+    
     return (
-      <section className="py-24 min-h-screen" style={{ backgroundColor: mainBgColor }}>
-        <div className="max-w-7xl mx-auto px-6">
-          <h2 className="text-4xl font-light text-white mb-16 italic">Checkout</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
-            <form onSubmit={handlePlaceOrder} className="space-y-8">
-              <div className="space-y-6">
-                <h3 className="text-xs font-bold text-[#c5a059] uppercase tracking-[0.4em] mb-8 border-b border-white/10 pb-4">Personal Information</h3>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Full Name</label>
-                    <input
-                      required
-                      type="text"
-                      value={checkoutData.name}
-                      onChange={(e) => setCheckoutData({ ...checkoutData, name: e.target.value })}
-                      className="w-full bg-[#151515] border border-white/10 px-6 py-4 text-white focus:border-[#c5a059] transition-all outline-none"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Email</label>
-                    <input
-                      required
-                      type="email"
-                      value={checkoutData.email}
-                      onChange={(e) => setCheckoutData({ ...checkoutData, email: e.target.value })}
-                      className="w-full bg-[#151515] border border-white/10 px-6 py-4 text-white focus:border-[#c5a059] transition-all outline-none"
-                    />
-                  </div>
+      <div className="min-h-screen" style={{ backgroundColor: mainBgColor }}>
+        {/* Header for Checkout */}
+        <header 
+          className="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl border-b transition-all duration-300"
+          style={{ 
+            backgroundColor: customizations.headerBgColor || 'rgba(10, 10, 10, 0.95)',
+            borderColor: customizations.headerBorderColor || 'rgba(255, 255, 255, 0.1)',
+            borderRadius: customizations.headerShape || '0px',
+            margin: customizations.headerShape && customizations.headerShape !== '0px' ? '12px 24px' : '0px',
+            width: customizations.headerShape && customizations.headerShape !== '0px' ? 'calc(100% - 48px)' : '100%'
+          }}
+        >
+          <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setView('home')}>
+              {seller.logo ? (
+                <img src={seller.logo} alt={seller.storeName} className="h-10 w-auto object-contain" />
+              ) : (
+                <div className="w-10 h-10 border-2 flex items-center justify-center" style={{ borderColor: themePrimary, color: themePrimary }}>
+                  <span className="font-serif italic text-2xl">{seller.storeName.charAt(0)}</span>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Phone Number</label>
-                  <input
-                    required
-                    type="tel"
-                    value={checkoutData.phone}
-                    onChange={(e) => setCheckoutData({ ...checkoutData, phone: e.target.value })}
-                    className="w-full bg-[#151515] border border-white/10 px-6 py-4 text-white focus:border-[#c5a059] transition-all outline-none"
-                  />
-                </div>
-              </div>
+              )}
+              <h1 className="text-xl font-light uppercase tracking-[0.3em]" style={{ color: customizations.headerTextColor || '#ffffff' }}>
+                {seller.storeName}
+              </h1>
+            </div>
 
-              <div className="space-y-6 pt-8">
-                <h3 className="text-xs font-bold text-[#c5a059] uppercase tracking-[0.4em] mb-8 border-b border-white/10 pb-4">Delivery & Location</h3>
-                
-                <div className="space-y-6">
-                  {enabledDeliveryLocations.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest ml-1">Delivery Area</label>
-                      <select
-                        required
-                        value={checkoutData.deliveryLocationId}
-                        onChange={(e) => setCheckoutData({ ...checkoutData, deliveryLocationId: e.target.value })}
-                        className="w-full bg-[#151515] border border-white/10 px-6 py-4 text-white focus:border-[#c5a059] transition-all outline-none appearance-none cursor-pointer"
-                      >
-                        <option value="">Select your delivery area</option>
-                        {enabledDeliveryLocations.map((loc: DeliveryLocation) => (
-                          <option key={loc.id} value={loc.id}>
-                            {loc.name} {loc.fee ? `(+${formatPrice(loc.fee, seller.currency)})` : '(Complimentary Delivery)'}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest ml-1">Specific Address / Building / Landmark</label>
-                    <textarea
-                      required
-                      rows={4}
-                      value={checkoutData.address}
-                      onChange={(e) => setCheckoutData({ ...checkoutData, address: e.target.value })}
-                      placeholder="Please provide your exact building name, apartment number, and nearby landmarks for the courier..."
-                      className="w-full bg-[#151515] border border-white/10 px-6 py-4 text-white focus:border-[#c5a059] transition-all outline-none resize-none font-light leading-relaxed"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-6 bg-[#c5a059] text-black font-bold text-sm uppercase tracking-widest hover:bg-white transition-all shadow-xl mt-12"
+            <nav className="hidden md:flex items-center space-x-10">
+              <button 
+                onClick={() => setView('home')} 
+                className="text-xs uppercase tracking-widest transition-colors"
+                style={{ color: customizations.headerTextColor || '#9ca3af' }}
               >
-                Place Order • {formatPrice(finalTotal, seller.currency)}
+                Home
               </button>
-            </form>
+              <button 
+                onClick={() => setView('shop')} 
+                className="text-xs uppercase tracking-widest transition-colors"
+                style={{ color: customizations.headerTextColor || '#9ca3af' }}
+              >
+                Collection
+              </button>
+              <button 
+                onClick={() => setView('cart')} 
+                className="text-xs uppercase tracking-widest transition-colors"
+                style={{ color: customizations.headerTextColor || '#9ca3af' }}
+              >
+                Your Bag ({cartItemCount})
+              </button>
+            </nav>
 
-            <div style={{ backgroundColor: cardBgColor }}>
-              <h3 className="text-xs font-bold text-[#c5a059] uppercase tracking-[0.4em] mb-12 border-b border-white/10 pb-4">Order Summary</h3>
-              <div className="space-y-6">
-                {cart.map(item => (
-                  <div key={item.product.id} className="flex justify-between items-center">
-                    <div className="flex items-center gap-6">
-                      <div className="w-16 h-16 bg-[#0a0a0a] border border-white/5 p-1">
-                        <img src={item.product.images[0]} className="w-full h-full object-cover" />
+            <div className="flex items-center space-x-6">
+              <button className="relative" onClick={() => setView('cart')}>
+                <ShoppingCart 
+                  className="w-5 h-5 transition-colors" 
+                  style={{ color: customizations.headerIconColor || customizations.headerTextColor || '#9ca3af' }} 
+                />
+                {cart.length > 0 && (
+                  <span 
+                    className="absolute -top-2 -right-2 text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold"
+                    style={{ 
+                      backgroundColor: customizations.headerBadgeBgColor || themePrimary,
+                      color: customizations.headerBadgeTextColor || '#000000'
+                    }}
+                  >
+                    {cartItemCount}
+                  </span>
+                )}
+              </button>
+              {!user && (
+                <button 
+                  onClick={() => navigate(`/login?shop=${seller.id}`)}
+                  className="px-4 py-2 text-[10px] uppercase tracking-widest font-medium transition-all rounded-full"
+                  style={{ 
+                    backgroundColor: customizations.headerButtonBgColor || '#ffffff',
+                    color: customizations.headerButtonTextColor || '#000000',
+                    borderRadius: customizations.headerButtonRadius || '0px'
+                  }}
+                >
+                  Sign In
+                </button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <section className="pt-32 pb-24 min-h-screen" style={{ backgroundColor: mainBgColor }}>
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex items-end justify-between mb-16">
+              <div className="space-y-4">
+                <h2 className="text-5xl font-light text-white italic">Checkout</h2>
+                <p className="text-gray-500 text-sm uppercase tracking-widest">Complete your purchase</p>
+              </div>
+              <button 
+                onClick={() => setView('home')}
+                className="text-xs uppercase tracking-widest text-gray-400 hover:text-[#c5a059] transition-colors"
+              >
+                <ArrowRight className="w-4 h-4 rotate-180 inline mr-2" /> Back to Home
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+              <div className="lg:col-span-2 space-y-12">
+                <form onSubmit={handlePlaceOrder} className="space-y-12">
+                  {/* Step 1: Personal Information */}
+                  <div className="space-y-8">
+                    <div className="flex items-center gap-4 border-b border-white/10 pb-4">
+                      <div className="w-10 h-10 bg-gradient-to-br from-[#c5a059] to-[#b48a4a] rounded-full flex items-center justify-center">
+                        <span className="font-black text-sm text-black">01</span>
                       </div>
-                      <div>
-                        <p className="text-white font-light text-sm uppercase tracking-wider">{item.product.name}</p>
-                        <p className="text-gray-500 text-[10px] uppercase tracking-widest">Quantity: {item.quantity}</p>
+                      <h3 className="text-xl font-light text-white italic">Personal Information</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-3">
+                        <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest ml-1">Full Name</label>
+                        <input
+                          required
+                          type="text"
+                          value={checkoutData.name}
+                          onChange={(e) => setCheckoutData({ ...checkoutData, name: e.target.value })}
+                          className="w-full bg-[#151515] border border-white/10 px-6 py-4 text-white focus:border-[#c5a059] transition-all outline-none rounded-lg"
+                          placeholder="Enter your name"
+                        />
+                      </div>
+                      <div className="space-y-3">
+                        <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest ml-1">Email Address</label>
+                        <input
+                          required
+                          type="email"
+                          value={checkoutData.email}
+                          onChange={(e) => setCheckoutData({ ...checkoutData, email: e.target.value })}
+                          className="w-full bg-[#151515] border border-white/10 px-6 py-4 text-white focus:border-[#c5a059] transition-all outline-none rounded-lg"
+                          placeholder="your@email.com"
+                        />
+                      </div>
+                      <div className="space-y-3 md:col-span-2">
+                        <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest ml-1">Phone Number</label>
+                        <input
+                          required
+                          type="tel"
+                          value={checkoutData.phone}
+                          onChange={(e) => setCheckoutData({ ...checkoutData, phone: e.target.value })}
+                          className="w-full bg-[#151515] border border-white/10 px-6 py-4 text-white focus:border-[#c5a059] transition-all outline-none rounded-lg"
+                          placeholder="+1 (234) 567-890"
+                        />
                       </div>
                     </div>
-                    <p className="text-white font-light">{formatPrice(item.product.price * item.quantity, seller.currency)}</p>
-                  </div>
-                ))}
-                
-                <div className="h-px bg-white/10 my-8"></div>
-                
-                <div className="space-y-4">
-                  <div className="flex justify-between text-xs text-gray-500 uppercase tracking-widest">
-                    <span>Subtotal</span>
-                    <span>{formatPrice(cartTotal, seller.currency)}</span>
                   </div>
 
-                  {appliedDiscount && (
-                    <div className="flex justify-between text-xs text-green-500 uppercase tracking-widest font-bold">
-                      <span>Discount ({appliedDiscount.code})</span>
-                      <span>-{formatPrice(discountAmount, seller.currency)}</span>
+                  {/* Step 2: Delivery Details */}
+                  <div className="space-y-8 pt-8">
+                    <div className="flex items-center gap-4 border-b border-white/10 pb-4">
+                      <div className="w-10 h-10 bg-gradient-to-br from-[#c5a059] to-[#b48a4a] rounded-full flex items-center justify-center">
+                        <span className="font-black text-sm text-black">02</span>
+                      </div>
+                      <h3 className="text-xl font-light text-white italic">Delivery Details</h3>
                     </div>
-                  )}
+                    
+                    <div className="space-y-6">
+                      {enabledDeliveryLocations.length > 0 && (
+                        <div className="space-y-3">
+                          <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest ml-1">Delivery Area</label>
+                          <select
+                            required
+                            value={checkoutData.deliveryLocationId}
+                            onChange={(e) => setCheckoutData({ ...checkoutData, deliveryLocationId: e.target.value })}
+                            className="w-full bg-[#151515] border border-white/10 px-6 py-4 text-white focus:border-[#c5a059] transition-all outline-none rounded-lg appearance-none cursor-pointer"
+                          >
+                            <option value="">Select your delivery area</option>
+                            {enabledDeliveryLocations.map((loc: DeliveryLocation) => (
+                              <option key={loc.id} value={loc.id} className="bg-[#0a0a0a]">
+                                {loc.name} {loc.fee ? `(+${formatPrice(loc.fee, seller.currency)})` : '(Complimentary)'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
 
-                  {deliveryFee > 0 && (
-                    <div className="flex justify-between text-xs text-gray-500 uppercase tracking-widest">
-                      <span>Delivery Fee</span>
-                      <span>{formatPrice(deliveryFee, seller.currency)}</span>
+                      <div className="space-y-3">
+                        <label className="text-[10px] text-gray-500 uppercase font-bold tracking-widest ml-1">Specific Address</label>
+                        <textarea
+                          required
+                          rows={4}
+                          value={checkoutData.address}
+                          onChange={(e) => setCheckoutData({ ...checkoutData, address: e.target.value })}
+                          placeholder="Building, Street, Apartment, Landmark..."
+                          className="w-full bg-[#151515] border border-white/10 px-6 py-4 text-white focus:border-[#c5a059] transition-all outline-none rounded-lg resize-none font-light leading-relaxed"
+                        />
+                      </div>
+</div>
                     </div>
-                  )}
 
-                  <div className="flex justify-between text-xs text-gray-500 uppercase tracking-widest">
-                    <span>Shipping</span>
-                    <span className="text-[#c5a059]">Complimentary</span>
+                    {/* Step 3: Payment Method Selection */}
+                    {paymentTerms.methods.length > 1 && (
+                      <div className="space-y-8 pt-8">
+                        <div className="flex items-center gap-4 border-b border-white/10 pb-4">
+                          <div className="w-10 h-10 bg-gradient-to-br from-[#c5a059] to-[#b48a4a] rounded-full flex items-center justify-center">
+                            <span className="font-black text-sm text-black">03</span>
+                          </div>
+                          <h3 className="text-xl font-light text-white italic">Payment Method</h3>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          {paymentTerms.methods.map((methodId) => {
+                            const methodLabels: Record<string, string> = {
+                              site: 'Pay on Site (Full Amount)',
+                              pod: 'Pay on Delivery',
+                              deposit: `Partial Deposit (${paymentTerms.depositPercentage}% upfront)`
+                            };
+                            const isSelected = checkoutData.paymentMethod === methodId;
+                            
+                            return (
+                              <div
+                                key={methodId}
+                                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                                  isSelected ? 'border-[#c5a059] bg-[#c5a059]/10' : 'border-white/10 hover:border-white/20'
+                                }`}
+                                onClick={() => setCheckoutData({ ...checkoutData, paymentMethod: methodId as any })}
+                              >
+                                <div className="flex items-center gap-4">
+                                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                    isSelected ? 'border-[#c5a059] bg-[#c5a059]' : 'border-white/30'
+                                  }`}>
+                                    {isSelected && <div className="w-3 h-3 rounded-full bg-black" />}
+                                  </div>
+                                  <div>
+                                    <h5 className="text-white font-bold text-sm">{methodLabels[methodId]}</h5>
+                                    {methodId === 'deposit' && (
+                                      <p className="text-gray-500 text-[10px] mt-1">
+                                        Pay {formatPrice(paymentAmount, seller.currency)} now, {formatPrice(remainingBalance, seller.currency)} on delivery
+                                      </p>
+                                    )}
+                                    {methodId === 'pod' && (
+                                      <p className="text-gray-500 text-[10px] mt-1">
+                                        Pay {formatPrice(cartTotal - discountAmount + deliveryFee, seller.currency)} when you receive your order
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <button
+                    type="submit"
+                    className="w-full py-6 bg-gradient-to-r from-[#c5a059] to-[#b48a4a] text-black font-bold text-sm uppercase tracking-widest hover:from-white hover:to-white transition-all shadow-xl rounded-lg"
+                  >
+                    Place Order • {formatPrice(finalTotal, seller.currency)}
+                  </button>
+                </form>
+              </div>
+
+              {/* Order Summary Sidebar */}
+              <div className="space-y-8">
+                <div className="bg-[#151515] border border-white/10 p-10 rounded-2xl">
+                  <h3 className="text-xs font-bold text-[#c5a059] uppercase tracking-[0.4em] mb-8 border-b border-white/10 pb-4">Order Summary</h3>
+                  <div className="space-y-6">
+                    {cart.map(item => (
+                      <div key={item.product.id} className="flex justify-between items-center gap-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 bg-[#0a0a0a] border border-white/5 p-1 rounded-lg">
+                            <img src={item.product.images[0]} className="w-full h-full object-cover rounded" />
+                          </div>
+                          <div>
+                            <p className="text-white font-light text-sm">{item.product.name}</p>
+                            <p className="text-gray-500 text-[10px] uppercase tracking-widest">Qty: {item.quantity}</p>
+                          </div>
+                        </div>
+                        <p className="text-white font-light">{formatPrice(item.product.price * item.quantity, seller.currency)}</p>
+                      </div>
+                    ))}
+                    
+                    <div className="h-px bg-white/10 my-8"></div>
+                    
+                    <div className="space-y-4">
+                      <div className="flex justify-between text-xs text-gray-500 uppercase tracking-widest">
+                        <span>Subtotal</span>
+                        <span className="text-white">{formatPrice(cartTotal, seller.currency)}</span>
+                      </div>
+
+                      {appliedDiscount && (
+                        <div className="flex justify-between text-xs text-green-500 uppercase tracking-widest font-bold">
+                          <span>Discount ({appliedDiscount.code})</span>
+                          <span>-{formatPrice(discountAmount, seller.currency)}</span>
+                        </div>
+                      )}
+
+                      {deliveryFee > 0 && (
+                        <div className="flex justify-between text-xs text-gray-500 uppercase tracking-widest">
+                          <span>Delivery Fee</span>
+                          <span className="text-white">{formatPrice(deliveryFee, seller.currency)}</span>
+                        </div>
+                      )}
+
+                      <div className="flex justify-between text-xs text-gray-500 uppercase tracking-widest">
+                        <span>Shipping</span>
+                        <span className="text-[#c5a059] font-medium">Complimentary</span>
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-white/10 my-8"></div>
+                    
+                    {checkoutData.paymentMethod === 'deposit' && (
+                      <div className="space-y-4">
+                        <div className="h-px bg-white/10"></div>
+                        <div className="flex justify-between text-xs text-[#c5a059] uppercase tracking-widest">
+                          <span>Pay Now ({paymentTerms.depositPercentage}%)</span>
+                          <span>{formatPrice(paymentAmount, seller.currency)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-400 uppercase tracking-widest">
+                          <span>Remaining Balance</span>
+                          <span>{formatPrice(remainingBalance, seller.currency)}</span>
+                        </div>
+                        <div className="h-px bg-white/10"></div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-end">
+                      {checkoutData.paymentMethod === 'pod' ? (
+                        <>
+                          <span className="text-xs font-light uppercase tracking-widest text-gray-500 mb-1">Pay on Delivery</span>
+                          <span className="text-3xl font-light italic text-white">{formatPrice(cartTotal - discountAmount + deliveryFee, seller.currency)}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-xs font-light uppercase tracking-widest text-gray-500 mb-1">Total</span>
+                          <span className="text-3xl font-light italic text-[#c5a059]">{formatPrice(finalTotal, seller.currency)}</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="h-px bg-white/10 my-8"></div>
-                
-                <div className="flex justify-between text-white text-3xl font-light italic">
-                  <span>Total</span>
-                  <span className="text-[#c5a059]">{formatPrice(finalTotal, seller.currency)}</span>
+                <div className="p-8 bg-[#151515] border border-white/10 rounded-2xl flex items-center gap-6">
+                  <div className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center backdrop-blur-md">
+                    <ShieldCheck className="w-7 h-7 text-[#c5a059]" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-white">Secure Checkout</h4>
+                    <p className="text-gray-500 text-[9px] uppercase tracking-widest leading-relaxed">Bank-level encryption protects your data</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+        </section>
+      </div>
+    );
+  };
+
+  const renderSuccess = () => {
+    const methodLabels: Record<string, string> = {
+      site: 'Full Payment',
+      pod: 'Pay on Delivery',
+      deposit: 'Partial Deposit'
+    };
+    
+    return (
+      <section style={{ backgroundColor: mainBgColor }}>
+        <div>
+          <div className="w-24 h-24 bg-[#c5a059]/10 text-[#c5a059] rounded-full flex items-center justify-center mx-auto mb-8">
+            <Check size={48} strokeWidth={3} />
+          </div>
+          <h2 className="text-5xl font-light text-white mb-6 italic">Order Confirmed</h2>
+          {checkoutData.paymentMethod === 'deposit' && (
+            <p className="text-gray-400 mb-4 max-w-md mx-auto">
+              You've paid {formatPrice(paymentAmount, seller.currency)}. Remaining balance of {formatPrice(remainingBalance, seller.currency)} is due on delivery.
+            </p>
+          )}
+          {checkoutData.paymentMethod === 'pod' && (
+            <p className="text-gray-400 mb-4 max-w-md mx-auto">
+              You chose to pay on delivery. Pay {formatPrice(cartTotal - discountAmount + deliveryFee, seller.currency)} when you receive your order.
+            </p>
+          )}
+          <p className="text-gray-500 mb-12 max-w-md mx-auto">
+            {checkoutData.paymentMethod === 'deposit' || checkoutData.paymentMethod === 'pod' 
+              ? 'A confirmation has been sent to your email.'
+              : 'Thank you for your purchase. A confirmation has been sent to your email.'
+            }
+          </p>
+          <button
+            onClick={() => setView('home')}
+            className="px-12 py-5 bg-[#c5a059] text-black font-bold text-sm uppercase tracking-widest hover:bg-white transition-colors"
+          >
+            Continue Shopping
+          </button>
         </div>
       </section>
     );
   };
-
-  const renderSuccess = () => (
-    <section style={{ backgroundColor: mainBgColor }}>
-      <div>
-        <div className="w-24 h-24 bg-[#c5a059]/10 text-[#c5a059] rounded-full flex items-center justify-center mx-auto mb-8">
-          <Check size={48} strokeWidth={3} />
-        </div>
-        <h2 className="text-5xl font-light text-white mb-6 italic">Order Confirmed</h2>
-        <p className="text-gray-400 mb-12 max-w-md mx-auto">
-          Thank you for your purchase. A confirmation has been sent to your email.
-        </p>
-        <button
-          onClick={() => setView('home')}
-          className="px-12 py-5 bg-[#c5a059] text-black font-bold text-sm uppercase tracking-widest hover:bg-white transition-colors"
-        >
-          Continue Shopping
-        </button>
-      </div>
-    </section>
-  );
 
   const renderContact = () => (
     <section style={{ backgroundColor: mainBgColor }}>
@@ -1640,7 +1882,8 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
     email: '',
     phone: '',
     address: '',
-    deliveryLocationId: ''
+    deliveryLocationId: '',
+    paymentMethod: 'site' as 'site' | 'pod' | 'deposit'
    });
 
   const enabledDeliveryLocations = useMemo(() => {
@@ -1653,7 +1896,28 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
 
   const deliveryFee = selectedDeliveryLocation?.fee || 0;
 
-  const finalTotal = useMemo(() => cartTotal - discountAmount + deliveryFee, [cartTotal, discountAmount, deliveryFee]);
+  const paymentTerms = seller.paymentTerms || { methods: ['site'], depositPercentage: 50, rules: 'all' };
+  
+  const paymentAmount = useMemo(() => {
+    if (checkoutData.paymentMethod === 'deposit') {
+      return (cartTotal - discountAmount + deliveryFee) * (paymentTerms.depositPercentage / 100);
+    }
+    return cartTotal - discountAmount + deliveryFee;
+  }, [cartTotal, discountAmount, deliveryFee, checkoutData.paymentMethod, paymentTerms.depositPercentage]);
+
+  const remainingBalance = useMemo(() => {
+    if (checkoutData.paymentMethod === 'deposit') {
+      return (cartTotal - discountAmount + deliveryFee) * ((100 - paymentTerms.depositPercentage) / 100);
+    }
+    return 0;
+  }, [cartTotal, discountAmount, deliveryFee, checkoutData.paymentMethod, paymentTerms.depositPercentage]);
+
+  const finalTotal = useMemo(() => {
+    if (checkoutData.paymentMethod === 'pod') {
+      return 0;
+    }
+    return paymentAmount;
+  }, [paymentAmount, checkoutData.paymentMethod]);
 
   return (
     <div className="min-h-screen text-white" style={{ backgroundColor: mainBgColor }}>
@@ -1909,7 +2173,7 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
 
           <div className="flex items-center gap-4 shrink-0">
             <div className="flex items-center gap-2 px-4 py-2 bg-blue-600/10 border border-blue-500/20 rounded-full">
-              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
+              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
               <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-blue-500">Live Editor</span>
             </div>
           </div>
@@ -2136,7 +2400,7 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
                         onLoad={(e) => (e.currentTarget.style.opacity = '1')}
                         style={{ opacity: 0 }}
                       />
-                      <div className="absolute inset-0 bg-white/5 animate-pulse rounded h-12 w-28 -z-10 group-load-hidden" />
+                      <div className="absolute inset-0 bg-white/5 rounded h-12 w-28 -z-10 group-load-hidden" />
                     </div>
                   ) : (
                     <>

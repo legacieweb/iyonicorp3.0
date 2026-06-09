@@ -130,10 +130,15 @@ CREATE TABLE IF NOT EXISTS orders (
     customer_email VARCHAR(255) NOT NULL,
     items JSONB NOT NULL,
     total DECIMAL(15, 2) NOT NULL,
+    subtotal DECIMAL(15, 2),
+    original_total DECIMAL(15, 2),
+    discount JSONB,
     currency VARCHAR(10) DEFAULT 'USD',
     status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'shipped', 'delivered', 'cancelled', 'refund_requested', 'refunded')),
     refund_reason TEXT,
     shipping_address JSONB NOT NULL,
+    delivery_fee DECIMAL(15, 2) DEFAULT 0,
+    delivery_location TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

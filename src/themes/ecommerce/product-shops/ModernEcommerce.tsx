@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Product, Seller, Order, OrderItem, ordersAPI, sellersAPI, Review, reviewsAPI, messagesAPI, discountsAPI, DeliveryLocation } from '../../../services/api';
 import { formatPrice } from '../../../utils/currency';
 import {
-  ShoppingCart, Star, ArrowRight, Heart, Search, Menu, Instagram, Twitter, Facebook,
-  ShieldCheck, Truck, RefreshCw, X, Plus, Minus, Trash2, Check, Edit2, Palette,
-  LogIn, UserPlus, Mail, Phone, MapPin, Sparkles, Loader2, Send, Youtube, Linkedin, Globe, MessageCircle, Music2, LayoutDashboard, Tag,
-  Upload, Image as ImageIcon, Edit3, Headphones
-} from 'lucide-react';
+   ShoppingCart, Star, ArrowRight, Heart, Search, Menu, Instagram, Twitter, Facebook,
+   ShieldCheck, Truck, RefreshCw, X, Plus, Minus, Trash2, Check, Edit2, Palette,
+   LogIn, UserPlus, Mail, Phone, MapPin, Sparkles, Loader2, Send, Youtube, Linkedin, Globe, MessageCircle, Music2, LayoutDashboard, Tag,
+   Upload, Image as ImageIcon, Edit3, Headphones, CreditCard
+ } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { Popup } from '../../../components/ui/Popup';
@@ -512,8 +512,8 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
           amount: discountAmount
         } : undefined,
         currency: seller.currency || 'USD',
-        status: 'pending',
-        paymentMethod: activePaymentMethod,
+        status: checkoutData.paymentMethod === 'pod' ? 'pending' : 'pending',
+        paymentMethod: checkoutData.paymentMethod === 'pod' ? 'pod' : activePaymentMethod,
         shippingAddress: {
           street: checkoutData.address || 'N/A',
           city: selectedDeliveryLocation?.name || 'N/A',
@@ -522,12 +522,24 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
           zipCode: 'N/A'
         },
         deliveryFee: deliveryFee,
-        deliveryLocation: selectedDeliveryLocation?.name
+        deliveryLocation: selectedDeliveryLocation?.name,
+        paymentType: checkoutData.paymentMethod,
+        remainingBalance: checkoutData.paymentMethod === 'deposit' ? remainingBalance : undefined
       } as any;
 
       const response = await ordersAPI.create(orderData);
 
-      if (response.paymentMethod === 'iyonicpay' && response.paymentLink) {
+      if (checkoutData.paymentMethod === 'pod') {
+      setCart([]);
+      setAppliedDiscount(null);
+      localStorage.removeItem(`cart_${seller.id}`);
+      localStorage.removeItem(`discount_${seller.id}`);
+      setCouponCode('');
+      setView('order-success');
+      return;
+    }
+
+    if (response.paymentMethod === 'iyonicpay' && response.paymentLink) {
         const autoPayLink = response.paymentLink.includes('?') 
           ? `${response.paymentLink}&autoPay=true` 
           : `${response.paymentLink}?autoPay=true`;
@@ -540,7 +552,7 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
         return;
       }
 
-      if (response.paymentLink && response.reference) {
+if (response.paymentLink && response.reference) {
         if ((response as any).isCustomPaystack) {
           window.location.href = response.paymentLink;
           return;
@@ -559,23 +571,23 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
           onClose: () => {
             alert('Payment cancelled. Your order has been cancelled.');
           },
-          callback: async (paystackResponse: any) => {
-            try {
-              const res = await ordersAPI.verifyPayment(paystackResponse.reference, response.id);
-              if (res.success) {
-                setCart([]);
-                setAppliedDiscount(null);
-                localStorage.removeItem(`cart_${seller.id}`);
-                localStorage.removeItem(`discount_${seller.id}`);
-                setCouponCode('');
-                setView('order-success');
-              } else {
-                alert('Payment verification failed. Please contact support.');
-              }
-            } catch (error) {
-              console.error('Verification error:', error);
-              alert('An error occurred during payment verification.');
-            }
+          callback: (paystackResponse: any) => {
+            ordersAPI.verifyPayment(paystackResponse.reference, response.id)
+              .then(res => {
+                if (res.success) {
+                  setCart([]);
+                  setAppliedDiscount(null);
+                  localStorage.removeItem(`cart_${seller.id}`);
+                  localStorage.removeItem(`discount_${seller.id}`);
+                  setCouponCode('');
+                  setView('order-success');
+                } else {
+                  alert('Payment verification failed. Please contact support.');
+                }
+              }).catch(() => {
+                console.error('Verification error');
+                alert('An error occurred during payment verification.');
+              });
           }
         });
         handler.openIframe();
@@ -1446,10 +1458,64 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
                         className="w-full bg-gray-50 border border-gray-100 rounded-[30px] px-8 py-6 text-gray-900 font-medium focus:outline-none focus:bg-white focus:border-indigo-600 transition-all resize-none"
                       />
                     </div>
-                  </div>
-                </div>
+</div>
+                   </div>
 
-                <button
+                  {/* Step 3: Payment Method Selection */}
+                  {paymentTerms.methods.length > 1 && (
+                    <div className="space-y-10 pt-8">
+                      <div className="flex items-center gap-4 border-b border-gray-100 pb-6">
+                        <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                          <span className="font-black text-sm">03</span>
+                        </div>
+                        <h3 className="text-xl font-black text-gray-900">Payment Method</h3>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {paymentTerms.methods.map((methodId) => {
+                          const methodLabels: Record<string, string> = {
+                            site: 'Pay on Site (Full Amount)',
+                            pod: 'Pay on Delivery',
+                            deposit: `Partial Deposit (${paymentTerms.depositPercentage}% upfront)`
+                          };
+                          const isSelected = checkoutData.paymentMethod === methodId;
+                          
+                          return (
+                            <div
+                              key={methodId}
+                              className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                                isSelected ? 'border-emerald-500 bg-emerald-50/30' : 'border-slate-100 hover:border-slate-200'
+                              }`}
+                              onClick={() => setCheckoutData({ ...checkoutData, paymentMethod: methodId as any })}
+                            >
+                              <div className="flex items-start gap-4">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isSelected ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                  <CreditCard className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <h5 className="font-bold text-slate-900">{methodLabels[methodId]}</h5>
+                                  </div>
+                                  {methodId === 'deposit' && (
+                                    <p className="text-xs font-medium text-slate-500">
+                                      Pay {formatPrice(paymentAmount, seller.currency)} now, {formatPrice(remainingBalance, seller.currency)} on delivery
+                                    </p>
+                                  )}
+                                  {methodId === 'pod' && (
+                                    <p className="text-xs font-medium text-slate-500">
+                                      Pay {formatPrice(cartTotal - discountAmount + deliveryFee, seller.currency)} when you receive your order
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                   <button
                   type="submit"
                   className="w-full py-7 bg-gray-900 text-white rounded-[30px] font-black text-sm uppercase tracking-[0.3em] hover:bg-indigo-600 hover:shadow-2xl transition-all shadow-xl active:scale-95"
                 >
@@ -1500,12 +1566,36 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
                     </div>
                   </div>
 
-                  <div className="h-px bg-gray-100 my-8"></div>
-                  
-                  <div className="flex justify-between items-end">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Total Due</span>
-                    <span className="text-4xl font-black text-gray-900 tracking-tighter">{formatPrice(finalTotal, seller.currency)}</span>
-                  </div>
+<div className="h-px bg-gray-100 my-8"></div>
+                   
+                   {checkoutData.paymentMethod === 'deposit' && (
+                     <div className="space-y-4">
+                       <div className="h-px bg-gray-200"></div>
+                       <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-emerald-500">
+                         <span>Pay Now ({paymentTerms.depositPercentage}%)</span>
+                         <span>{formatPrice(paymentAmount, seller.currency)}</span>
+                       </div>
+                       <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-gray-400">
+                         <span>Remaining Balance</span>
+                         <span>{formatPrice(remainingBalance, seller.currency)}</span>
+                       </div>
+                       <div className="h-px bg-gray-200"></div>
+                     </div>
+                   )}
+
+                   <div className="flex justify-between items-end">
+                     {checkoutData.paymentMethod === 'pod' ? (
+                       <>
+                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Pay on Delivery</span>
+                         <span className="text-4xl font-black text-gray-900 tracking-tighter">{formatPrice(cartTotal - discountAmount + deliveryFee, seller.currency)}</span>
+                       </>
+                     ) : (
+                       <>
+                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Total Due</span>
+                         <span className="text-4xl font-black text-gray-900 tracking-tighter">{formatPrice(finalTotal, seller.currency)}</span>
+                       </>
+                     )}
+                   </div>
                 </div>
               </div>
 
@@ -1527,42 +1617,56 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
     );
   };
 
-  const renderSuccess = () => (
-    <div className="py-40 min-h-screen flex items-center justify-center text-center px-6" style={{ backgroundColor: mainBgColor }}>
-      <div className="max-w-xl space-y-12">
-        <div className="relative inline-block">
-          <div className="w-32 h-32 bg-green-50 rounded-[40px] flex items-center justify-center mx-auto animate-bounce-slow">
-            <Check size={48} className="text-green-600" strokeWidth={3} />
+  const renderSuccess = () => {
+    return (
+      <div className="py-40 min-h-screen flex items-center justify-center text-center px-6" style={{ backgroundColor: mainBgColor }}>
+        <div className="max-w-xl space-y-12">
+          <div className="relative inline-block">
+            <div className="w-32 h-32 bg-green-50 rounded-[40px] flex items-center justify-center mx-auto animate-bounce-slow">
+              <Check size={48} className="text-green-600" strokeWidth={3} />
+            </div>
+            <div className="absolute -top-4 -right-4 w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg animate-pulse">
+              <Sparkles size={20} />
+            </div>
           </div>
-          <div className="absolute -top-4 -right-4 w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg animate-pulse">
-            <Sparkles size={20} />
+          
+          <div className="space-y-6">
+            <h2 className="text-6xl font-black tracking-tighter text-gray-900 leading-none">Order Confirmed.</h2>
+            {checkoutData.paymentMethod === 'deposit' && (
+              <p className="text-lg text-emerald-600 font-medium leading-relaxed">
+                You paid {formatPrice(paymentAmount, seller.currency)}. Remaining balance of {formatPrice(remainingBalance, seller.currency)} due on delivery.
+              </p>
+            )}
+            {checkoutData.paymentMethod === 'pod' && (
+              <p className="text-lg text-gray-500 font-medium leading-relaxed">
+                Pay on delivery: {formatPrice(cartTotal - discountAmount + deliveryFee, seller.currency)} when you receive your order.
+              </p>
+            )}
+            {checkoutData.paymentMethod !== 'deposit' && checkoutData.paymentMethod !== 'pod' && (
+              <p className="text-lg text-gray-500 font-medium leading-relaxed">
+                Thank you for choosing us. Your order has been successfully placed and a confirmation email is on its way.
+              </p>
+            )}
           </div>
-        </div>
-        
-        <div className="space-y-6">
-          <h2 className="text-6xl font-black tracking-tighter text-gray-900 leading-none">Order Confirmed.</h2>
-          <p className="text-lg text-gray-500 font-medium leading-relaxed">
-            Thank you for choosing us. Your order has been successfully placed and a confirmation email is on its way.
-          </p>
-        </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-          <button
-            onClick={() => setView('home')}
-            className="px-12 py-5 bg-gray-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-xl active:scale-95"
-          >
-            Back to Home
-          </button>
-          <button
-            onClick={() => navigate('/customer/dashboard')}
-            className="px-12 py-5 border-2 border-gray-100 text-gray-900 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-gray-50 transition-all"
-          >
-            Track Order
-          </button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+            <button
+              onClick={() => setView('home')}
+              className="px-12 py-5 bg-gray-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-xl active:scale-95"
+            >
+              Back to Home
+            </button>
+            <button
+              onClick={() => navigate('/customer/dashboard')}
+              className="px-12 py-5 border-2 border-gray-100 text-gray-900 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-gray-50 transition-all"
+            >
+              Track Order
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderContact = () => (
     <div className="py-32 min-h-screen" style={{ backgroundColor: mainBgColor }}>
@@ -1857,7 +1961,8 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
     email: '',
     phone: '',
     address: '',
-    deliveryLocationId: ''
+    deliveryLocationId: '',
+    paymentMethod: 'site' as 'site' | 'pod' | 'deposit'
    });
 
   const enabledDeliveryLocations = useMemo(() => {
@@ -1870,7 +1975,28 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
 
   const deliveryFee = selectedDeliveryLocation?.fee || 0;
 
-  const finalTotal = useMemo(() => cartTotal - discountAmount + deliveryFee, [cartTotal, discountAmount, deliveryFee]);
+  const paymentTerms = seller.paymentTerms || { methods: ['site'], depositPercentage: 50, rules: 'all' };
+  
+  const paymentAmount = useMemo(() => {
+    if (checkoutData.paymentMethod === 'deposit') {
+      return (cartTotal - discountAmount + deliveryFee) * (paymentTerms.depositPercentage / 100);
+    }
+    return cartTotal - discountAmount + deliveryFee;
+  }, [cartTotal, discountAmount, deliveryFee, checkoutData.paymentMethod, paymentTerms.depositPercentage]);
+
+  const remainingBalance = useMemo(() => {
+    if (checkoutData.paymentMethod === 'deposit') {
+      return (cartTotal - discountAmount + deliveryFee) * ((100 - paymentTerms.depositPercentage) / 100);
+    }
+    return 0;
+  }, [cartTotal, discountAmount, deliveryFee, checkoutData.paymentMethod, paymentTerms.depositPercentage]);
+
+  const finalTotal = useMemo(() => {
+    if (checkoutData.paymentMethod === 'pod') {
+      return 0;
+    }
+    return paymentAmount;
+  }, [paymentAmount, checkoutData.paymentMethod]);
 
   return (
     <div className="min-h-screen font-sans selection:bg-indigo-100 selection:text-indigo-900" style={{ backgroundColor: mainBgColor }}>

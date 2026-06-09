@@ -316,10 +316,16 @@ app.post('/api/auth/register', async (req, res) => {
 
         // Special logic for Enterprise Managers: first 6 sellers get Professional plan free
         if (managerIdFromUrl) {
-          const managerRes = await client.query('SELECT subscription FROM seller_managers WHERE id = $1', [managerIdFromUrl]);
+          const managerRes = await client.query('SELECT pricing_config FROM seller_managers WHERE id = $1', [managerIdFromUrl]);
           if (managerRes.rows.length > 0) {
             const manager = managerRes.rows[0];
-            const managerPlan = manager.subscription?.plan || 'starter';
+            let managerSubscription = {};
+            try {
+              managerSubscription = typeof manager.pricing_config === 'object' ? manager.pricing_config : JSON.parse(manager.pricing_config || '{}');
+            } catch (e) {
+              managerSubscription = {};
+            }
+            const managerPlan = managerSubscription.plan || 'starter';
             
             if (managerPlan === 'enterprise') {
               const sellerCountRes = await client.query('SELECT COUNT(*) FROM sellers WHERE manager_id = $1', [managerIdFromUrl]);
@@ -928,11 +934,17 @@ app.patch('/api/sellers/me', authenticateToken, async (req, res) => {
     // Commission logic for manager on subscription
     if (subscription && subscription.status === 'active' && subscription.plan !== 'starter') {
       // Find manager
-      if (updatedSeller.manager_id) {
-        const managerRes = await db.query('SELECT * FROM seller_managers WHERE id = $1', [updatedSeller.manager_id]);
+if (updatedSeller.manager_id) {
+        const managerRes = await db.query('SELECT user_id, pricing_config FROM seller_managers WHERE id = $1', [updatedSeller.manager_id]);
         if (managerRes.rows.length > 0) {
           const manager = managerRes.rows[0];
-          const managerPlan = manager.subscription?.plan || 'starter';
+          let managerSubscription = {};
+          try {
+            managerSubscription = typeof manager.pricing_config === 'object' ? manager.pricing_config : JSON.parse(manager.pricing_config || '{}');
+          } catch (e) {
+            managerSubscription = {};
+          }
+          const managerPlan = managerSubscription.plan || 'starter';
 
           // Basic and Enterprise managers get 40% commission on subscriptions
           if (managerPlan === 'basic' || managerPlan === 'enterprise') {
@@ -1148,10 +1160,13 @@ app.post('/api/iyonicpay/opt-in', authenticateToken, async (req, res) => {
       // Update user opt-in status
       await client.query('UPDATE users SET iyonicpay_opt_in = TRUE WHERE id = $1', [userId]);
       
-      // Create wallet
+      // Create wallet - get seller's currency if user is a seller
+      const sellerRes = await client.query('SELECT currency FROM sellers WHERE user_id = $1', [userId]);
+      const sellerCurrency = sellerRes.rows[0]?.currency || 'USD';
+      
       await client.query(
-        'INSERT INTO wallets (user_id, balance) VALUES ($1, 0) ON CONFLICT (user_id) DO NOTHING',
-        [userId]
+        'INSERT INTO wallets (user_id, balance, currency) VALUES ($1, 0, $2) ON CONFLICT (user_id) DO UPDATE SET currency = $2 WHERE wallets.currency IS NULL',
+        [userId, sellerCurrency]
       );
       
       await client.query('COMMIT');
@@ -2238,29 +2253,40 @@ app.post('/api/iyonicpay/invoices/:token/verify-external-payment', async (req, r
 
 // Withdrawals
 app.post('/api/iyonicpay/withdrawals', authenticateToken, async (req, res) => {
-  const { amount, bankDetails } = req.body;
+  const { amount, bankDetails, currency } = req.body;
   const client = await db.pool.connect();
   try {
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+      return res.status(400).json({ message: 'Please enter a valid amount greater than 0' });
+    }
+    if (!bankDetails || !bankDetails.bankName?.trim() || !bankDetails.accountNo?.trim() || !bankDetails.accountName?.trim()) {
+      return res.status(400).json({ message: 'Please provide all required bank details' });
+    }
     await client.query('BEGIN');
     
-    const walletRes = await client.query('SELECT id, balance FROM wallets WHERE user_id = $1', [req.user.id]);
+    const walletRes = await client.query('SELECT id, balance, currency FROM wallets WHERE user_id = $1', [req.user.id]);
     const wallet = walletRes.rows[0];
 
-    if (parseFloat(wallet.balance) < parseFloat(amount)) {
-      throw new Error('Insufficient funds');
+    if (!wallet) {
+      return res.status(400).json({ message: 'Wallet not found. Please opt-in to IyonicPay first.' });
+    }
+
+    const walletBalance = parseFloat(wallet.balance || 0);
+    if (walletBalance < parseFloat(amount)) {
+      return res.status(400).json({ message: 'Insufficient funds' });
     }
 
     await client.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [amount, wallet.id]);
     
     const withdrawalRes = await client.query(
-      'INSERT INTO withdrawals (user_id, amount, bank_details) VALUES ($1, $2, $3) RETURNING *',
-      [req.user.id, amount, JSON.stringify(bankDetails)]
+      'INSERT INTO withdrawals (user_id, amount, bank_details, status) VALUES ($1, $2, $3, $4) RETURNING *',
+      [req.user.id, parseFloat(amount), JSON.stringify(bankDetails), 'pending']
     );
 
     await client.query(`
       INSERT INTO transactions (sender_wallet_id, amount, type, status, description) 
       VALUES ($1, $2, 'withdrawal', 'pending', 'Withdrawal Request')
-    `, [wallet.id, amount]);
+    `, [wallet.id, parseFloat(amount)]);
 
     await client.query('COMMIT');
 
@@ -2277,7 +2303,8 @@ app.post('/api/iyonicpay/withdrawals', authenticateToken, async (req, res) => {
     res.status(201).json(toCamel(withdrawalRes.rows[0]));
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(400).json({ message: err.message });
+    console.error('Withdrawal error:', err);
+    res.status(500).json({ message: err.message || 'Withdrawal failed' });
   } finally {
     client.release();
   }
@@ -2796,7 +2823,7 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
 });
 
 app.post('/api/orders', async (req, res) => {
-  const { sellerId, customerId, customerName, customerEmail, customerPhone, items, total, currency: bodyCurrency, shippingAddress, paymentMethod } = req.body;
+  const { sellerId, customerId, customerName, customerEmail, customerPhone, items, total, currency: bodyCurrency, shippingAddress, paymentMethod, discount, subtotal, originalTotal, deliveryFee, deliveryLocation } = req.body;
   const client = await db.pool.connect();
   try {
     // Get seller's default currency and store name
@@ -2855,9 +2882,9 @@ app.post('/api/orders', async (req, res) => {
     }
 
     const orderRes = await client.query(
-      `INSERT INTO orders (seller_id, customer_id, customer_name, customer_email, items, total, currency, status, shipping_address) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8) RETURNING *`,
-      [sellerId, finalCustomerId, customerName, customerEmail, JSON.stringify(items), total, currency || 'USD', JSON.stringify(shippingAddress)]
+      `INSERT INTO orders (seller_id, customer_id, customer_name, customer_email, items, total, subtotal, original_total, discount, currency, status, shipping_address, delivery_fee, delivery_location) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12, $13) RETURNING *`,
+      [sellerId, finalCustomerId, customerName, customerEmail, JSON.stringify(items), total, subtotal, originalTotal, JSON.stringify(discount), currency, JSON.stringify(shippingAddress), deliveryFee, deliveryLocation]
     );
 
     const order = toCamel(orderRes.rows[0]);
@@ -3071,31 +3098,41 @@ app.post('/api/orders/verify-payment', async (req, res) => {
           
           // Find admin user (manager_admin role)
           const adminRes = await client.query('SELECT id FROM users WHERE role = \'manager_admin\' LIMIT 1');
-          const adminId = adminRes.rows[0]?.id || 'admin-id';
-          
-          const adminWalletRes = await client.query('SELECT id, currency FROM wallets WHERE user_id = $1', [adminId]);
-          if (adminWalletRes.rows.length > 0) {
-            const adminWallet = adminWalletRes.rows[0];
-            const adminWalletCurrency = (adminWallet.currency || 'USD').toUpperCase();
-            const commissionToAdd = convert(platformCommission, paymentCurrency, adminWalletCurrency);
+          if (adminRes.rows.length > 0) {
+            const adminId = adminRes.rows[0].id;
             
-            await client.query('UPDATE wallets SET balance = balance + $1 WHERE id = $2', [commissionToAdd, adminWallet.id]);
-            await client.query(
-              'INSERT INTO transactions (receiver_wallet_id, amount, currency, type, status, description) VALUES ($1, $2, $3, \'receive\', \'completed\', $4)',
-              [adminWallet.id, platformCommission, paymentCurrency, `Starter plan 7% commission from ${sellerFull.store_name} for order: ${finalOrderId}`]
-            );
+            const adminWalletRes = await client.query('SELECT id, currency FROM wallets WHERE user_id = $1', [adminId]);
+            if (adminWalletRes.rows.length > 0) {
+              const adminWallet = adminWalletRes.rows[0];
+              const adminWalletCurrency = (adminWallet.currency || 'USD').toUpperCase();
+              const commissionToAdd = convert(platformCommission, paymentCurrency, adminWalletCurrency);
+              
+              await client.query('UPDATE wallets SET balance = balance + $1 WHERE id = $2', [commissionToAdd, adminWallet.id]);
+              await client.query(
+                'INSERT INTO transactions (receiver_wallet_id, amount, currency, type, status, description) VALUES ($1, $2, $3, \'receive\', \'completed\', $4)',
+                [adminWallet.id, platformCommission, paymentCurrency, `Starter plan 7% commission from ${sellerFull.store_name} for order: ${finalOrderId}`]
+              );
+            }
           }
         }
 
         if (sellerFull?.manager_id) {
-          const managerRes = await client.query('SELECT * FROM seller_managers WHERE id = $1', [sellerFull.manager_id]);
+          const managerRes = await client.query('SELECT user_id, commission_rate, pricing_config FROM seller_managers WHERE id = $1', [sellerFull.manager_id]);
           if (managerRes.rows.length > 0) {
             const manager = managerRes.rows[0];
-            const managerPlan = manager.subscription?.plan || 'starter';
             const commissionRate = parseFloat(manager.commission_rate || 0);
 
+            // Manager's subscription is stored in pricing_config with plan field
+            let managerSubscription = {};
+            try {
+              managerSubscription = typeof manager.pricing_config === 'object' ? manager.pricing_config : JSON.parse(manager.pricing_config || '{}');
+            } catch (e) {
+              managerSubscription = {};
+            }
+            const actualManagerPlan = managerSubscription.plan || 'starter';
+
             // Sales commission is ONLY for Enterprise managers
-            if (managerPlan === 'enterprise' && commissionRate > 0) {
+            if (actualManagerPlan === 'enterprise' && commissionRate > 0 && manager.user_id) {
               const commissionAmount = amount * commissionRate;
               
               // Credit manager's wallet
@@ -3140,13 +3177,15 @@ app.post('/api/orders/verify-payment', async (req, res) => {
         }
 
         // Update Customer stats
-        await client.query(`
-          UPDATE customers 
-          SET total_orders = total_orders + 1, 
-              total_spent = total_spent + $1,
-              updated_at = CURRENT_TIMESTAMP
-          WHERE id = $2
-        `, [amount, order.customer_id]);
+        if (order.customer_id) {
+          await client.query(`
+            UPDATE customers 
+            SET total_orders = total_orders + 1, 
+                total_spent = total_spent + $1,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = $2
+          `, [amount, order.customer_id]);
+        }
       }
 
       await client.query('COMMIT');
@@ -4184,10 +4223,16 @@ app.post('/api/seller-managers/me/assign-seller', authenticateToken, async (req,
     
     // Check if manager is Enterprise to grant free professional plan to first 6
     let initialPlan = null;
-    const managerFullRes = await db.query('SELECT subscription FROM seller_managers WHERE id = $1', [managerId]);
+    const managerFullRes = await db.query('SELECT pricing_config FROM seller_managers WHERE id = $1', [managerId]);
     if (managerFullRes.rows.length > 0) {
       const manager = managerFullRes.rows[0];
-      const managerPlan = manager.subscription?.plan || 'starter';
+      let managerSubscription = {};
+      try {
+        managerSubscription = typeof manager.pricing_config === 'object' ? manager.pricing_config : JSON.parse(manager.pricing_config || '{}');
+      } catch (e) {
+        managerSubscription = {};
+      }
+      const managerPlan = managerSubscription.plan || 'starter';
       
       if (managerPlan === 'enterprise') {
         const sellerCountRes = await db.query('SELECT COUNT(*) FROM sellers WHERE manager_id = $1', [managerId]);

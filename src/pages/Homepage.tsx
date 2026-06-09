@@ -181,9 +181,9 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
     <div className="min-h-screen bg-white text-gray-900 selection:bg-gray-900 selection:text-white">
       <SEO 
         title="Home" 
-        description="Iyonicorp: The complete ecosystem for modern business. Scale with IyonicShop's high-performance e-commerce, power global transactions with IyonicPay, and drive 24/7 engagement with IyonicBots AI. From enterprise infrastructure to marketing automation, we provide everything you need to grow."
-        keywords="ecommerce platform, digital payments, AI chatbots, enterprise commerce, marketing automation, Iyonicorp, IyonicShop, IyonicPay, IyonicBots, business scaling"
-        canonical="https://iyonicorp.com/"
+        description="iyonicweb: The complete ecosystem for modern business. Scale with IyonicShop's high-performance e-commerce, power global transactions with IyonicPay, and drive 24/7 engagement with IyonicBots AI. From enterprise infrastructure to marketing automation, we provide everything you need to grow."
+        keywords="ecommerce platform, digital payments, AI chatbots, enterprise commerce, marketing automation, iyonicweb, IyonicShop, IyonicPay, IyonicBots, business scaling"
+        canonical="https://web.iyonicorp.com/"
       />
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-[100] bg-white/80 backdrop-blur-xl border-b border-gray-100">
@@ -191,9 +191,9 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
               <div className="w-10 h-10 flex items-center justify-center">
-                <img src="/logo.png" alt="Iyonicorp Logo" className="w-10 h-10 object-contain" />
+                <img src="/logo.png" alt="iyonicweb Logo" className="w-10 h-10 object-contain" />
               </div>
-              <span className="text-xl font-black tracking-tighter text-gray-900">IYONICORP</span>
+              <span className="text-xl font-black tracking-tighter text-gray-900">iyonicweb</span>
             </div>
 
             <div className="hidden lg:flex items-center space-x-2">
@@ -504,7 +504,7 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
             className="text-center mb-20"
           >
             <h2 className="text-4xl lg:text-6xl font-black text-gray-900 mb-6">
-              Why <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">Iyonicorp</span>?
+              Why <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">iyonicweb</span>?
             </h2>
             <p className="text-xl text-gray-500 max-w-2xl mx-auto">
               The complete toolkit for modern commerce. Built by sellers, for sellers. We provide a comprehensive ecosystem for digital growth.
@@ -756,9 +756,9 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
                 onClick={scrollToTop}
               >
                 <div className="w-12 h-12 flex items-center justify-center">
-                  <img src="/logo.png" alt="Iyonicorp Logo" className="w-12 h-12 object-contain group-hover:scale-110 transition-transform duration-500" />
+                  <img src="/logo.png" alt="iyonicweb Logo" className="w-12 h-12 object-contain group-hover:scale-110 transition-transform duration-500" />
                 </div>
-                <span className="text-2xl font-black tracking-tighter text-gray-900">IYONICORP</span>
+                <span className="text-2xl font-black tracking-tighter text-gray-900">iyonicweb</span>
               </motion.div>
               <p className="text-gray-500 mb-8 leading-relaxed text-lg max-w-sm">
                 The next generation modular commerce platform. Engineered for growth, scale, and intelligence.
@@ -885,7 +885,7 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
             </div>
             
             <div className="mt-20 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-gray-50 pt-8">
-              <p className="text-gray-400 text-sm font-medium">© 2026 Iyonicorp Inc. All rights reserved.</p>
+              <p className="text-gray-400 text-sm font-medium">© 2026 iyonicweb Inc. All rights reserved.</p>
               <div className="flex items-center gap-8">
                 <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
                   <span>🌍 Global Commerce</span>

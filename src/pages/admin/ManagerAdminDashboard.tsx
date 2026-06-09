@@ -35,7 +35,9 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Wallet,
-  Clock
+  Clock,
+  Menu,
+  X
 } from 'lucide-react';
 import { analyticsAPI, adminAPI, User } from '../../services/api';
 
@@ -49,6 +51,7 @@ export const ManagerAdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [isAddManagerPopupOpen, setIsAddManagerPopupOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [isUsersLoading, setIsUsersLoading] = useState(false);
@@ -179,9 +182,23 @@ export const ManagerAdminDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Mobile Header */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-40">
+        <div className="flex items-center space-x-3">
+          <Menu 
+            className="w-6 h-6 text-gray-600 cursor-pointer" 
+            onClick={() => setSidebarOpen(true)}
+          />
+          <span className="font-bold text-gray-900">Iyonicorp Admin</span>
+        </div>
+        <Bell className="w-5 h-5 text-gray-400" />
+      </header>
+
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 z-50">
-        <div className="p-6 border-b border-gray-100">
+      <aside className={`fixed left-0 top-0 h-full w-64 bg-white border-r border-gray-200 z-50 transform transition-transform duration-200 ease-in-out ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      } lg:translate-x-0 pt-16 lg:pt-0`}>
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 flex items-center justify-center bg-white rounded-xl border border-gray-100 shadow-sm">
               <img src="/iyonicorp logo.png" alt="Iyonicorp" className="w-7 h-7 object-contain" />
@@ -191,13 +208,20 @@ export const ManagerAdminDashboard: React.FC = () => {
               <p className="text-xs text-gray-500">Admin Control</p>
             </div>
           </div>
+          <X 
+            className="lg:hidden w-5 h-5 text-gray-400 cursor-pointer" 
+            onClick={() => setSidebarOpen(false)}
+          />
         </div>
         
         <nav className="p-4 space-y-1">
           {tabs.map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as TabType)}
+              onClick={() => {
+                setActiveTab(tab.id as TabType);
+                setSidebarOpen(false);
+              }}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all ${
                 activeTab === tab.id
                   ? 'bg-gradient-to-r from-blue-50 to-purple-50 text-blue-600 font-semibold'
@@ -221,8 +245,16 @@ export const ManagerAdminDashboard: React.FC = () => {
         </div>
       </aside>
 
+      {/* Sidebar Overlay for Mobile */}
+      {sidebarOpen && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Main Content */}
-      <main className="ml-64 p-8">
+      <main className="lg:ml-64 p-4 lg:p-8 pt-20 lg:pt-8">
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div>

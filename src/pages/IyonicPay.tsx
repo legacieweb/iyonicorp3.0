@@ -695,17 +695,36 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
     }
   };
 
-  const handleWithdraw = async (e: React.FormEvent) => {
+const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
+      const amount = parseFloat(withdrawData.amount);
+      if (isNaN(amount) || amount <= 0) {
+        setError('Please enter a valid amount');
+        setLoading(false);
+        return;
+      }
+      const availableBalance = cashflow.income - cashflow.expense;
+      const availableInSellerCurrency = convertAmount(availableBalance, 'USD', sellerCurrency);
+      if (amount > availableInSellerCurrency) {
+        setError('Insufficient funds');
+        setLoading(false);
+        return;
+      }
+      if (!withdrawData.bankName.trim() || !withdrawData.accountNo.trim() || !withdrawData.accountName.trim()) {
+        setError('Please fill in all bank details');
+        setLoading(false);
+        return;
+      }
       await api.post('/iyonicpay/withdrawals', {
-        amount: parseFloat(withdrawData.amount),
+        amount,
+        currency: sellerCurrency,
         bankDetails: {
-          bankName: withdrawData.bankName,
-          accountNo: withdrawData.accountNo,
-          accountName: withdrawData.accountName
+          bankName: withdrawData.bankName.trim(),
+          accountNo: withdrawData.accountNo.trim(),
+          accountName: withdrawData.accountName.trim()
         }
       });
       setSuccess('Withdrawal request submitted!');
