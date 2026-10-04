@@ -194,7 +194,7 @@ const TsppAdmin: React.FC = () => {
 
           <div className="rounded-[28px] border border-[#e7dcc2] bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#65756b]">
-              <BriefcaseBusiness size={14} />
+              <Briefcase size={14} />
               Actions
             </div>
             <div className="space-y-3">
