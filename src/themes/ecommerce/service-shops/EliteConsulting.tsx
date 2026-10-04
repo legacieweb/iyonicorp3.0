@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import ThemeMedia from '../../../components/ThemeMedia';
 
 interface ThemeProps {
   seller: Seller;
@@ -172,7 +173,7 @@ const EliteConsulting: React.FC<ThemeProps> = ({
           </div>
           <div className="flex items-center gap-6">
             <button 
-              onClick={() => navigate(user ? (user.role === 'customer' ? '/customer/dashboard' : '/seller/dashboard') : `/login?shop=${seller.id}`)}
+              onClick={() => navigate(user ? (user.role === 'customer' ? '/customer/dashboard' : '/seller/dashboard') : `/login?shop=${encodeURIComponent(seller.id)}&subdomain=${encodeURIComponent(seller.subdomain)}`)}
               className="hidden md:block text-xs font-black uppercase tracking-widest text-gray-900 hover:text-blue-600" 
               style={{ '--hover-color': themePrimary } as any}
             >
@@ -285,7 +286,7 @@ const EliteConsulting: React.FC<ThemeProps> = ({
                     </div>
                   </div>
                   <div className="relative lg:h-[600px]">
-                     <img 
+                     <ThemeMedia 
                        src={customizations.heroImage || "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=2074&auto=format&fit=crop"} 
                        className="w-full h-full object-cover rounded-[3rem] shadow-2xl"
                        alt="Corporate"

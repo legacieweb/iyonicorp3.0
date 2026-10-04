@@ -182,7 +182,7 @@ const CreativeStudio: React.FC<ThemeProps> = ({
                 <button key={item} className="text-sm font-black uppercase hover:underline decoration-4 underline-offset-4">{item}</button>
               ))}
               <button 
-                onClick={() => navigate(user ? (user.role === 'customer' ? '/customer/dashboard' : '/seller/dashboard') : `/login?shop=${seller.id}`)}
+                onClick={() => navigate(user ? (user.role === 'customer' ? '/customer/dashboard' : '/seller/dashboard') : `/login?shop=${encodeURIComponent(seller.id)}&subdomain=${encodeURIComponent(seller.subdomain)}`)}
                 className="text-sm font-black uppercase hover:underline decoration-4 underline-offset-4"
               >
                 {user ? 'Dashboard' : 'Login'}

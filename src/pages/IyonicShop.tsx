@@ -42,6 +42,7 @@ import {
   Youtube
 } from 'lucide-react';
 import { Button } from '../components/ui';
+import ProductFooter from '../components/ProductFooter';
 
 interface IyonicShopProps {
   onGetStarted?: (role: 'seller' | 'seller_manager') => void;
@@ -119,7 +120,7 @@ export const IyonicShop: React.FC<IyonicShopProps> = ({ onGetStarted, onSignIn }
 
   const features = {
     store: [
-      { title: 'Drag & Drop Builder', desc: 'Create stunning stores without code' },
+      { title: 'Theme-led storefront design', desc: 'Create a polished store from a flexible visual system' },
       { title: 'Modern Layouts', desc: 'Beautifully designed templates' },
       { title: 'Mobile-First Design', desc: 'Looks great on every device' },
       { title: 'Custom Domains', desc: 'Your brand, your URL' }
@@ -216,9 +217,11 @@ export const IyonicShop: React.FC<IyonicShopProps> = ({ onGetStarted, onSignIn }
             <span className="italic font-serif font-light">to Anywhere</span>
           </h1>
 
-          <p className="text-xl lg:text-2xl text-gray-500 max-w-2xl mx-auto mb-12 leading-relaxed">
-            The world's most versatile e-commerce engine. Build beautiful stores, 
-            manage inventory, and scale globally — all from one platform.
+          <p className="text-xl lg:text-2xl text-gray-500 max-w-2xl mx-auto mb-6 leading-relaxed">
+            Build from a considered theme system, manage inventory, and scale globally from one focused commerce platform.
+          </p>
+          <p className="mx-auto mb-12 max-w-2xl text-sm font-bold uppercase tracking-[0.16em] text-gray-400">
+            Start from a theme or code your website from scratch with our developer APIs.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -479,8 +482,9 @@ export const IyonicShop: React.FC<IyonicShopProps> = ({ onGetStarted, onSignIn }
         </div>
       </section>
 
+      <ProductFooter product="IyonicShop" accentClass="text-indigo-400" description="A focused commerce engine for businesses that want a beautiful storefront, dependable operations, and room to grow." />
       {/* Footer */}
-      <footer className="bg-gray-900 text-white">
+      <footer className="hidden">
         <div className="max-w-7xl mx-auto px-6 py-16 lg:py-20">
           <div className="grid grid-cols-1 lg:grid-cols-6 gap-12 lg:gap-8 mb-16">
             {/* Brand Column */}

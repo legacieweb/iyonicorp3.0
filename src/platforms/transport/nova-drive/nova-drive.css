@@ -1,0 +1,815 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+.nova-drive {
+  --nova-blue: #3b82f6;
+  --nova-blue-dark: #2563eb;
+  --nova-blue-light: #60a5fa;
+  --nova-carbon: #0f1117;
+  --nova-carbon-light: #1a1d27;
+  --nova-silver: #94a3b8;
+  --nova-silver-dark: #64748b;
+  --nova-cream: #f8fafc;
+  --nova-gray: #e2e8f0;
+  --nova-radius: 0px;
+  --nova-radius-sm: 0px;
+  --nova-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --nova-shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --nova-transition: all 0.2s ease;
+}
+
+.nova-drive,
+.nova-site,
+.nova-admin,
+.nova-portal {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--nova-carbon);
+  background-color: var(--nova-cream);
+  line-height: 1.6;
+}
+
+.nova-drive h1,
+.nova-drive h2,
+.nova-drive h3,
+.nova-drive h4,
+.nova-drive .nova-kicker {
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.nova-kicker {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--nova-blue);
+  font-family: 'Inter', sans-serif;
+}
+
+.nova-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 1.3rem;
+  text-decoration: none;
+}
+
+.nova-wordmark .wordmark-mark {
+  color: var(--nova-blue);
+}
+
+.nova-wordmark em {
+  font-style: normal;
+  color: var(--nova-blue);
+}
+
+.nova-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: var(--nova-radius-sm);
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: var(--nova-transition);
+  text-decoration: none;
+  padding: 12px 24px;
+}
+
+.nova-btn-primary {
+  background-color: var(--nova-blue);
+  color: var(--nova-cream);
+  border: 1px solid var(--nova-blue);
+}
+
+.nova-btn-primary:hover {
+  background-color: var(--nova-blue-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+.nova-btn-outline {
+  background: transparent;
+  border: 1px solid var(--nova-blue);
+  color: var(--nova-blue);
+}
+
+.nova-btn-outline:hover {
+  background-color: var(--nova-blue);
+  color: var(--nova-carbon);
+}
+
+.nova-btn-ghost {
+  background: transparent;
+  border: none;
+  color: var(--nova-silver-dark);
+}
+
+.nova-btn-ghost:hover {
+  color: var(--nova-blue);
+}
+
+.nova-btn-sm {
+  padding: 6px 14px;
+  font-size: 0.75rem;
+}
+
+.nova-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  background-color: var(--nova-gray);
+  color: var(--nova-carbon);
+}
+
+.nova-badge-blue {
+  background: linear-gradient(135deg, var(--nova-blue), var(--nova-blue-dark));
+  color: var(--nova-cream);
+  border: none;
+}
+
+.nova-site-header {
+  background: var(--nova-cream);
+  border-bottom: 1px solid var(--nova-gray);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+}
+
+.nova-site-header .nova-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 40px;
+}
+
+.nova-nav .nav-links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.nova-nav .nav-links a {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-decoration: none;
+  color: var(--nova-carbon);
+  transition: var(--nova-transition);
+}
+
+.nova-nav .nav-links a:hover,
+.nova-nav .nav-links a.active {
+  color: var(--nova-blue);
+}
+
+.nova-nav .nav-links a.active {
+  border-bottom: 2px solid var(--nova-blue);
+  padding-bottom: 4px;
+}
+
+.nova-hero {
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--nova-carbon) 0%, var(--nova-carbon-light) 100%);
+  color: var(--nova-cream);
+  padding: 80px 40px;
+}
+
+.nova-hero .hero-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: center;
+}
+
+.nova-hero h1 {
+  font-size: 2.8rem;
+  line-height: 1.1;
+}
+
+.nova-hero .hero-accent {
+  color: var(--nova-blue);
+}
+
+.nova-hero p {
+  opacity: 0.8;
+  margin-top: 20px;
+  font-size: 1.1rem;
+}
+
+.nova-hero .hero-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+}
+
+.hero-image {
+  justify-self: end;
+  width: 480px;
+  height: 360px;
+  background: radial-gradient(circle, var(--nova-blue) 8%, transparent 12%) var(--nova-blue-light);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--nova-shadow-card);
+}
+
+.hero-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--nova-blue);
+}
+
+.nova-vehicles {
+  padding: 80px 40px;
+  background: var(--nova-cream);
+}
+
+.nova-vehicles .section-header {
+  max-width: 720px;
+  margin: 0 auto 50px;
+  text-align: center;
+}
+
+.nova-vehicles .section-header .nova-kicker {
+  justify-content: center;
+}
+
+.nova-vehicles h2 {
+  font-size: 2rem;
+  margin: 16px 0;
+}
+
+.nova-vehicles .vehicles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.vehicle-card {
+  background: var(--nova-cream);
+  border: 1px solid var(--nova-gray);
+  border-radius: var(--nova-radius);
+  overflow: hidden;
+  box-shadow: var(--nova-shadow-card);
+  transition: var(--nova-transition);
+}
+
+.vehicle-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--nova-blue);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.vehicle-card .vehicle-image {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  background-color: var(--nova-gray);
+}
+
+.vehicle-card .vehicle-content {
+  padding: 24px;
+}
+
+.vehicle-card .vehicle-content h3 {
+  font-size: 1.1rem;
+  margin-bottom: 4px;
+}
+
+.vehicle-meta {
+  display: flex;
+  gap: 16px;
+  margin: 12px 0;
+  font-size: 0.85rem;
+  color: var(--nova-silver-dark);
+}
+
+.vehicle-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vehicle-card .vehicle-price {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--nova-blue);
+}
+
+.vehicle-card .nova-btn {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.nova-process {
+  padding: 80px 40px;
+  background: var(--nova-carbon);
+  color: var(--nova-cream);
+}
+
+.nova-process .section-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.nova-process .steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.step-card {
+  text-align: center;
+  padding: 32px 16px;
+  background: var(--nova-carbon-light);
+  border-radius: var(--nova-radius);
+  border: 1px solid var(--nova-gray);
+}
+
+.step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--nova-blue);
+  color: var(--nova-cream);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0 auto 16px;
+}
+
+.step-card h3 {
+  font-size: 1rem;
+  margin-bottom: 8px;
+}
+
+.step-card p {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.nova-footer {
+  background: var(--nova-carbon);
+  color: var(--nova-cream);
+  padding: 60px 40px 30px;
+}
+
+.nova-footer .footer-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 40px;
+  margin-bottom: 40px;
+}
+
+.nova-footer h4 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem;
+  margin-bottom: 20px;
+  color: var(--nova-blue);
+}
+
+.nova-footer .footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nova-footer .footer-links a {
+  color: var(--nova-silver-dark);
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: var(--nova-transition);
+}
+
+.nova-footer .footer-links a:hover {
+  color: var(--nova-cream);
+}
+
+.nova-footer .social-links {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.nova-footer .social-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--nova-gray);
+  color: var(--nova-carbon);
+  transition: var(--nova-transition);
+}
+
+.nova-footer .social-links a:hover {
+  background: var(--nova-blue);
+  color: var(--nova-cream);
+}
+
+.nova-footer .copyright {
+  font-size: 0.8rem;
+  color: var(--nova-silver-dark);
+  border-top: 1px solid var(--nova-gray);
+  padding-top: 20px;
+}
+
+.nova-admin {
+  display: flex;
+  min-height: 100vh;
+  background: var(--nova-cream);
+}
+
+.nova-admin-sidebar {
+  width: 260px;
+  background: var(--nova-carbon);
+  color: var(--nova-cream);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nova-admin-sidebar .admin-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--nova-silver);
+  padding: 0 12px;
+  margin-bottom: 8px;
+}
+
+.nova-admin-sidebar .flow-wordmark {
+  color: var(--nova-cream);
+}
+
+.nova-admin-sidebar .admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nova-admin-sidebar .admin-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--nova-radius-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--nova-silver);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: var(--nova-transition);
+}
+
+.nova-admin-sidebar .admin-nav-item:hover {
+  color: var(--nova-cream);
+  background: var(--nova-carbon-light);
+}
+
+.nova-admin-sidebar .admin-nav-item.active {
+  color: var(--nova-cream);
+  background: var(--nova-blue);
+}
+
+.nova-admin-sidebar .admin-nav-item .count {
+  margin-left: auto;
+  font-size: 0.7rem;
+  background: var(--nova-blue);
+  color: var(--nova-cream);
+  padding: 2px 10px;
+  border-radius: 9999px;
+}
+
+.nova-admin-sidebar .admin-sidebar-bottom {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid var(--nova-gray);
+}
+
+.nova-admin-sidebar .admin-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--nova-blue);
+  color: var(--nova-cream);
+  font-weight: 600;
+}
+
+.nova-admin-main {
+  flex: 1;
+  overflow-x: hidden;
+}
+
+.nova-admin-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 40px;
+  border-bottom: 1px solid var(--nova-gray);
+  background: var(--nova-cream);
+}
+
+.nova-admin-topbar .flow-kicker {
+  margin-bottom: 4px;
+}
+
+.nova-admin-topbar h1 {
+  color: var(--nova-carbon);
+}
+
+.nova-admin-topbar .admin-top-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-section {
+  padding: 32px 40px;
+}
+
+.admin-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
+  margin-bottom: 36px;
+}
+
+.admin-metric {
+  background: var(--nova-cream);
+  border: 1px solid var(--nova-gray);
+  border-radius: var(--nova-radius);
+  padding: 24px;
+  box-shadow: var(--nova-shadow);
+}
+
+.admin-metric .metric-label {
+  font-size: 0.8rem;
+  color: var(--nova-silver-dark);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.admin-metric .metric-value {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.8rem;
+  color: var(--nova-blue);
+}
+
+.admin-metric .metric-sub {
+  font-size: 0.8rem;
+  color: var(--nova-silver-dark);
+  margin-top: 4px;
+}
+
+.admin-panel {
+  background: var(--nova-cream);
+  border: 1px solid var(--nova-gray);
+  border-radius: var(--nova-radius);
+  padding: 24px;
+  box-shadow: var(--nova-shadow);
+  margin-bottom: 24px;
+}
+
+.admin-panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--nova-gray);
+}
+
+.admin-panel-heading h2 {
+  font-size: 1.2rem;
+  color: var(--nova-carbon);
+}
+
+.admin-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--nova-gray);
+}
+
+.admin-toolbar .filter-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.admin-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--nova-silver-dark);
+}
+
+.admin-form input,
+.admin-form select,
+.admin-form textarea {
+  padding: 10px 14px;
+  border: 1px solid var(--nova-gray);
+  border-radius: var(--nova-radius-sm);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  background: var(--nova-cream);
+  transition: var(--nova-transition);
+}
+
+.admin-form input:focus,
+.admin-form select:focus,
+.admin-form textarea:focus {
+  outline: none;
+  border-color: var(--nova-blue);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.admin-form-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+}
+
+.nova-alert {
+  background: #1e293b;
+  border: 1px solid #f87171;
+  color: #fca5a1;
+  padding: 14px 18px;
+  border-radius: var(--nova-radius-sm);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nova-notice {
+  background: #0f4b3d;
+  border: 1px solid #34d399;
+  color: #6ee7b7;
+  padding: 14px 18px;
+  border-radius: var(--nova-radius-sm);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.booking-success {
+  text-align: center;
+  padding: 32px;
+  border-radius: var(--nova-radius);
+  border: 1px solid var(--nova-blue);
+  background: var(--nova-carbon-light);
+}
+
+.booking-success .success-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--nova-blue);
+  color: var(--nova-cream);
+  margin: 0 auto 20px;
+}
+
+.upload-preview-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.upload-preview-thumb {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: var(--nova-radius-sm);
+}
+
+.service-detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-top: 40px;
+}
+
+.service-detail-image {
+  width: 100%;
+  height: 500px;
+  object-fit: cover;
+  border-radius: var(--nova-radius);
+  box-shadow: var(--nova-shadow-card);
+}
+
+.service-detail-video {
+  width: 100%;
+  height: 300px;
+  border-radius: var(--nova-radius);
+  margin-top: 16px;
+}
+
+.service-detail-placeholder {
+  width: 100%;
+  height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--nova-gray);
+  border-radius: var(--nova-radius);
+  color: var(--nova-blue);
+}
+
+.service-detail-content h1 {
+  font-size: 2rem;
+  margin-bottom: 16px;
+}
+
+.booking-fineprint {
+  font-size: 0.75rem;
+  color: var(--nova-silver-dark);
+  margin-top: 12px;
+}
+
+@media (max-width: 768px) {
+  .nova-hero .hero-container {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .hero-image {
+    justify-self: center;
+    width: 100%;
+    max-width: 480px;
+  }
+
+  .service-detail-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .nova-admin-topbar {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .admin-metrics,
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

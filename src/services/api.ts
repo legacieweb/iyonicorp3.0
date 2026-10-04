@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:2823/api';
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -16,6 +16,18 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const message = error.response?.data?.message || '';
+    if (error.response?.status === 403 && /suspend/i.test(message)) {
+      localStorage.removeItem('iyonicorp_token');
+      window.dispatchEvent(new CustomEvent('iyonicorp:account-suspended', { detail: { message } }));
+    }
+    return Promise.reject(error);
+  }
+);
 
 export interface User {
   id: string;
@@ -47,6 +59,21 @@ export interface Store {
   subdomain: string;
   logo?: string;
   storeCurrency?: string;
+}
+
+export interface NLMSong {
+  id: string;
+  title: string;
+  artist: string;
+  description: string;
+  genre: string;
+  tags: string[];
+  lyrics: string;
+  audioUrl: string;
+  thumbnailUrl?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Message {
@@ -149,6 +176,7 @@ export interface Seller {
     primaryColor: string;
     secondaryColor: string;
     fontFamily: string;
+    selectedTheme?: string;
     customizations?: any;
   };
   subscription: {
@@ -166,6 +194,7 @@ export interface Seller {
   requestedSubdomain?: string;
   isLive: boolean;
   themeId?: string;
+  acquiredThemes?: string[];
   managerId?: string;
   createdAt: string;
   paymentGateways?: {
@@ -281,14 +310,16 @@ export interface Order {
     country: string;
     zipCode: string;
   };
+  deliveryLocation?: string;
 createdAt: string;
   updatedAt: string;
   sellerStoreName?: string;
   paymentLink?: string;
   reference?: string;
-  paymentMethod?: 'iyonicpay' | 'paystack' | 'custom' | 'pod';
-  paymentType?: 'site' | 'pod' | 'deposit';
-  remainingBalance?: number;
+   paymentMethod?: 'iyonicpay' | 'paystack' | 'custom' | 'pod';
+   paymentType?: 'site' | 'pod' | 'deposit';
+   amountPaid?: number;
+   remainingBalance?: number;
 }
 
 export interface OrderItem {
@@ -384,6 +415,21 @@ export const authAPI = {
       return null;
     }
   },
+
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const response = await api.post('/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  async verifyOTP(email: string, otp: string): Promise<{ message: string; resetToken: string }> {
+    const response = await api.post('/auth/verify-otp', { email, otp });
+    return response.data;
+  },
+
+  async resetPassword(resetToken: string, newPassword: string): Promise<{ message: string }> {
+    const response = await api.post('/auth/reset-password', { resetToken, newPassword });
+    return response.data;
+  },
 };
 
 export const sellersAPI = {
@@ -395,6 +441,20 @@ export const sellersAPI = {
   async updateMe(updates: Partial<Seller>): Promise<Seller> {
     const response = await api.patch('/sellers/me', updates);
     return response.data;
+  },
+
+  async initializeThemePurchase(themeId: string): Promise<any> {
+    const response = await api.post('/sellers/me/themes/purchase/initialize', { themeId });
+    return response.data;
+  },
+
+  async verifyThemePurchase(themeId: string, reference: string): Promise<{ acquiredThemes: string[] }> {
+    const response = await api.post('/sellers/me/themes/purchase/verify', { themeId, reference });
+    return response.data;
+  },
+
+  async makeThemeOffer(themeId: string, amount: number, message: string): Promise<void> {
+    await api.post('/sellers/me/themes/offers', { themeId, amount, message });
   },
 
   async getAll(): Promise<Seller[]> {
@@ -411,6 +471,246 @@ export const sellersAPI = {
     const response = await api.get(`/sellers/${id}/public`);
     return response.data;
   },
+
+  async paySubscriptionWithWallet(planId: string): Promise<any> {
+    const response = await api.post('/sellers/me/pay-subscription', { planId });
+    return response.data;
+  },
+
+  async getBilling(): Promise<any> {
+    const response = await api.get('/sellers/me/billing');
+    return response.data;
+  },
+
+  async getAutoRenew(): Promise<any> {
+    const response = await api.get('/billing/auto-renew');
+    return response.data;
+  },
+
+  async updateAutoRenew(platform: string, enabled: boolean, planId?: string): Promise<any> {
+    const response = await api.patch('/billing/auto-renew', { platform, enabled, planId });
+    return response.data;
+  },
+
+  async getUnifiedBilling(): Promise<any> {
+    const response = await api.get('/billing/unified');
+    return response.data;
+  },
+
+  async subscribeUnified(bundles: any): Promise<any> {
+    const response = await api.post('/billing/unified/subscribe', bundles);
+    return response.data;
+  },
+
+  async cancelUnifiedSubscription(platform?: string): Promise<any> {
+    const response = await api.delete('/billing/unified/cancel', { data: platform ? { platform } : {} });
+    return response.data;
+  },
+};
+
+export interface IXStreamEpisode {
+  id: string;
+  seasonId: string;
+  episodeNumber: number;
+  title: string;
+  description: string;
+  duration: number | null;
+  videoUrl: string;
+  thumbnailUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IXStreamSeason {
+  id: string;
+  contentId: string;
+  seasonNumber: number;
+  title: string | null;
+  description: string;
+  episodes?: IXStreamEpisode[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IXStreamContent {
+  id: string;
+  sellerId: string | null;
+  title: string;
+  description: string;
+  type: 'movie' | 'tvshow';
+  genre: string;
+  tags: string[];
+  releaseYear: number | null;
+  duration: number | null;
+  rating: number | null;
+  thumbnailUrl: string | null;
+  videoUrl: string;
+  isActive: boolean;
+  createdBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+  seasons?: IXStreamSeason[];
+}
+
+export interface IXStreamSubscriptionPlan {
+  id: string;
+  sellerId: string | null;
+  name: string;
+  description: string;
+  priceCents: number;
+  currency: string;
+  intervalType: 'day' | 'week' | 'month' | 'year';
+  intervalCount: number;
+  features: string[];
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IXStreamSubscription {
+  id: string;
+  userId: string;
+  sellerId: string | null;
+  planId: string;
+  status: 'active' | 'past_due' | 'canceled' | 'incomplete' | 'expired';
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  cancelAtPeriodEnd: boolean;
+  paymentReference: string | null;
+  plan?: IXStreamSubscriptionPlan;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const ixstreamAPI = {
+  async listContent(params?: { type?: 'movie' | 'tvshow'; genre?: string; search?: string }): Promise<IXStreamContent[]> {
+    const response = await api.get('/ixstream/content', { params });
+    return response.data;
+  },
+
+  async listAdminContent(params?: { type?: 'movie' | 'tvshow' }): Promise<IXStreamContent[]> {
+    const response = await api.get('/ixstream/content/admin', { params });
+    return response.data;
+  },
+
+  async getContent(id: string): Promise<IXStreamContent> {
+    const response = await api.get(`/ixstream/content/${id}`);
+    return response.data;
+  },
+
+  async createContent(data: FormData): Promise<IXStreamContent> {
+    const response = await api.post('/ixstream/content', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return response.data;
+  },
+
+  async updateContent(id: string, data: FormData): Promise<IXStreamContent> {
+    const response = await api.patch(`/ixstream/content/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return response.data;
+  },
+
+  async deleteContent(id: string): Promise<void> {
+    await api.delete(`/ixstream/content/${id}`);
+  },
+
+  async listSeasons(contentId: string): Promise<IXStreamSeason[]> {
+    const response = await api.get(`/ixstream/content/${contentId}/seasons`);
+    return response.data;
+  },
+
+  async createSeason(data: { contentId: string; seasonNumber: number; title?: string; description?: string }): Promise<IXStreamSeason> {
+    const response = await api.post(`/ixstream/content/${data.contentId}/seasons`, data);
+    return response.data;
+  },
+
+  async createEpisode(data: FormData): Promise<IXStreamEpisode> {
+    const response = await api.post('/ixstream/episodes', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return response.data;
+  },
+
+  async updateEpisode(id: string, data: FormData): Promise<IXStreamEpisode> {
+    const response = await api.patch(`/ixstream/episodes/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return response.data;
+  },
+
+  async deleteEpisode(id: string): Promise<void> {
+    await api.delete(`/ixstream/episodes/${id}`);
+  },
+
+  async listEpisodes(seasonId: string): Promise<IXStreamEpisode[]> {
+    const response = await api.get(`/ixstream/seasons/${seasonId}/episodes`);
+    return response.data;
+  },
+
+  async listPlans(): Promise<IXStreamSubscriptionPlan[]> {
+    const response = await api.get('/ixstream/plans');
+    return response.data;
+  },
+
+  async createPlan(data: Partial<IXStreamSubscriptionPlan>): Promise<IXStreamSubscriptionPlan> {
+    const response = await api.post('/ixstream/plans', data);
+    return response.data;
+  },
+
+  async updatePlan(id: string, updates: Partial<IXStreamSubscriptionPlan>): Promise<IXStreamSubscriptionPlan> {
+    const response = await api.patch(`/ixstream/plans/${id}`, updates);
+    return response.data;
+  },
+
+  async deletePlan(id: string): Promise<void> {
+    await api.delete(`/ixstream/plans/${id}`);
+  },
+
+  async getUserSubscriptions(): Promise<IXStreamSubscription[]> {
+    const response = await api.get('/ixstream/subscriptions');
+    return response.data;
+  },
+
+  async subscribe(planId: string): Promise<IXStreamSubscription> {
+    const response = await api.post('/ixstream/subscriptions', { planId });
+    return response.data;
+  },
+
+  async unsubscribe(id: string): Promise<IXStreamSubscription> {
+    const response = await api.patch(`/ixstream/subscriptions/${id}/cancel`, {});
+    return response.data;
+  },
+
+  async initializeSubscriptionPayment(planId: string): Promise<{ authorizationUrl: string; reference: string }> {
+    const response = await api.post('/ixstream/subscriptions/paystack/initialize', { planId });
+    return response.data;
+  },
+
+  async verifySubscriptionPayment(reference: string): Promise<{ success: boolean; subscription: IXStreamSubscription }> {
+    const response = await api.post('/ixstream/subscriptions/paystack/verify', { reference });
+    return response.data;
+  },
+};
+
+export const nlmsongsAPI = {
+  async list(): Promise<NLMSong[]> {
+    const response = await api.get('/nlmsongs');
+    return response.data;
+  },
+
+  async listAdmin(): Promise<NLMSong[]> {
+    const response = await api.get('/nlmsongs/admin');
+    return response.data;
+  },
+
+  async create(data: FormData): Promise<NLMSong> {
+    const response = await api.post('/nlmsongs', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return response.data;
+  },
+
+  async update(id: string, data: FormData): Promise<NLMSong> {
+    const response = await api.patch(`/nlmsongs/${id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return response.data;
+  },
+
+  async remove(id: string): Promise<void> {
+    await api.delete(`/nlmsongs/${id}`);
+  }
 };
 
 export const messagesAPI = {
@@ -579,11 +879,21 @@ export const productsAPI = {
   async delete(id: string): Promise<void> {
     await api.delete(`/products/${id}`);
   },
+
+  async getById(id: string): Promise<Product> {
+    const response = await api.get(`/products/${id}`);
+    return response.data;
+  },
 };
 
 export const ordersAPI = {
   async getAll(): Promise<Order[]> {
     const response = await api.get('/orders');
+    return response.data;
+  },
+
+  async getMine(): Promise<Order[]> {
+    const response = await api.get('/orders/my');
     return response.data;
   },
 
@@ -599,6 +909,10 @@ export const ordersAPI = {
 
   async updateStatus(id: string, status: string): Promise<Order> {
     const response = await api.patch(`/orders/${id}`, { status });
+    return response.data;
+  },
+  async update(id: string, updates: Partial<Order>): Promise<Order> {
+    const response = await api.patch(`/orders/${id}`, updates);
     return response.data;
   },
   async getById(id: string): Promise<Order> {
@@ -779,6 +1093,14 @@ export const analyticsAPI = {
 };
 
 export const adminAPI = {
+  async inviteManager(data: { firstName: string; lastName: string; email: string; commissionRate?: number }): Promise<{ message: string }> {
+    const response = await api.post('/admin/seller-managers/invite', data);
+    return response.data;
+  },
+  async getManagerInvitations() {
+    const response = await api.get('/admin/seller-manager-invitations');
+    return response.data;
+  },
   async getAllUsers(): Promise<User[]> {
     const response = await api.get('/users');
     return response.data;
@@ -788,7 +1110,7 @@ export const adminAPI = {
     await api.delete(`/users/${id}`);
   },
 
-  async toggleUserSuspension(id: string): Promise<{ message: string; isSuspended: boolean }> {
+  async toggleUserSuspension(id: string): Promise<{ message: string; isSuspended: boolean; emailSent: boolean }> {
     const response = await api.patch(`/users/${id}/suspend`);
     return response.data;
   },
@@ -808,8 +1130,48 @@ export const adminAPI = {
     return response.data;
   },
 
+  async getAllWallets() {
+    const response = await api.get('/admin/iyonicpay/wallets');
+    return response.data;
+  },
+
   async updateWithdrawalStatus(id: string, status: 'completed' | 'failed') {
     const response = await api.patch(`/admin/iyonicpay/withdrawals/${id}`, { status });
+    return response.data;
+  },
+
+  async getActivities() {
+    const response = await api.get('/admin/activities');
+    return response.data;
+  },
+
+  async getSystemStats() {
+    const response = await api.get('/admin/system/stats');
+    return response.data;
+  },
+
+  async getSecurityEvents() {
+    const response = await api.get('/admin/security/events');
+    return response.data;
+  },
+
+  async updateSeller(id: string, updates: { storeName?: string; isLive?: boolean; subscription?: any }) {
+    const response = await api.patch(`/admin/sellers/${id}`, updates);
+    return response.data;
+  },
+
+  async deleteSeller(id: string) {
+    await api.delete(`/admin/sellers/${id}`);
+  },
+};
+
+export const managerInvitationAPI = {
+  async get(token: string) {
+    const response = await api.get(`/auth/manager-invitation/${token}`);
+    return response.data;
+  },
+  async accept(data: { token: string; firstName: string; lastName: string; phoneNumber: string; password: string }) {
+    const response = await api.post('/auth/accept-manager-invitation', data);
     return response.data;
   },
 };
@@ -905,9 +1267,14 @@ export const emailMarketingAPI = {
     return response.data;
   },
 
-  async sendTestEmail(data: { to: string; subject: string; html: string }): Promise<{ success: boolean; message: string }> {
-    const response = await api.post('/email-marketing/test', data);
-    return response.data;
+  async sendTestEmail(data: { to: string; subject: string; html: string; settingsId?: string }): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await api.post('/email-marketing/test', data);
+      return response.data;
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error.message || 'Failed to send test email';
+      return { success: false, message };
+    }
   },
 
   async verifySettings(id: string): Promise<{ verified: boolean; message: string }> {
@@ -992,6 +1359,276 @@ export const refundsAPI = {
   },
 };
 
+export interface Bot {
+  id: string;
+  name: string;
+  type: string;
+  status: 'active' | 'inactive' | 'training';
+  sellerId?: string;
+  widgetConfig?: {
+    primaryColor: string;
+    greeting: string;
+    bubbleIcon: string;
+  };
+  customResponses?: {
+    greeting?: string;
+    greetingResponse?: string;
+    identity?: string;
+    shipping?: string;
+    returns?: string;
+    payments?: string;
+    [key: string]: string | undefined;
+  };
+  personality?: {
+    tone?: 'professional' | 'friendly' | 'casual' | 'formal';
+    style?: 'helpful' | 'assertive' | 'consultative' | 'enthusiastic';
+  };
+  trainingData?: string;
+  interactions?: number;
+  lastTrained?: string;
+}
+
+export const botsAPI = {
+  async getBySubdomain(subdomain: string): Promise<Bot[]> {
+    const response = await api.get('/bots/public/' + subdomain);
+    return response.data;
+  },
+
+  async getById(id: string): Promise<Bot> {
+    const response = await api.get('/bots/public/' + id);
+    return response.data;
+  },
+
+  async getAll(): Promise<Bot[]> {
+    const response = await api.get('/bots');
+    return response.data;
+  },
+
+  async create(data: { name: string; type: string }): Promise<Bot> {
+    const response = await api.post('/bots', data);
+    return response.data;
+  },
+
+  async activate(id: string): Promise<Bot> {
+    const response = await api.post(`/bots/${id}/activate`);
+    return response.data;
+  },
+
+  async deactivate(id: string): Promise<Bot> {
+    const response = await api.post(`/bots/${id}/deactivate`);
+    return response.data;
+  },
+
+  async getBilling(): Promise<any> {
+    const response = await api.get('/bots/billing');
+    return response.data;
+  },
+
+  async subscribe(planId: string): Promise<any> {
+    const response = await api.post('/bots/billing/subscribe', { planId });
+    return response.data;
+  },
+
+  async initializePaystack(planId: string): Promise<any> {
+    const response = await api.post('/bots/billing/paystack/initialize', { planId });
+    return response.data;
+  },
+
+  async verifyPaystack(reference: string, planId: string): Promise<any> {
+    const response = await api.post('/bots/billing/paystack/verify', { reference, planId });
+    return response.data;
+  },
+
+  async train(id: string, trainingData: string): Promise<Bot> {
+    const response = await api.post(`/bots/${id}/train`, { trainingData });
+    return response.data;
+  },
+
+  async autoTrain(id: string): Promise<Bot> {
+    const response = await api.post(`/bots/${id}/auto-train`);
+    return response.data;
+  },
+
+  async updateWidgetConfig(id: string, widgetConfig: Partial<Bot['widgetConfig']>): Promise<Bot> {
+    const response = await api.patch(`/bots/${id}/widget-config`, { widgetConfig });
+    return response.data;
+  },
+
+  async updateCustomResponses(id: string, customResponses: Bot['customResponses']): Promise<Bot> {
+    const response = await api.patch(`/bots/${id}/custom-responses`, { customResponses });
+    return response.data;
+  },
+
+  async updatePersonality(id: string, personality: Bot['personality']): Promise<Bot> {
+    const response = await api.patch(`/bots/${id}/personality`, { personality });
+    return response.data;
+  },
+
+  async getConfiguration(id: string): Promise<any> {
+    const response = await api.get(`/bots/${id}/configuration`);
+    return response.data;
+  },
+
+  async updateConfiguration(id: string, configuration: Record<string, any>): Promise<any> {
+    const response = await api.patch(`/bots/${id}/configuration`, { configuration });
+    return response.data;
+  },
+
+  async delete(id: string): Promise<void> {
+    await api.delete(`/bots/${id}`);
+  },
+
+  async chat(id: string, message: string): Promise<{ response: string; conversationId?: string; sources?: { title: string; source: string }[] }> {
+    const response = await api.post(`/public/bots/${id}/chat`, { message });
+    return response.data;
+  },
+
+  async getKnowledge(): Promise<any> {
+    const response = await api.get('/bots/knowledge');
+    return response.data;
+  },
+
+  async addKnowledgeDocument(data: { title: string; content: string; documentType?: string; source?: string; sourceUrl?: string }): Promise<any> {
+    const response = await api.post('/bots/knowledge/documents', data);
+    return response.data;
+  },
+
+  async archiveKnowledgeDocument(id: string): Promise<any> {
+    const response = await api.delete(`/bots/knowledge/documents/${id}`);
+    return response.data;
+  },
+
+  async addFaq(data: { question: string; answer: string; category?: string }): Promise<any> {
+    const response = await api.post('/bots/knowledge/faqs', data);
+    return response.data;
+  },
+
+  async getConversations(): Promise<any[]> {
+    const response = await api.get('/bots/conversations');
+    return response.data;
+  },
+
+  async getAnalytics(): Promise<any> {
+    const response = await api.get('/bots/analytics');
+    return response.data;
+  }
+};
+
+export const employeesAPI = {
+  async getBySellerId(sellerId: string): Promise<any[]> {
+    const response = await api.get('/pos/employees', { params: { seller_id: sellerId } });
+    return response.data;
+  },
+  async getById(id: string): Promise<any> {
+    const response = await api.get(`/pos/employees/${id}`);
+    return response.data;
+  },
+  async create(data: any): Promise<any> {
+    const response = await api.post('/pos/employees', data);
+    return response.data;
+  },
+  async update(id: string, data: any): Promise<any> {
+    const response = await api.put(`/pos/employees/${id}`, data);
+    return response.data;
+  },
+  async updatePin(id: string, pin: string): Promise<any> {
+    const response = await api.patch(`/pos/employees/${id}/pin`, { pin });
+    return response.data;
+  },
+  async delete(id: string): Promise<void> {
+    await api.delete(`/pos/employees/${id}`);
+  },
+};
+
+export const tablesAPI = {
+  async getBySellerId(sellerId: string): Promise<any[]> {
+    const response = await api.get('/pos/tables', { params: { seller_id: sellerId } });
+    return response.data;
+  },
+  async updateStatus(tableId: string, status: string): Promise<any> {
+    const response = await api.patch(`/pos/tables/${tableId}/status`, { status });
+    return response.data;
+  },
+  async assignEmployee(tableId: string, employeeId?: string): Promise<any> {
+    const response = await api.patch(`/pos/tables/${tableId}/assign`, { employeeId });
+    return response.data;
+  },
+  async create(data: any): Promise<any> {
+    const response = await api.post('/pos/tables', data);
+    return response.data;
+  },
+};
+
+export const shiftsAPI = {
+  async getOpen(sellerId: string): Promise<any> {
+    const response = await api.get('/pos/shifts/open', { params: { seller_id: sellerId } });
+    return response.data;
+  },
+  async open(data: { employeeId: string; openingFloat: number; sellerId: string }): Promise<any> {
+    const response = await api.post('/pos/shifts/open', data);
+    return response.data;
+  },
+  async close(shiftId: string, closingAmount: number): Promise<any> {
+    const response = await api.post(`/pos/shifts/${shiftId}/close`, { closingAmount });
+    return response.data;
+  },
+  async getByEmployeeId(employeeId: string): Promise<any[]> {
+    const response = await api.get(`/pos/shifts/employee/${employeeId}`);
+    return response.data;
+  },
+};
+
+export const inventoryAPI = {
+  async getBySellerId(sellerId: string): Promise<any[]> {
+    const response = await api.get('/pos/inventory', { params: { seller_id: sellerId } });
+    return response.data;
+  },
+  async create(data: any): Promise<any> {
+    const response = await api.post('/pos/inventory', data);
+    return response.data;
+  },
+  async update(id: string, data: any): Promise<any> {
+    const response = await api.put(`/pos/inventory/${id}`, data);
+    return response.data;
+  },
+  async adjustStock(id: string, quantity: number, reason: string, type: string): Promise<any> {
+    const response = await api.post(`/pos/inventory/${id}/adjust`, { quantity, reason, type });
+    return response.data;
+  },
+  async getLowStock(sellerId: string): Promise<any[]> {
+    const response = await api.get('/pos/inventory/low-stock', { params: { seller_id: sellerId } });
+    return response.data;
+  },
+};
+
+export const kitchenAPI = {
+  async getOrders(sellerId: string): Promise<any[]> {
+    const response = await api.get('/pos/kitchen/orders', { params: { seller_id: sellerId } });
+    return response.data;
+  },
+  async updateItemStatus(orderId: string, itemId: string, status: string): Promise<any> {
+    const response = await api.patch(`/pos/kitchen/orders/${orderId}/items/${itemId}`, { status });
+    return response.data;
+  },
+};
+
+export const loyaltyAPI = {
+  async getCustomerLoyalty(customerId: string, sellerId: string): Promise<any> {
+    const response = await api.get(`/pos/loyalty/customer/${customerId}`, { params: { seller_id: sellerId } });
+    return response.data;
+  },
+  async earnPoints(data: { customerId: string; orderId: string; points: number; sellerId: string }): Promise<any> {
+    const response = await api.post('/pos/loyalty/earn', data);
+    return response.data;
+  },
+  async redeemPoints(data: { customerId: string; orderId: string; points: number; sellerId: string }): Promise<any> {
+    const response = await api.post('/pos/loyalty/redeem', data);
+    return response.data;
+  },
+};
+
+export { default as ApexTypes } from '../platforms/services/pos/apex-pos/apexTypes';
+
 export default {
   auth: authAPI,
   sellers: sellersAPI,
@@ -1009,4 +1646,12 @@ export default {
   emailMarketing: emailMarketingAPI,
   marketing: marketingAPI,
   refunds: refundsAPI,
+  bots: botsAPI,
+  ixstream: ixstreamAPI,
+  employees: employeesAPI,
+  tables: tablesAPI,
+  shifts: shiftsAPI,
+  inventory: inventoryAPI,
+  kitchen: kitchenAPI,
+  loyalty: loyaltyAPI,
 };

@@ -6,6 +6,8 @@ export type UserRole = 'seller' | 'seller_manager' | 'manager_admin';
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  /** True only while the saved session is being restored on app startup. */
+  isInitializing: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
@@ -35,9 +37,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const handleSuspension = () => {
+      setUser(null);
+      localStorage.removeItem('iyonicorp_token');
+    };
+
+    window.addEventListener('iyonicorp:account-suspended', handleSuspension);
+
     // Check for stored session
     const checkAuth = async () => {
       const token = localStorage.getItem('iyonicorp_token');
@@ -54,10 +64,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.removeItem('iyonicorp_token');
         }
       }
+      setIsInitializing(false);
       setIsLoading(false);
     };
     checkAuth();
+
+    return () => {
+      window.removeEventListener('iyonicorp:account-suspended', handleSuspension);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const sessionCheck = window.setInterval(() => {
+      authAPI.getCurrentUser();
+    }, 30000);
+
+    return () => window.clearInterval(sessionCheck);
+  }, [user]);
 
   const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
@@ -126,7 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, register, linkStore, selectStore, logout, setAuthenticatedUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isInitializing, isLoading, login, register, linkStore, selectStore, logout, setAuthenticatedUser }}>
       {children}
     </AuthContext.Provider>
   );

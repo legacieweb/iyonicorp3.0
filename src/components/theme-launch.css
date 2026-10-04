@@ -1,0 +1,301 @@
+.theme-launch-overlay {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: clamp(12px, 3vw, 42px);
+  color: #f8f5ea;
+  background: #111815;
+  animation: reveal-fade-in 300ms ease-out both;
+}
+
+.theme-launch-dialog {
+  width: min(1320px, 100%);
+  margin: auto;
+}
+
+.theme-launch-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  margin-bottom: clamp(22px, 4vh, 42px);
+}
+
+.theme-launch-brand,
+.theme-launch-kicker,
+.theme-launch-screen-stamp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+
+.theme-launch-brand { color: #c2c9bd; }
+.theme-launch-brand svg { color: #d9c878; }
+
+.theme-launch-close {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 50%;
+  color: inherit;
+  background: rgb(255 255 255 / 7%);
+  cursor: pointer;
+}
+
+.theme-launch-close:hover { background: rgb(255 255 255 / 16%); }
+.theme-launch-close:focus-visible,
+.theme-launch-actions button:focus-visible { outline: 2px solid #d6cf82; outline-offset: 3px; }
+
+.theme-launch-kicker {
+  justify-content: center;
+  gap: 13px;
+  margin-bottom: 15px;
+  color: #c6c9b9;
+}
+
+.theme-launch-kicker span { color: #d8ce8c; }
+.theme-launch-kicker i { width: 4px; height: 4px; border-radius: 50%; background: #9aa194; }
+
+.theme-launch-screen {
+  position: relative;
+  aspect-ratio: 16 / 8.2;
+  min-height: 220px;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgb(243 239 222 / 20%);
+  background: #263a31;
+  box-shadow: 0 36px 110px rgb(0 0 0 / 50%);
+}
+
+.theme-launch-screen iframe,
+.theme-launch-screen-shade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.theme-launch-screen iframe {
+  border: 0;
+  pointer-events: none;
+  background: #f1ede2;
+  animation: reveal-preview 1.7s cubic-bezier(.2,.75,.2,1) both;
+}
+
+.theme-launch-screen-shade {
+  z-index: 1;
+  background: linear-gradient(90deg, rgb(15 24 20 / 38%), transparent 74%), linear-gradient(0deg, rgb(11 18 15 / 70%), transparent 62%);
+}
+
+.theme-launch-curtain {
+  position: absolute;
+  z-index: 2;
+  top: -3%;
+  bottom: -3%;
+  width: 52%;
+  background-color: #3f5948;
+  background-image: repeating-linear-gradient(90deg, rgb(255 255 255 / 4%) 0 1px, transparent 1px 38px), linear-gradient(120deg, #1e3229, #49634e 52%, #293c31);
+  box-shadow: inset 0 0 60px rgb(0 0 0 / 25%);
+  animation: reveal-curtain-left 1.15s cubic-bezier(.65,0,.25,1) 150ms both;
+}
+
+.theme-launch-curtain-left { left: 0; transform-origin: left center; }
+.theme-launch-curtain-right { right: 0; transform-origin: right center; animation-name: reveal-curtain-right; }
+
+.theme-launch-screen-caption {
+  position: absolute;
+  z-index: 3;
+  bottom: clamp(20px, 5vw, 62px);
+  left: clamp(20px, 5vw, 64px);
+  display: grid;
+  gap: 10px;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: reveal-caption-in 480ms ease-out 800ms forwards;
+}
+
+.theme-launch-screen-caption span {
+  color: #ded18e;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .19em;
+}
+
+.theme-launch-screen-caption strong {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(32px, 7vw, 84px);
+  font-weight: 500;
+  letter-spacing: -.055em;
+  line-height: .96;
+}
+
+.theme-launch-screen-stamp {
+  position: absolute;
+  z-index: 3;
+  right: clamp(14px, 4vw, 40px);
+  bottom: clamp(18px, 4vw, 40px);
+  color: #f5f3e5;
+  font-size: 9px;
+}
+
+.theme-launch-screen-stamp svg { color: #c9d58d; }
+
+.theme-launch-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: clamp(22px, 4vh, 38px) 6px 18px;
+}
+
+.theme-launch-status-step {
+  display: block;
+  margin-bottom: 8px;
+  color: #c8c19a;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .18em;
+}
+
+.theme-launch-status h1 {
+  margin: 0;
+  color: #f8f5ea;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(24px, 4vw, 36px);
+  font-weight: 500;
+  letter-spacing: -.04em;
+}
+
+.theme-launch-status h1:focus { outline: none; }
+.theme-launch-status p { margin: 8px 0 0; color: #c1c7bb; font-size: 14px; line-height: 1.55; }
+.theme-launch-status .theme-launch-error { max-width: 650px; margin-top: 12px; color: #f1b5a3; }
+
+.theme-launch-spinner { flex: none; color: #d6cf82; animation: reveal-spin 1s linear infinite; }
+.theme-launch-ready-icon,
+.theme-launch-error-mark {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  place-items: center;
+  border: 1px solid rgb(221 228 195 / 30%);
+  border-radius: 50%;
+  color: #e2e6c0;
+}
+
+.theme-launch-error-mark { border-color: rgb(241 181 163 / 45%); color: #f1b5a3; font-size: 22px; }
+
+.theme-launch-progress {
+  width: min(920px, 100%);
+  height: 2px;
+  margin: 0 auto;
+  overflow: hidden;
+  background: rgb(255 255 255 / 16%);
+}
+
+.theme-launch-progress span {
+  display: block;
+  width: 25%;
+  height: 100%;
+  background: #d8ce8c;
+  transition: width 350ms ease, background-color 250ms ease;
+}
+
+.theme-launch-progress.state-checking span { animation: reveal-progress-check 1.4s ease-in-out infinite; }
+.theme-launch-progress.state-applying span { width: 68%; animation: reveal-progress-apply 2s ease-in-out infinite; }
+.theme-launch-progress.state-ready span { width: 100%; background: #bdce8c; }
+.theme-launch-progress.state-error span { width: 100%; background: #a34b3c; }
+
+.theme-launch-dismiss-note {
+  margin: 14px 0 0;
+  color: #99a397;
+  font-size: 11px;
+  text-align: center;
+}
+
+.theme-launch-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 20px 0 0;
+}
+
+.theme-launch-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 43px;
+  padding: 0 16px;
+  border: 1px solid rgb(255 255 255 / 23%);
+  color: #f7f3e8;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.theme-launch-actions .theme-launch-retry { border-color: #d6cf82; color: #17211c; background: #d6cf82; }
+.theme-launch-actions p { flex-basis: 100%; margin: 2px 0 0; color: #9da69a; font-size: 11px; text-align: center; }
+
+@keyframes reveal-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes reveal-preview { from { transform: scale(1.07); } to { transform: scale(1); } }
+@keyframes reveal-curtain-left { to { transform: translateX(-101%) rotateY(-8deg); } }
+@keyframes reveal-curtain-right { to { transform: translateX(101%) rotateY(8deg); } }
+@keyframes reveal-caption-in { to { opacity: 1; transform: translateY(0); } }
+@keyframes reveal-spin { to { transform: rotate(360deg); } }
+@keyframes reveal-progress-check {
+  0% { transform: translateX(-110%) scaleX(.45); }
+  55% { transform: translateX(120%) scaleX(1); }
+  100% { transform: translateX(330%) scaleX(.45); }
+}
+@keyframes reveal-progress-apply {
+  0%, 100% { opacity: .7; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 600px) {
+  .theme-launch-overlay { padding: 12px; }
+  .theme-launch-header { margin-bottom: 18px; }
+  .theme-launch-brand { font-size: 8px; }
+  .theme-launch-screen { aspect-ratio: 4 / 3; min-height: 190px; }
+  .theme-launch-screen-stamp { display: none; }
+  .theme-launch-status { align-items: flex-start; }
+  .theme-launch-status p { font-size: 12px; }
+}
+
+@media (max-height: 560px) and (min-width: 601px) {
+  .theme-launch-overlay { align-items: start; }
+  .theme-launch-header { margin-bottom: 10px; }
+  .theme-launch-kicker { margin-bottom: 8px; }
+  .theme-launch-screen { max-height: 43vh; }
+  .theme-launch-status { padding: 12px 6px 10px; }
+  .theme-launch-status h1 { font-size: 24px; }
+  .theme-launch-status p { margin-top: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-launch-overlay,
+  .theme-launch-screen iframe,
+  .theme-launch-curtain,
+  .theme-launch-screen-caption,
+  .theme-launch-spinner,
+  .theme-launch-progress span {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .theme-launch-progress span { transition: none; }
+}

@@ -1,0 +1,4432 @@
+:root {
+  --aura-marble: #f2eee7;
+  --aura-slate: #3b342e;
+  --aura-charcoal: #211b17;
+  --aura-ivory: #fbf8f2;
+  --aura-blush: #eadbd3;
+  --aura-brass: #a78359;
+  --aura-brass-dark: #775b3e;
+  --aura-line: #dcd1c4;
+  --aura-muted: #70685f;
+  --aura-success: #3a8e7a;
+  --aura-accent: #c9a46c;
+}
+
+.aurelia-site,
+.aurelia-portal,
+.aurelia-admin {
+  font-family: 'Aptos', 'Segoe UI', sans-serif;
+  color: var(--aura-slate);
+  background: var(--aura-ivory);
+}
+
+.aurelia-site *,
+.aurelia-portal *,
+.aurelia-admin * {
+  box-sizing: border-box;
+}
+
+.aurelia-site a,
+.aurelia-portal a,
+.aurelia-admin a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.aurelia-site button,
+.aurelia-portal button,
+.aurelia-admin button,
+.aurelia-site input,
+.aurelia-site select,
+.aurelia-site textarea,
+.aurelia-admin input,
+.aurelia-admin select,
+.aurelia-admin textarea {
+  font: inherit;
+}
+
+.aurelia-site button,
+.aurelia-portal button,
+.aurelia-admin button {
+  cursor: pointer;
+}
+
+.aurelia-site button:focus-visible,
+.aurelia-portal a:focus-visible,
+.aurelia-portal button:focus-visible,
+.aurelia-admin button:focus-visible,
+.aurelia-admin a:focus-visible,
+.aurelia-site a:focus-visible,
+.aurelia-site input:focus-visible,
+.aurelia-site select:focus-visible,
+.aurelia-site textarea:focus-visible,
+.aurelia-admin input:focus-visible,
+.aurelia-admin select:focus-visible,
+.aurelia-admin textarea:focus-visible {
+  outline: 3px solid var(--aura-brass);
+  outline-offset: 3px;
+}
+
+.aurelia-header {
+  height: 80px;
+  padding: 0 max(5vw, 24px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--aura-line);
+  position: relative;
+  z-index: 5;
+  background: var(--aura-ivory);
+}
+
+.aurelia-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--aura-charcoal) !important;
+  white-space: nowrap;
+}
+
+.aurelia-wordmark em {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 500;
+}
+
+.wordmark-mark {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: var(--aura-brass);
+  border: 1px solid var(--aura-blush);
+  border-radius: 50%;
+}
+
+.aurelia-nav {
+  display: flex;
+  align-items: center;
+  gap: 35px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.aurelia-nav > a,
+.aurelia-nav > .aurelia-scroll-link {
+  color: var(--aura-muted) !important;
+  transition: color 0.2s;
+}
+
+.aurelia-nav > a:hover,
+.aurelia-nav > .aurelia-scroll-link:hover {
+  color: var(--aura-brass) !important;
+}
+
+.aurelia-nav > .aurelia-scroll-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.aurelia-text-button {
+  background: none;
+  border: 0;
+  color: var(--aura-charcoal);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 0;
+}
+
+.aurelia-menu-toggle {
+  display: none;
+  background: none;
+  border: 0;
+  color: var(--aura-charcoal);
+}
+
+.aurelia-hero {
+  min-height: 620px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  position: relative;
+  overflow: hidden;
+  background: var(--aura-marble);
+}
+
+.aurelia-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 20% 30%, rgba(167, 131, 89, .13), transparent 42%), linear-gradient(135deg, #f3eee6, #e7ddd1);
+  opacity: 0.9;
+  z-index: 0;
+}
+
+.aurelia-hero-copy {
+  padding: 104px 8vw 82px 10vw;
+  position: relative;
+  z-index: 1;
+  animation: aurelia-fade 0.7s ease-out both;
+}
+
+.aurelia-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--aura-brass-dark);
+  margin: 0 0 17px;
+  text-transform: uppercase;
+}
+
+.aurelia-hero .aurelia-kicker {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--aura-brass-dark);
+}
+
+.aurelia-kicker > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--aura-brass);
+}
+
+.aurelia-hero h1,
+.aurelia-section-heading h2,
+.story-copy h2,
+.booking-heading h2,
+.aurelia-visit h2,
+.portal-welcome h1,
+.admin-topbar h1 {
+  font: 500 clamp(46px, 6vw, 72px)/1.04 'Cormorant Garamond', serif;
+  letter-spacing: 0;
+  color: var(--aura-charcoal);
+  margin: 0;
+}
+
+.aurelia-hero h1 i,
+.aurelia-section-heading h2 i,
+.story-copy h2 i,
+.booking-heading h2 i,
+.aurelia-visit h2 i,
+.portal-welcome h1 i {
+  color: var(--aura-brass);
+  font-weight: 500;
+}
+
+.aurelia-hero-intro {
+  max-width: 390px;
+  color: var(--aura-muted);
+  font-size: 15px;
+  line-height: 1.8;
+  margin: 25px 0 29px;
+}
+
+.aurelia-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 48px;
+  padding: 0 24px;
+  border: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  transition: transform 0.18s, background 0.18s, box-shadow 0.18s;
+  color: #fff !important;
+  text-transform: uppercase;
+}
+
+.aurelia-button:hover {
+  transform: translateY(-2px);
+}
+
+.aurelia-button-brass {
+  background: var(--aura-brass);
+}
+
+.aurelia-button-brass:hover {
+  background: var(--aura-brass-dark);
+  box-shadow: 0 12px 30px rgba(151, 107, 45, 0.25);
+}
+
+.aurelia-button-slate {
+  background: var(--aura-slate);
+}
+
+.aurelia-button-slate:hover {
+  background: var(--aura-charcoal);
+}
+
+.aurelia-hero-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 63px;
+  color: var(--aura-muted);
+  font: italic 14px 'Cormorant Garamond', serif;
+}
+
+.aurelia-hero-note .note-rule {
+  width: 33px;
+  height: 1px;
+  background: var(--aura-brass);
+}
+
+.aurelia-hero-image {
+  min-height: 620px;
+  position: relative;
+  background: radial-gradient(ellipse at 65% 28%, rgba(222, 199, 172, .9), transparent 24%), linear-gradient(145deg, #726557, #d5c1a9 52%, #83705c);
+  isolation: isolate;
+}
+
+.aurelia-hero-image::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 55%, rgba(26, 26, 26, 0.35));
+  z-index: -1;
+}
+
+.hero-stamp {
+  position: absolute;
+  top: 42px;
+  right: 42px;
+  width: 104px;
+  height: 104px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #fff;
+  text-align: center;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  line-height: 1.5;
+  transform: rotate(7deg);
+}
+
+.hero-image-caption {
+  position: absolute;
+  bottom: 28px;
+  left: 34px;
+  color: #fff;
+  font: italic 15px 'Cormorant Garamond', serif;
+}
+
+.aurelia-hero-side {
+  position: absolute;
+  right: 22px;
+  top: 46%;
+  writing-mode: vertical-rl;
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--aura-muted);
+}
+
+.aurelia-intro-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 37px 10vw;
+  background: var(--aura-ivory);
+  border-bottom: 1px solid var(--aura-line);
+}
+
+.aurelia-intro-strip > p:first-child {
+  font: 500 22px/1.35 'Cormorant Garamond', serif;
+  color: var(--aura-charcoal);
+  margin: 0;
+}
+
+.aurelia-intro-strip em {
+  color: var(--aura-brass);
+}
+
+.aurelia-intro-strip > p:last-child {
+  font-size: 12px;
+  color: var(--aura-muted);
+  line-height: 1.7;
+}
+
+.aurelia-intro-strip > div {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--aura-brass-dark);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.intro-line {
+  width: 53px;
+  height: 1px;
+  background: var(--aura-brass);
+}
+
+.aurelia-services {
+  padding: 98px 10vw 102px;
+  background: var(--aura-marble);
+}
+
+.aurelia-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 42px;
+}
+
+.aurelia-section-heading h2 {
+  font-size: 43px;
+}
+
+.aurelia-section-heading a,
+.aurelia-section-heading > button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--aura-brass);
+  background: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--aura-charcoal);
+}
+
+.aurelia-section-heading > button {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.aurelia-service-list {
+  border-top: 1px solid var(--aura-line);
+}
+
+.aurelia-service-row {
+  display: grid;
+  grid-template-columns: 45px 1fr 130px 42px;
+  align-items: center;
+  gap: 20px;
+  min-height: 130px;
+  padding: 22px 8px;
+  border-bottom: 1px solid var(--aura-line);
+  transition: background 0.2s, padding 0.2s;
+}
+
+.aurelia-service-row:hover {
+  background: var(--aura-blush);
+  padding-left: 16px;
+  padding-right: 0;
+}
+
+.service-number {
+  font-size: 10px;
+  color: var(--aura-brass-dark);
+  font-weight: 600;
+  align-self: start;
+  margin-top: 8px;
+}
+
+.service-category {
+  font-size: 9px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: var(--aura-muted);
+  margin: 0 0 5px;
+  text-transform: uppercase;
+}
+
+.aurelia-service-row h3 {
+  font: 500 22px 'Cormorant Garamond', serif;
+  color: var(--aura-charcoal);
+  margin: 0;
+}
+
+.service-description {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--aura-muted);
+  margin: 6px 0 0;
+  max-width: 590px;
+}
+
+.service-price {
+  text-align: right;
+  font: 500 16px 'Cormorant Garamond', serif;
+  color: var(--aura-charcoal);
+}
+
+.service-arrow {
+  width: 37px;
+  height: 37px;
+  border: 1px solid var(--aura-line);
+  border-radius: 50%;
+  background: var(--aura-ivory);
+  color: var(--aura-brass);
+  display: grid;
+  place-items: center;
+  transition: all 0.2s;
+}
+
+.service-arrow:hover {
+  color: #fff;
+  background: var(--aura-slate);
+  border-color: var(--aura-slate);
+}
+
+.aurelia-empty-services {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 29px 22px;
+  background: var(--aura-marble);
+  color: var(--aura-charcoal);
+}
+
+.aurelia-empty-services > svg {
+  color: var(--aura-brass);
+}
+
+.aurelia-empty-services h3 {
+  font: 500 18px 'Cormorant Garamond', serif;
+  margin: 0 0 5px;
+}
+
+.aurelia-empty-services p {
+  font-size: 12px;
+  color: var(--aura-muted);
+  margin: 0;
+}
+
+.aurelia-empty-services a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--aura-charcoal);
+}
+
+.aurelia-story {
+  min-height: 480px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  position: relative;
+  overflow: hidden;
+}
+
+.story-photo {
+  min-height: 480px;
+  background: radial-gradient(ellipse at 40% 35%, rgba(212, 187, 158, .8), transparent 27%), linear-gradient(145deg, #55483e, #b7a38c);
+}
+
+.story-photo::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, rgba(26, 26, 26, 0.15), rgba(26, 26, 26, 0.05));
+}
+
+.story-copy {
+  padding: 91px 9vw 74px 7vw;
+  color: #fff;
+  position: relative;
+  z-index: 1;
+}
+
+.story-copy .aurelia-kicker {
+  color: #d7e8dd;
+}
+
+.story-copy h2 {
+  font-size: 44px;
+  color: #fff;
+}
+
+.story-copy h2 i {
+  color: var(--aura-blush);
+}
+
+.story-copy > p:not(.aurelia-kicker) {
+  max-width: 440px;
+  font-size: 13px;
+  line-height: 1.9;
+  color: #d0dfd7;
+  margin: 21px 0 27px;
+}
+
+.story-signature {
+  font-size: 11px;
+  color: #d0dfd7;
+}
+
+.story-signature span {
+  font: italic 23px 'Cormorant Garamond', serif;
+  color: var(--aura-blush);
+  margin-left: 6px;
+}
+
+.story-number {
+  position: absolute;
+  top: 30px;
+  right: 35px;
+  color: #adcabc;
+  font: italic 13px 'Cormorant Garamond', serif;
+}
+
+.aurelia-booking {
+  display: grid;
+  grid-template-columns: 0.83fr 1.17fr;
+  gap: 9vw;
+  padding: 102px 10vw;
+  background: var(--aura-ivory);
+}
+
+.booking-heading h2 {
+  font-size: 49px;
+}
+
+.booking-heading > p:not(.aurelia-kicker) {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--aura-muted);
+  max-width: 310px;
+  margin: 18px 0 30px;
+}
+
+.booking-details {
+  display: grid;
+  gap: 13px;
+  color: var(--aura-brass-dark);
+  font-size: 11px;
+}
+
+.booking-details span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.booking-details svg {
+  color: var(--aura-brass);
+}
+
+.booking-panel {
+  background: #fff;
+  padding: 34px 38px;
+  box-shadow: 0 12px 40px rgba(45, 45, 45, 0.07);
+  border-radius: 4px;
+}
+
+.tamira-booking-form,
+.aurelia-booking-form,
+.admin-form-grid,
+.admin-staff-form {
+  display: grid;
+  gap: 16px;
+}
+
+.tamira-booking-form label,
+.aurelia-booking-form label,
+.admin-form-grid label,
+.admin-staff-form label {
+  display: grid;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--aura-brass-dark);
+}
+
+.tamira-booking-form input,
+.aurelia-booking-form input,
+.tamira-booking-form select,
+.tamira-booking-form textarea,
+.aurelia-booking-form input,
+.aurelia-booking-form select,
+.aurelia-booking-form textarea,
+.admin-form-grid input,
+.admin-form-grid select,
+.admin-form-grid textarea,
+.admin-staff-form input,
+.admin-staff-form select,
+.admin-staff-form textarea {
+  width: 100%;
+  border: 1px solid var(--aura-line);
+  background: var(--aura-marble);
+  min-height: 44px;
+  padding: 10px 12px;
+  color: var(--aura-slate);
+  font-size: 12px;
+  border-radius: 0;
+}
+
+.tamira-booking-form textarea,
+.aurelia-booking-form textarea,
+.admin-form-grid textarea {
+  resize: vertical;
+}
+
+.tamira-booking-form input::placeholder,
+.aurelia-booking-form input::placeholder,
+.tamira-booking-form textarea::placeholder,
+.aurelia-booking-form textarea::placeholder {
+  color: var(--aura-muted);
+}
+
+.booking-field-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.optional-label {
+  font-size: 8px;
+  color: var(--aura-muted);
+  margin-left: 5px;
+}
+
+.booking-submit {
+  width: 100%;
+  margin-top: 2px;
+  justify-content: space-between;
+}
+
+.booking-submit:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.booking-fineprint {
+  font-size: 9px;
+  color: var(--aura-muted);
+  text-align: center;
+  margin: 0;
+}
+
+.tamira-form-error,
+.aurelia-form-error {
+  padding: 10px 12px;
+  margin: 0;
+  background: #fff0ed;
+  color: #a83f38;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.button-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: aurelia-spin 0.7s linear infinite;
+}
+
+.booking-success {
+  min-height: 390px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.success-check {
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  background: var(--aura-blush);
+  color: var(--aura-slate);
+  border-radius: 50%;
+  margin-bottom: 23px;
+}
+
+.booking-success h3 {
+  font: 500 35px/1.15 'Cormorant Garamond', serif;
+  color: var(--aura-charcoal);
+  margin: 0;
+}
+
+.booking-success h3 i {
+  color: var(--aura-brass);
+}
+
+.booking-success > p:not(.aurelia-kicker) {
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--aura-muted);
+  max-width: 390px;
+  margin: 17px 0 24px;
+}
+
+.booking-no-services {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.booking-no-services > svg {
+  color: var(--aura-brass);
+}
+
+.booking-no-services h3 {
+  font: 500 23px 'Cormorant Garamond', serif;
+  color: var(--aura-charcoal);
+  margin: 16px 0 8px;
+}
+
+.booking-no-services p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--aura-muted);
+}
+
+.booking-no-services a {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin-top: 8px;
+  color: var(--aura-charcoal);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.aurelia-visit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 68px 10vw;
+  background: var(--aura-blush);
+}
+
+.aurelia-visit h2 {
+  font-size: 42px;
+}
+
+.aurelia-visit > div:first-child > p:last-child {
+  font-size: 12px;
+  color: var(--aura-brass-dark);
+}
+
+.visit-links {
+  display: grid;
+  gap: 13px;
+  min-width: 220px;
+}
+
+.visit-links a,
+.visit-links span {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--aura-charcoal);
+}
+
+.visit-links svg {
+  color: var(--aura-brass);
+}
+
+.aurelia-footer {
+  min-height: 86px;
+  padding: 18px 5vw;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: var(--aura-slate);
+  color: #fff;
+}
+
+.aurelia-footer .aurelia-wordmark {
+  color: #fff !important;
+}
+
+.aurelia-footer .wordmark-mark {
+  border-color: #57776a;
+}
+
+.aurelia-footer > span {
+  font-size: 8px;
+  letter-spacing: 1.2px;
+  color: #afc5b9;
+}
+
+.aurelia-footer > div {
+  display: flex;
+  gap: 20px;
+}
+
+.aurelia-footer > div button,
+.aurelia-footer > div a {
+  background: none;
+  border: 0;
+  color: #d5e1da;
+  font-size: 10px;
+  padding: 5px;
+}
+
+.aurelia-footer small {
+  font-size: 9px;
+  color: #a6bcb0;
+}
+
+.aurelia-portal {
+  min-height: 100vh;
+  background: var(--aura-marble);
+  padding: 0 max(6vw, 22px) 50px;
+}
+
+.portal-header {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--aura-line);
+}
+
+.portal-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--aura-muted) !important;
+}
+
+.portal-welcome {
+  padding: 67px 0 49px;
+  border-bottom: 1px solid var(--aura-line);
+}
+
+.portal-welcome h1 {
+  font-size: 57px;
+}
+
+.portal-welcome > p:last-child {
+  font-size: 13px;
+  color: var(--aura-muted);
+  margin: 15px 0 0;
+}
+
+.portal-appointments,
+.portal-history {
+  padding: 38px 0 28px;
+}
+
+.portal-section-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.portal-section-title .aurelia-kicker {
+  margin-bottom: 8px;
+}
+
+.portal-section-title h2 {
+  font: 500 25px 'Cormorant Garamond', serif;
+  color: var(--aura-charcoal);
+  margin: 0;
+}
+
+.portal-section-title > span {
+  font-size: 10px;
+  color: var(--aura-muted);
+}
+
+.portal-appointment {
+  display: grid;
+  grid-template-columns: 72px 1fr 220px;
+  gap: 23px;
+  align-items: center;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid var(--aura-line);
+  margin-bottom: 9px;
+}
+
+.portal-appointment-date {
+  width: 66px;
+  height: 75px;
+  background: var(--aura-marble);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--aura-charcoal);
+}
+
+.portal-appointment-date span {
+  font-size: 8px;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+
+.portal-appointment-date strong {
+  font: 500 27px 'Cormorant Garamond', serif;
+}
+
+.portal-appointment-info h3 {
+  font: 500 19px 'Cormorant Garamond', serif;
+  color: var(--aura-charcoal);
+  margin: 8px 0;
+}
+
+.portal-appointment-info > p {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  color: var(--aura-muted);
+  margin: 0;
+}
+
+.appointment-status {
+  display: inline-flex;
+  width: max-content;
+  padding: 5px 8px;
+  background: #eef4ef;
+  color: #4e6758;
+  font-size: 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.status-pending { background: #fff3df; color: #8d671f; }
+.status-cancelled,
+.status-refunded { background: #fcebea; color: #a44840; }
+.status-delivered { background: #e7f3ed; color: #2f6b50; }
+
+.aurelia-logout-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 11px;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--aura-blush) !important;
+  color: var(--aura-slate) !important;
+  background: #fff0ed !important;
+  cursor: pointer;
+}
+
+.aurelia-logout-button:hover {
+  background: #ffeae5 !important;
+}
+
+.upload-preview-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.upload-preview-thumb { width: 48px; height: 48px; object-fit: cover; border: 1px solid var(--aura-line); border-radius: 6px; }
+.admin-service-thumb { width: 34px; height: 34px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
+.service-thumb { width: 54px; height: 54px; object-fit: cover; border-radius: 8px; }
+
+.aurelia-service-page { padding: 32px 10vw; max-width: 1200px; margin: 0 auto; }
+.service-detail-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+.service-detail-media { display: flex; flex-direction: column; gap: 16px; }
+.service-detail-image { width: 100%; border-radius: 12px; object-fit: cover; aspect-ratio: 1/1; box-shadow: 0 4px 16px rgba(45, 45, 45, 0.08); }
+.service-detail-placeholder { width: 100%; height: 280px; border: 2px dashed var(--aura-line); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--aura-muted); aspect-ratio: 1/1; }
+.service-detail-video { width: 100%; border-radius: 12px; box-shadow: 0 4px 16px rgba(45, 45, 45, 0.08); }
+.service-detail-content { padding: 8px; }
+.service-detail-title { font: 500 clamp(36px, 5vw, 52px)/1.04 'Cormorant Garamond', serif; color: var(--aura-charcoal); margin: 0; }
+.service-detail-description { font-size: 14px; line-height: 1.7; color: var(--aura-muted); margin: 16px 0; }
+.service-detail-duration { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--aura-muted); margin: 8px 0; }
+.service-detail-price { font: 500 20px 'Cormorant Garamond', serif; color: var(--aura-brass); margin: 12px 0; }
+.aurelia-service-booking { margin-top: 48px; }
+
+@media (max-width: 768px) {
+  .service-detail-layout { grid-template-columns: 1fr; }
+  .aurelia-service-page { padding: 24px 5vw; }
+  .aurelia-service-booking { margin-top: 32px; }
+}
+
+@media (max-width: 900px) {
+  .aurelia-hero { min-height: 530px; }
+  .aurelia-hero-copy { padding: 82px 7vw 62px; }
+  .aurelia-hero h1 { font-size: 61px; }
+  .aurelia-hero-image { min-height: 530px; }
+  .aurelia-booking { padding: 76px 7vw; gap: 5vw; }
+  .story-copy { padding: 70px 7vw 60px 6vw; }
+  .story-copy h2 { font-size: 37px; }
+  .portal-history { padding: 0 0 28px; }
+  .portal-appointment { grid-template-columns: 72px 1fr; }
+}
+
+@media (max-width: 640px) {
+  .aurelia-header { height: 64px; padding: 0 19px; }
+  .aurelia-menu-toggle { display: grid; place-items: center; width: 39px; height: 39px; }
+  .aurelia-nav { display: none; position: absolute; top: 63px; left: 0; right: 0; align-items: stretch; gap: 0; padding: 7px 20px 14px; background: var(--aura-ivory); border-bottom: 1px solid var(--aura-line); }
+  .aurelia-nav.is-open { display: grid; }
+  .aurelia-nav > a, .aurelia-nav > .aurelia-scroll-link, .aurelia-nav > .aurelia-text-button { padding: 13px 4px; border-bottom: 1px solid #edf1ee; }
+  .aurelia-hero { display: flex; flex-direction: column; min-height: 0; }
+  .aurelia-hero-copy { padding: 64px 25px 38px; }
+  .aurelia-hero h1 { font-size: 55px; }
+  .aurelia-hero-intro { font-size: 13px; margin: 19px 0 22px; }
+  .aurelia-hero-note { margin-top: 32px; font-size: 12px; }
+  .aurelia-hero-image { min-height: 330px; background-position: center 35%; }
+  .hero-stamp { width: 86px; height: 86px; top: 20px; right: 20px; }
+  .hero-image-caption { left: 20px; bottom: 18px; font-size: 13px; }
+  .aurelia-hero-side { display: none; }
+  .aurelia-services { padding: 62px 22px 65px; }
+  .aurelia-service-row { grid-template-columns: 24px 1fr 68px 33px; gap: 8px; min-height: 112px; padding: 16px 0; }
+  .aurelia-service-row h3 { font-size: 18px; }
+  .service-description { font-size: 10px; line-height: 1.5; }
+  .service-number { font-size: 9px; }
+  .service-price { font-size: 13px; }
+  .service-arrow { width: 31px; height: 31px; }
+  .aurelia-empty-services { align-items: flex-start; flex-wrap: wrap; padding: 20px 16px; gap: 12px; }
+  .aurelia-story { display: flex; flex-direction: column; }
+  .story-photo { min-height: 270px; }
+  .story-copy { padding: 48px 25px 49px; }
+  .story-copy h2 { font-size: 30px; }
+}
+
+@keyframes aurelia-fade { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes aurelia-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .aurelia-site *, .aurelia-portal *, .aurelia-admin * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}
+
+.aurelia-site,
+.aurelia-portal,
+.aurelia-admin {
+  font-family: 'Aptos', 'Segoe UI', sans-serif;
+}
+
+.aurelia-site h1,
+.aurelia-site h2,
+.aurelia-site h3,
+.aurelia-portal h1,
+.aurelia-portal h2,
+.aurelia-portal h3,
+.aurelia-admin h1,
+.aurelia-admin h2,
+.aurelia-admin h3 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+}
+
+.salon-logo {
+  display: block;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.aurelia-hero-image {
+  background-color: #cdbba5;
+  background-position: center;
+  background-size: cover;
+}
+
+.hero-stamp {
+  padding: 12px;
+  overflow-wrap: anywhere;
+  text-transform: uppercase;
+}
+
+.story-photo {
+  position: relative;
+  background-color: #857866;
+  background-position: center;
+  background-size: cover;
+}
+
+.story-copy {
+  background: #332a24;
+}
+
+.story-copy .aurelia-kicker,
+.story-number {
+  color: #e1c5a5;
+}
+
+.story-copy h2 i {
+  color: #d9b591;
+}
+
+.aurelia-service-row {
+  grid-template-columns: 40px minmax(0, 1fr) 120px 190px;
+}
+
+.service-thumb {
+  float: right;
+  width: 60px;
+  height: 60px;
+  margin: 2px 0 8px 16px;
+  border-radius: 2px;
+}
+
+.service-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--aura-muted);
+  font-size: 11px;
+}
+
+.service-filters {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: -14px 0 22px;
+}
+
+.service-search,
+.service-category-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  border-bottom: 1px solid var(--aura-line);
+  color: var(--aura-brass-dark);
+}
+
+.service-search input,
+.service-category-filter select {
+  min-width: 160px;
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--aura-slate);
+  font: inherit;
+  font-size: 12px;
+}
+
+.service-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}
+
+.service-detail-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  color: var(--aura-brass-dark);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.salon-team-preview {
+  margin-top: 25px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, .28);
+}
+
+.salon-team-preview > span {
+  color: #e1c5a5;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+}
+
+.salon-team-preview p {
+  color: #fff;
+  font: 17px Georgia, 'Times New Roman', serif;
+}
+
+.portal-salon-name {
+  display: block !important;
+  margin: 10px 0 0 !important;
+  color: var(--aura-brass-dark) !important;
+  font-size: 10px !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.portal-empty {
+  padding: 40px 22px;
+  border: 1px dashed var(--aura-line);
+  background: rgba(255, 255, 255, .46);
+  text-align: center;
+}
+
+.portal-empty > svg {
+  color: var(--aura-brass-dark);
+}
+
+.portal-empty h3 {
+  margin: 12px 0 6px;
+  color: var(--aura-charcoal);
+  font-size: 22px;
+}
+
+.portal-empty p {
+  color: var(--aura-muted);
+  font-size: 12px;
+}
+
+.portal-empty .aurelia-button {
+  margin-top: 10px;
+}
+
+.portal-contact-list {
+  display: grid;
+  gap: 8px;
+}
+
+.portal-contact-list > span {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+}
+
+.portal-contact-list a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--aura-brass-dark) !important;
+}
+
+.aurelia-admin {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+  background: #f1eee8;
+  color: var(--aura-slate);
+}
+
+.admin-sidebar {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: 27px 18px 18px;
+  background: #29231f;
+  color: #f8f3ec;
+}
+
+.admin-sidebar .aurelia-wordmark {
+  padding: 0 8px 26px;
+  color: #fff !important;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+}
+
+.admin-sidebar .wordmark-mark {
+  border-color: rgba(221, 187, 151, .42);
+  color: #d9b591;
+}
+
+.admin-sidebar-label {
+  margin: 0 10px 12px;
+  color: #cab69f;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+.admin-sidebar nav {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 43px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #d3c8bb;
+  text-align: left;
+  font-size: 12px;
+}
+
+.admin-nav-item:hover,
+.admin-nav-item.active {
+  border-color: rgba(217, 181, 145, .3);
+  background: rgba(217, 181, 145, .12);
+  color: #fff;
+}
+
+.admin-nav-item.active {
+  box-shadow: inset 2px 0 #d9b591;
+}
+
+.admin-nav-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 21px;
+  height: 21px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: #d9b591;
+  color: #29231f;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.admin-sidebar-bottom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding: 18px 4px 2px;
+  border-top: 1px solid rgba(255, 255, 255, .15);
+}
+
+.admin-avatar,
+.team-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #dfc8ae;
+  color: #382d24;
+  font: 17px Georgia, 'Times New Roman', serif;
+}
+
+.admin-sidebar-bottom div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.admin-sidebar-bottom strong {
+  overflow: hidden;
+  color: #fff;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-sidebar-bottom span:not(.admin-avatar) {
+  color: #c4b8aa;
+  font-size: 10px;
+}
+
+.admin-main {
+  min-width: 0;
+  padding: 30px clamp(20px, 4vw, 58px) 52px;
+}
+
+.admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--aura-line);
+}
+
+.admin-topbar .aurelia-kicker {
+  margin-bottom: 6px;
+}
+
+.admin-topbar h1 {
+  margin: 0;
+  color: var(--aura-charcoal);
+  font-size: 35px;
+}
+
+.admin-top-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.admin-top-actions > a,
+.admin-top-actions > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--aura-line);
+  background: #fff;
+  color: var(--aura-slate);
+  font-size: 10px;
+}
+
+.admin-top-actions > a svg {
+  transform: rotate(135deg);
+}
+
+.admin-top-actions .aurelia-logout-button {
+  min-height: 38px;
+  border-color: var(--aura-line) !important;
+  background: transparent !important;
+}
+
+.admin-section {
+  padding-top: 27px;
+}
+
+.admin-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.admin-metrics article,
+.admin-panel {
+  border: 1px solid var(--aura-line);
+  background: #fbf9f5;
+}
+
+.admin-metrics article {
+  display: grid;
+  gap: 8px;
+  min-height: 130px;
+  padding: 18px;
+}
+
+.admin-metrics article > span,
+.admin-metrics article small {
+  color: var(--aura-muted);
+  font-size: 10px;
+}
+
+.admin-metrics article strong {
+  color: var(--aura-charcoal);
+  font: 30px Georgia, 'Times New Roman', serif;
+}
+
+.admin-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+  gap: 15px;
+}
+
+.admin-panel {
+  min-width: 0;
+  padding: 19px;
+}
+
+.admin-panel-heading,
+.admin-section-toolbar,
+.admin-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-panel-heading {
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--aura-line);
+}
+
+.admin-panel-heading .aurelia-kicker,
+.admin-section-toolbar .aurelia-kicker {
+  margin-bottom: 6px;
+}
+
+.admin-panel-heading h2,
+.admin-section-toolbar h2 {
+  margin: 0;
+  color: var(--aura-charcoal);
+  font-size: 23px;
+}
+
+.admin-panel-heading > span,
+.admin-panel-heading > button {
+  color: var(--aura-muted);
+  font-size: 10px;
+}
+
+.admin-panel-heading > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+}
+
+.admin-inline-empty,
+.admin-empty {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  padding: 29px 14px;
+  color: var(--aura-muted);
+  text-align: center;
+  font-size: 11px;
+}
+
+.admin-inline-empty svg,
+.admin-empty svg {
+  color: var(--aura-brass);
+}
+
+.admin-recent {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--aura-line);
+}
+
+.admin-recent > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-recent strong {
+  color: var(--aura-charcoal);
+  font-size: 11px;
+}
+
+.admin-recent > div span {
+  overflow: hidden;
+  color: var(--aura-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+}
+
+.recent-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--aura-brass);
+}
+
+.admin-toolbar {
+  margin-bottom: 15px;
+}
+
+.admin-toolbar p {
+  color: var(--aura-muted);
+  font-size: 11px;
+}
+
+.admin-toolbar > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.admin-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.admin-toolbar select,
+.admin-toolbar input,
+.agenda-staff select {
+  min-height: 39px;
+  padding: 0 10px;
+  border: 1px solid var(--aura-line);
+  background: #fff;
+  color: var(--aura-slate);
+  font-size: 11px;
+}
+
+.admin-appointment-list,
+.admin-agenda {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-appointment-row {
+  display: grid;
+  grid-template-columns: 76px minmax(140px, 1fr) minmax(140px, 1fr) minmax(105px, .65fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--aura-line);
+  background: #fbf9f5;
+}
+
+.agenda-time,
+.agenda-client,
+.agenda-service {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.agenda-time strong,
+.agenda-client strong,
+.agenda-service strong {
+  overflow: hidden;
+  color: var(--aura-charcoal);
+  font-size: 11px;
+  text-overflow: ellipsis;
+}
+
+.agenda-time span,
+.agenda-client span,
+.agenda-service span {
+  overflow: hidden;
+  color: var(--aura-muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+}
+
+.agenda-time strong {
+  font: 19px Georgia, 'Times New Roman', serif;
+}
+
+.agenda-staff select {
+  width: 100%;
+}
+
+.agenda-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.agenda-actions button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--aura-line);
+  background: #fff;
+  color: var(--aura-slate);
+}
+
+.agenda-actions button:hover {
+  border-color: var(--aura-brass);
+  color: var(--aura-brass-dark);
+}
+
+.admin-primary-button,
+.admin-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 41px;
+  padding: 0 15px;
+  border: 1px solid var(--aura-brass-dark);
+  background: var(--aura-brass-dark);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.admin-primary-button:hover {
+  background: #5d4630;
+}
+
+.admin-primary-button:disabled,
+.admin-secondary-button:disabled {
+  opacity: .58;
+  cursor: wait;
+}
+
+.admin-secondary-button {
+  border-color: var(--aura-line);
+  background: transparent;
+  color: var(--aura-slate);
+}
+
+.admin-secondary-button:hover {
+  background: var(--aura-marble);
+}
+
+.admin-section-toolbar {
+  align-items: flex-end;
+  margin-bottom: 21px;
+}
+
+.admin-section-toolbar > div > p:last-child {
+  margin: 8px 0 0;
+  color: var(--aura-muted);
+  font-size: 11px;
+}
+
+.admin-service-list,
+.admin-team-list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-service-list > article,
+.admin-team-list > article {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto auto 38px 38px;
+  align-items: center;
+  gap: 13px;
+  padding: 13px;
+  border: 1px solid var(--aura-line);
+  background: #fbf9f5;
+}
+
+.admin-service-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  background: var(--aura-marble);
+  color: var(--aura-brass-dark);
+}
+
+.admin-service-list h3 {
+  margin: 0 0 3px;
+  color: var(--aura-charcoal);
+  font-size: 17px;
+}
+
+.admin-service-list .service-category,
+.admin-service-list .service-description {
+  margin: 2px 0;
+  color: var(--aura-muted);
+  font-size: 10px;
+}
+
+.admin-service-list .service-detail-price {
+  white-space: nowrap;
+}
+
+.admin-service-list button,
+.admin-team-list button,
+.admin-form-heading button {
+  display: grid;
+  place-items: center;
+  width: 35px;
+  height: 35px;
+  border: 1px solid var(--aura-line);
+  background: #fff;
+  color: var(--aura-slate);
+}
+
+.service-availability {
+  padding: 5px 8px;
+  background: #ece8e2;
+  color: #655d53;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.service-availability.is-live {
+  background: #e6eee8;
+  color: #41624e;
+}
+
+.admin-form,
+.admin-settings-form,
+.service-editor {
+  padding: 19px;
+  border: 1px solid var(--aura-line);
+  background: #fbf9f5;
+}
+
+.admin-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-form-grid label,
+.admin-staff-form label {
+  color: var(--aura-slate);
+  font-size: 11px;
+}
+
+.admin-form-grid input,
+.admin-form-grid select,
+.admin-form-grid textarea,
+.admin-staff-form input {
+  border-radius: 0;
+  background: #fff;
+  font-size: 12px;
+}
+
+.admin-form-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.admin-days label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--aura-line);
+  background: #fff;
+}
+
+.admin-days input,
+.admin-toggle input {
+  width: 16px !important;
+  min-height: 16px !important;
+  accent-color: var(--aura-brass-dark);
+}
+
+.admin-toggle {
+  display: flex !important;
+  align-items: center;
+  gap: 8px !important;
+}
+
+.admin-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.admin-save-state {
+  margin-right: auto;
+  color: var(--aura-muted);
+  font-size: 10px;
+}
+
+.admin-form-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 17px;
+}
+
+.admin-form-heading h3 {
+  margin: 0;
+  color: var(--aura-charcoal);
+  font-size: 22px;
+}
+
+.admin-staff-form {
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  margin-bottom: 20px;
+  padding: 17px;
+  border: 1px solid var(--aura-line);
+  background: #fbf9f5;
+}
+
+.admin-team-list > article {
+  grid-template-columns: 42px minmax(0, 1fr) 38px;
+}
+
+.admin-team-list > article > div {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-team-list strong {
+  color: var(--aura-charcoal);
+  font-size: 12px;
+}
+
+.admin-team-list > article > div > span {
+  color: var(--aura-muted);
+  font-size: 10px;
+}
+
+.admin-alert,
+.admin-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 15px;
+  padding: 11px 13px;
+  border: 1px solid #d9a9a1;
+  background: #fff1ed;
+  color: #80443b;
+  font-size: 11px;
+}
+
+.admin-alert button {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.admin-notice {
+  border-color: #bdcfbf;
+  background: #edf3ed;
+  color: #3e5d46;
+}
+
+.admin-empty h2 {
+  margin: 5px 0;
+  color: var(--aura-charcoal);
+  font-size: 22px;
+}
+
+.admin-empty p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.aurelia-admin-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  min-height: 100vh;
+  background: var(--aura-marble);
+  color: var(--aura-slate);
+  font-size: 13px;
+}
+
+.loading-spinner {
+  animation: aurelia-spin .8s linear infinite;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 1050px) {
+  .aurelia-admin {
+    grid-template-columns: 205px minmax(0, 1fr);
+  }
+
+  .admin-main {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .admin-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-appointment-row {
+    grid-template-columns: 70px minmax(125px, 1fr) minmax(120px, 1fr) minmax(90px, .7fr) auto;
+  }
+
+  .admin-appointment-row > .appointment-status {
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 760px) {
+  .aurelia-admin {
+    display: block;
+  }
+
+  .admin-sidebar {
+    position: static;
+    min-height: auto;
+    padding: 12px 16px;
+  }
+
+  .admin-sidebar .aurelia-wordmark {
+    padding: 0 4px 10px;
+  }
+
+  .admin-sidebar-label,
+  .admin-sidebar-bottom {
+    display: none;
+  }
+
+  .admin-sidebar nav {
+    display: flex;
+    gap: 5px;
+    overflow-x: auto;
+    padding-bottom: 3px;
+  }
+
+  .admin-nav-item {
+    width: auto;
+    min-width: max-content;
+    min-height: 38px;
+    padding: 0 10px;
+  }
+
+  .admin-nav-item.active {
+    box-shadow: inset 0 -2px #d9b591;
+  }
+
+  .admin-main {
+    padding: 20px 16px 38px;
+  }
+
+  .admin-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-top-actions {
+    width: 100%;
+  }
+
+  .admin-top-actions > a,
+  .admin-top-actions > button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .admin-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-appointment-row {
+    grid-template-columns: 65px minmax(0, 1fr) auto;
+  }
+
+  .agenda-time {
+    grid-row: span 2;
+  }
+
+  .agenda-service {
+    grid-column: 2;
+  }
+
+  .agenda-staff {
+    grid-column: 2;
+  }
+
+  .admin-appointment-row > .appointment-status {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .agenda-actions {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .admin-toolbar,
+  .admin-section-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 640px) {
+  .aurelia-service-row {
+    grid-template-columns: 25px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .service-actions {
+    grid-column: 2 / -1;
+    justify-self: end;
+  }
+
+  .service-filters {
+    justify-content: stretch;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .service-search input,
+  .service-category-filter select {
+    width: 100%;
+  }
+
+  .service-thumb {
+    width: 48px;
+    height: 48px;
+  }
+
+  .portal-contact-list > span {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .portal-appointment {
+    grid-template-columns: 60px minmax(0, 1fr);
+    gap: 13px;
+    padding: 14px;
+  }
+
+  .portal-appointment-note {
+    grid-column: 2;
+  }
+
+  .admin-metrics {
+    gap: 8px;
+  }
+
+  .admin-metrics article {
+    min-height: 112px;
+    padding: 13px;
+  }
+
+  .admin-service-list > article {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+  }
+
+  .admin-service-list .service-detail-price {
+    grid-column: 2;
+  }
+
+  .admin-service-list .service-availability {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .admin-form-grid,
+  .admin-staff-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form-wide {
+    grid-column: auto;
+  }
+
+  .admin-form-actions {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .admin-save-state {
+    flex-basis: 100%;
+  }
+
+  .admin-toolbar > div {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .admin-toolbar input,
+  .admin-toolbar label,
+  .admin-toolbar select {
+    max-width: 100%;
+  }
+
+  .aurelia-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .aurelia-footer .aurelia-wordmark {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .aurelia-footer > div {
+    flex-wrap: wrap;
+  }
+
+  .aurelia-footer small {
+    overflow-wrap: anywhere;
+  }
+}
+.aurelia-site,
+.aurelia-portal,
+.aurelia-admin {
+  --aura-marble: #e9e7e0;
+  --aura-slate: #222326;
+  --aura-charcoal: #101114;
+  --aura-ivory: #f7f6f0;
+  --aura-blush: #dce5f9;
+  --aura-brass: #254edb;
+  --aura-brass-dark: #18379f;
+  --aura-line: #d2d0c8;
+  --aura-muted: #5e6066;
+  --aura-success: #23775d;
+  --aura-accent: #e7b934;
+  font-family: 'Aptos', 'Segoe UI', sans-serif;
+}
+
+.aurelia-site.aura-editorial {
+  overflow: clip;
+  background: var(--aura-ivory);
+  color: var(--aura-charcoal);
+}
+
+.aurelia-site.aura-editorial button,
+.aurelia-site.aura-editorial input,
+.aurelia-site.aura-editorial select,
+.aurelia-site.aura-editorial textarea {
+  font: inherit;
+}
+
+.aurelia-site.aura-editorial button:focus-visible,
+.aurelia-site.aura-editorial a:focus-visible,
+.aurelia-site.aura-editorial input:focus-visible,
+.aurelia-site.aura-editorial select:focus-visible,
+.aurelia-site.aura-editorial textarea:focus-visible {
+  outline-color: #173ec1;
+}
+
+.aura-masthead {
+  height: 74px;
+  padding: 0 5.5vw;
+  gap: 24px;
+  background: var(--aura-ivory);
+  border-bottom: 1px solid #c9c8c1;
+}
+
+.aura-masthead .aurelia-wordmark {
+  font-size: 15px;
+  letter-spacing: -.03em;
+}
+
+.aura-masthead-note {
+  margin: 0 auto 0 6vw;
+  color: #606168;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .15em;
+}
+
+.aura-masthead-note span {
+  color: #244ddd;
+}
+
+.aura-masthead .aurelia-nav {
+  gap: clamp(14px, 2vw, 28px);
+  font-size: 11px;
+}
+
+.aura-masthead .aurelia-nav > .aurelia-scroll-link,
+.aura-masthead .aurelia-nav > a {
+  color: #393b41 !important;
+}
+
+.aura-masthead .aurelia-text-button {
+  padding: 10px 0 10px 14px;
+  border-left: 1px solid #cfcec7;
+  color: #18379f;
+}
+
+.aura-masthead .wordmark-mark {
+  width: 31px;
+  height: 31px;
+  color: #2147ce;
+  border-color: #244ddd;
+  border-radius: 0;
+  transform: rotate(-6deg);
+}
+
+.aura-cover {
+  min-height: min(690px, 78vw);
+  padding: 36px 5.5vw 48px 3vw;
+  display: grid;
+  grid-template-columns: minmax(105px, .23fr) minmax(320px, .87fr) minmax(370px, 1.13fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 72px);
+  position: relative;
+  background: #f1f0e9;
+}
+
+.aura-cover-index {
+  min-height: 390px;
+  padding: 11px 14px 11px 0;
+  border-right: 1px solid #c9c8c1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+  color: #56585e;
+  font-size: 9px;
+  letter-spacing: .03em;
+}
+
+.aura-cover-index > span:first-child {
+  color: #203fb4;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+
+.aura-cover-index b {
+  color: #36383d;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.aura-cover-index .aura-index-rule {
+  width: 1px;
+  min-height: 82px;
+  margin-left: 2px;
+  background: #254edb;
+}
+
+.aura-cover-index > button:last-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: #1b3daf;
+  font: inherit;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.aura-cover-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 560px;
+  padding-bottom: 20px;
+}
+
+.aura-cover-copy .aurelia-kicker {
+  margin-bottom: 22px;
+  color: #1b3daf;
+  font-size: 9px;
+  letter-spacing: .16em;
+}
+
+.aura-cover-copy .aurelia-kicker > span {
+  border-radius: 0;
+  background: #244ddd;
+}
+
+.aura-cover-copy h1 {
+  margin: 0;
+  color: #101114;
+  font: 800 clamp(65px, 8vw, 118px)/.88 'Aptos', 'Segoe UI', sans-serif;
+  letter-spacing: -.09em;
+}
+
+.aura-cover-copy h1 em,
+.aura-index-heading h2 em,
+.aura-builder-aside h2 em,
+.aura-atelier-notes header h2 em,
+.aura-contact-band h2 em {
+  color: #244ddd;
+  font: italic 500 .9em/.9 'Cormorant Garamond', Georgia, serif;
+  letter-spacing: -.035em;
+}
+
+.aura-cover-copy > p:not(.aurelia-kicker) {
+  max-width: 340px;
+  margin: 27px 0 25px;
+  color: #585a60;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.aura-primary-button {
+  background: #244ddd;
+  color: #fff !important;
+  border-radius: 0;
+}
+
+.aura-primary-button:hover {
+  background: #18379f;
+  box-shadow: 5px 5px 0 #e7b934;
+}
+
+.aura-cover-art {
+  min-height: 510px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: #d9d8d0;
+  background-image: linear-gradient(135deg, #deddd5 0 40%, #c9d3e7 40% 62%, #aaa9a0 62% 100%);
+}
+
+.aura-cover-art::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 54%;
+  height: 65%;
+  top: 17%;
+  left: 22%;
+  border: 1px solid rgba(22, 25, 38, .58);
+  transform: rotate(-9deg);
+}
+
+.aura-cover-art::after {
+  content: '';
+  position: absolute;
+  width: 72%;
+  height: 46%;
+  right: -7%;
+  bottom: -3%;
+  border-top: 1px solid rgba(16, 17, 20, .62);
+  background: rgba(228, 185, 52, .78);
+  transform: skewY(-12deg);
+}
+
+.aura-cover-art.has-photo {
+  background: #c9c8c1;
+}
+
+.aura-cover-art > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.aura-cover-art.has-photo::before {
+  inset: 20px;
+  width: auto;
+  height: auto;
+  z-index: 1;
+  border-color: rgba(255, 255, 255, .68);
+}
+
+.aura-cover-art.has-photo::after {
+  z-index: 1;
+  background: linear-gradient(transparent, rgba(9, 12, 23, .56));
+}
+
+.aura-cover-art-mark {
+  position: absolute;
+  z-index: 2;
+  top: 35px;
+  left: 35px;
+  display: grid;
+  gap: 9px;
+  color: #18379f;
+}
+
+.aura-cover-art.has-photo .aura-cover-art-mark {
+  color: #fff;
+}
+
+.aura-cover-art-mark span,
+.aura-cover-caption {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+.aura-cover-caption {
+  position: absolute;
+  z-index: 2;
+  bottom: 29px;
+  left: 30px;
+  color: #101114;
+}
+
+.aura-cover-art.has-photo .aura-cover-caption {
+  color: #fff;
+}
+
+.aura-cover-coordinate {
+  position: absolute;
+  right: 2vw;
+  top: 48%;
+  writing-mode: vertical-rl;
+  color: #53555b;
+  font-size: 8px;
+  letter-spacing: .15em;
+}
+
+.aura-quick-rail {
+  position: sticky;
+  z-index: 4;
+  top: 0;
+  min-height: 62px;
+  padding: 0 5.5vw;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  background: #172d70;
+  color: #fff;
+  box-shadow: 0 5px 12px rgba(16, 17, 20, .11);
+}
+
+.aura-quick-rail > span {
+  color: #d6def5;
+  font-size: 10px;
+}
+
+.aura-quick-rail > span b {
+  margin-right: 5px;
+  color: #fff;
+  font-size: 17px;
+}
+
+.aura-quick-rail a,
+.aura-quick-rail button {
+  padding: 8px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 0;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.aura-quick-rail a:hover,
+.aura-quick-rail button:hover {
+  color: #f2c94b;
+}
+
+.aura-treatment-index {
+  padding: 115px 8vw 125px;
+  background: #f7f6f0;
+  scroll-margin-top: 76px;
+}
+
+.aura-index-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(220px, .8fr);
+  align-items: end;
+  gap: 10vw;
+  margin-bottom: 48px;
+}
+
+.aura-index-heading .aurelia-kicker,
+.aura-builder-aside .aurelia-kicker,
+.aura-atelier-notes .aurelia-kicker,
+.aura-contact-band .aurelia-kicker {
+  color: #244ddd;
+  font-size: 9px;
+  letter-spacing: .15em;
+}
+
+.aura-index-heading h2,
+.aura-atelier-notes header h2,
+.aura-contact-band h2 {
+  margin: 0;
+  color: #111216;
+  font: 750 clamp(45px, 5.5vw, 78px)/.97 'Aptos', 'Segoe UI', sans-serif;
+  letter-spacing: -.075em;
+}
+
+.aura-index-heading > p {
+  max-width: 360px;
+  margin: 0 0 4px;
+  color: #5c5e63;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.aura-service-filters {
+  max-width: 100%;
+  margin-bottom: 38px;
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) minmax(170px, .55fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.aura-service-filters .service-search,
+.aura-service-filters .service-category-filter select {
+  min-height: 45px;
+  background: #efeee8;
+  border-color: #c9c8c1;
+  border-radius: 0;
+  color: #303136;
+}
+
+.aura-service-filters .service-search {
+  padding: 0 12px;
+}
+
+.aura-service-filters .service-search input {
+  color: #111216;
+}
+
+.aura-favorites-filter {
+  min-height: 45px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #c9c8c1;
+  background: transparent;
+  color: #202127;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.aura-favorites-filter.active {
+  border-color: #244ddd;
+  background: #e1e7f7;
+  color: #18379f;
+}
+
+.aura-favorites-filter > span {
+  min-width: 20px;
+  color: #5c5e63;
+  text-align: center;
+}
+
+.aura-treatment-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 51px 28px;
+  align-items: start;
+}
+
+.aura-treatment-card {
+  grid-column: span 4;
+  min-width: 0;
+}
+
+.aura-treatment-card-1 {
+  grid-column: span 5;
+  margin-top: 57px;
+}
+
+.aura-treatment-card-2 {
+  grid-column: span 3;
+}
+
+.aura-treatment-card-3 {
+  grid-column: 3 / span 4;
+  margin-top: -18px;
+}
+
+.aura-treatment-image {
+  width: 100%;
+  aspect-ratio: 1.2;
+  padding: 0;
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  background: #e6e4dc;
+  color: #16171b;
+  text-align: left;
+}
+
+.aura-treatment-card-1 .aura-treatment-image {
+  aspect-ratio: 1.38;
+}
+
+.aura-treatment-card-2 .aura-treatment-image {
+  aspect-ratio: .95;
+}
+
+.aura-treatment-image > img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  transition: transform .5s cubic-bezier(.2, .7, .2, 1);
+}
+
+.aura-treatment-image:hover > img {
+  transform: scale(1.035);
+}
+
+.aura-image-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 13px;
+  background: linear-gradient(140deg, #d7d8d3, #e9e7e0 52%, #c9d3e7);
+  color: #203fb4;
+}
+
+.aura-treatment-card-1 .aura-image-placeholder {
+  background: linear-gradient(38deg, #dbdedf, #d5d9e0 52%, #f0ede2);
+}
+
+.aura-treatment-card-2 .aura-image-placeholder {
+  background: linear-gradient(130deg, #e5e1d6, #c7d1e7);
+}
+
+.aura-image-placeholder small,
+.aura-card-index {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.aura-card-index {
+  position: absolute;
+  z-index: 1;
+  left: 15px;
+  top: 15px;
+  padding: 7px 8px;
+  background: rgba(247, 246, 240, .89);
+}
+
+.aura-card-open {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: 35px;
+  height: 35px;
+  display: grid;
+  place-items: center;
+  background: #244ddd;
+  color: #fff;
+}
+
+.aura-treatment-meta {
+  margin-top: 15px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #53555b;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .1em;
+}
+
+.aura-treatment-title {
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.aura-treatment-title > button:first-child {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.aura-treatment-title h3 {
+  margin: 0;
+  color: #111216;
+  font-size: clamp(21px, 2.3vw, 30px);
+  font-weight: 700;
+  letter-spacing: -.06em;
+}
+
+.aura-save-button {
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0 10px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #c9c8c1;
+  background: transparent;
+  color: #18379f;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.aura-save-button:hover,
+.aura-save-button[aria-pressed="true"] {
+  background: #e1e7f7;
+  border-color: #244ddd;
+}
+
+.aura-treatment-description {
+  min-height: 44px;
+  margin: 8px 0 12px;
+  color: #5c5e63;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.aura-treatment-footer {
+  padding-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #d2d0c8;
+}
+
+.aura-treatment-footer strong {
+  color: #111216;
+  font: 700 18px 'Aptos', 'Segoe UI', sans-serif;
+}
+
+.aura-treatment-footer button {
+  padding: 6px 0 6px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  background: none;
+  color: #193cae;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.aurelia-site.aura-editorial .aurelia-empty-services {
+  padding: 28px;
+  border-top: 1px solid #d2d0c8;
+  border-bottom: 1px solid #d2d0c8;
+  background: transparent;
+}
+
+.aurelia-site.aura-editorial .aurelia-empty-services > svg {
+  color: #244ddd;
+}
+
+.aurelia-site.aura-editorial .aurelia-empty-services h3 {
+  font: 700 20px 'Aptos', 'Segoe UI', sans-serif;
+}
+
+.aurelia-site.aura-editorial .aurelia-empty-services p {
+  color: #5c5e63;
+  font-size: 12px;
+}
+
+.aurelia-site.aura-editorial .aurelia-empty-services > button {
+  margin-left: auto;
+  padding: 10px 14px;
+  border: 1px solid #244ddd;
+  background: transparent;
+  color: #18379f;
+}
+
+.aura-visit-builder {
+  padding: 96px 8vw 104px;
+  display: grid;
+  grid-template-columns: minmax(230px, .7fr) minmax(450px, 1.1fr);
+  gap: clamp(40px, 9vw, 140px);
+  background: #eae9e2;
+  scroll-margin-top: 75px;
+}
+
+.aura-builder-aside {
+  min-height: 100%;
+  padding: 12px 0 0;
+  position: relative;
+}
+
+.aura-builder-aside .aurelia-kicker {
+  position: relative;
+  z-index: 1;
+}
+
+.aura-builder-numeral {
+  display: block;
+  margin: 40px 0 0 -9px;
+  color: #d9d8d0;
+  font-size: clamp(140px, 19vw, 270px);
+  font-weight: 800;
+  line-height: .68;
+  letter-spacing: -.12em;
+}
+
+.aura-builder-aside h2 {
+  position: relative;
+  margin: 24px 0 17px;
+  color: #101114;
+  font-size: clamp(40px, 4.5vw, 61px);
+  line-height: .96;
+  letter-spacing: -.07em;
+}
+
+.aura-builder-aside > p:not(.aurelia-kicker) {
+  max-width: 310px;
+  color: #5c5e63;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.aura-builder-step {
+  margin-top: 25px;
+  padding-top: 14px;
+  display: flex;
+  gap: 12px;
+  border-top: 1px solid #cfcec7;
+}
+
+.aura-builder-step > span {
+  color: #1d43c4;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.aura-builder-step strong,
+.aura-builder-step small {
+  display: block;
+}
+
+.aura-builder-step strong {
+  font-size: 11px;
+}
+
+.aura-builder-step small {
+  margin-top: 4px;
+  color: #5c5e63;
+  font-size: 10px;
+}
+
+.aura-builder-panel {
+  padding: clamp(20px, 4vw, 48px);
+  background: #f7f6f0;
+  border-top: 5px solid #244ddd;
+  box-shadow: 12px 12px 0 #d4d2c9;
+}
+
+.aura-builder-panel .aurelia-booking-form {
+  gap: 17px;
+}
+
+.aura-builder-panel .aurelia-booking-form label {
+  color: #26272c;
+  font-size: 10px;
+}
+
+.aura-builder-panel .aurelia-booking-form input,
+.aura-builder-panel .aurelia-booking-form select,
+.aura-builder-panel .aurelia-booking-form textarea {
+  background: #efeee8;
+  border-color: #c9c8c1;
+  color: #191a1e;
+}
+
+.aura-builder-panel .aurelia-booking-form input:disabled,
+.aura-builder-panel .aurelia-booking-form select:disabled {
+  color: #707176;
+  cursor: not-allowed;
+}
+
+.aura-builder-summary {
+  padding-bottom: 17px;
+  border-bottom: 1px solid #cfcec7;
+}
+
+.aura-builder-summary > span,
+.aura-builder-summary > strong {
+  display: block;
+}
+
+.aura-builder-summary > span {
+  margin-bottom: 8px;
+  color: #193cae;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+.aura-builder-summary > strong {
+  color: #111216;
+  font-size: 24px;
+  letter-spacing: -.05em;
+}
+
+.aura-builder-summary > div {
+  margin-top: 7px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #5c5e63;
+  font-size: 10px;
+}
+
+.aura-request-disclaimer {
+  margin: -4px 0 0;
+  color: #5c5e63;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.aura-form-rule {
+  border-top: 1px solid #cfcec7;
+}
+
+.aura-builder-panel .booking-fineprint {
+  color: #57595f;
+}
+
+.aura-builder-panel .booking-success h3 {
+  color: #111216;
+  font: 700 40px/.95 'Aptos', 'Segoe UI', sans-serif;
+  letter-spacing: -.06em;
+}
+
+.aura-builder-panel .booking-success h3 em {
+  color: #244ddd;
+  font: italic 500 .9em 'Cormorant Garamond', Georgia, serif;
+}
+
+.aura-builder-panel .success-check {
+  border-radius: 0;
+  background: #244ddd;
+}
+
+.aura-builder-panel .booking-success > p:not(.aurelia-kicker) {
+  color: #5c5e63;
+  line-height: 1.8;
+}
+
+.aura-atelier-notes {
+  padding: 112px 8vw 120px;
+  background: #f7f6f0;
+  scroll-margin-top: 76px;
+}
+
+.aura-atelier-notes > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 45px;
+}
+
+.aura-atelier-notes header h2 {
+  font-size: clamp(48px, 6vw, 79px);
+}
+
+.aura-atelier-notes header > span {
+  padding: 10px;
+  border: 1px solid #244ddd;
+  color: #18379f;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.aura-note-grid {
+  display: grid;
+  grid-template-columns: 1fr .78fr 1.15fr;
+  align-items: stretch;
+  border-top: 1px solid #cfcec7;
+  border-bottom: 1px solid #cfcec7;
+}
+
+.aura-note-grid > article {
+  min-height: 310px;
+  padding: 23px 24px 25px 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  border-right: 1px solid #cfcec7;
+}
+
+.aura-note-grid > article + article {
+  padding-left: 24px;
+}
+
+.aura-note-grid > article:last-child {
+  border: 0;
+}
+
+.aura-note-grid article > span {
+  color: #244ddd;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .15em;
+}
+
+.aura-note-grid article h3 {
+  margin: 30px 0 11px;
+  color: #111216;
+  font-size: 24px;
+  line-height: 1.05;
+  letter-spacing: -.05em;
+}
+
+.aura-note-grid article p {
+  max-width: 290px;
+  margin: 0;
+  color: #5c5e63;
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+.aura-note-people ul {
+  margin: auto 0 0;
+  padding: 20px 0 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  list-style: none;
+  border-top: 1px solid #cfcec7;
+}
+
+.aura-note-people li span,
+.aura-note-people li small {
+  display: block;
+}
+
+.aura-note-people li span {
+  color: #111216;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.aura-note-people li small {
+  margin-top: 3px;
+  color: #5c5e63;
+  font-size: 9px;
+}
+
+.aura-note-craft {
+  background: #e9edf6;
+}
+
+.aura-note-craft h3 {
+  font-size: 33px !important;
+}
+
+.aura-note-craft > button {
+  margin-top: auto;
+  padding: 10px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-top: 1px solid #aebad9;
+  background: none;
+  color: #18379f;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.aura-note-space > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: .22;
+}
+
+.aura-note-space > span,
+.aura-note-space > div {
+  z-index: 1;
+}
+
+.aura-note-space > div {
+  margin-top: auto;
+  padding: 25px;
+  background: rgba(247, 246, 240, .88);
+}
+
+.aura-contact-band {
+  padding: 70px 8vw;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr auto;
+  align-items: center;
+  gap: 40px;
+  background: #172d70;
+  color: #fff;
+  scroll-margin-top: 74px;
+}
+
+.aura-contact-band .aurelia-kicker {
+  color: #bfcdf6;
+}
+
+.aura-contact-band h2 {
+  color: #fff;
+  font-size: clamp(40px, 4.5vw, 61px);
+}
+
+.aura-contact-band h2 em {
+  color: #f2c94b;
+}
+
+.aura-contact-details {
+  display: grid;
+  gap: 13px;
+}
+
+.aura-contact-details > p,
+.aura-contact-details > a {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #e1e6f5;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.aura-contact-details svg {
+  flex: 0 0 auto;
+  color: #f2c94b;
+}
+
+.aura-contact-band .aurelia-button {
+  white-space: nowrap;
+  background: #f2c94b;
+  color: #111216 !important;
+}
+
+.aura-contact-band .aurelia-button:hover {
+  background: #fff;
+  box-shadow: 5px 5px 0 #284ec9;
+}
+
+.aurelia-site.aura-editorial .aura-footer {
+  min-height: 90px;
+  padding: 20px 5.5vw;
+  background: #101114;
+  color: #d5d6d9;
+}
+
+.aurelia-site.aura-editorial .aura-footer .aurelia-wordmark {
+  color: #fff !important;
+}
+
+.aurelia-site.aura-editorial .aura-footer .wordmark-mark {
+  color: #fff;
+  border-color: #7386cb;
+}
+
+.aurelia-site.aura-editorial .aura-footer > span,
+.aurelia-site.aura-editorial .aura-footer small {
+  color: #b0b1b6;
+  font-size: 8px;
+  letter-spacing: .11em;
+}
+
+.aurelia-site.aura-editorial .aura-footer > div {
+  display: flex;
+  gap: 18px;
+}
+
+.aurelia-site.aura-editorial .aura-footer > div > button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 10px;
+}
+
+.aurelia-site.aura-editorial .service-detail-layout {
+  min-height: 560px;
+  padding: 60px 9vw;
+  align-items: center;
+  gap: 8vw;
+  background: #f1f0e9;
+}
+
+.aurelia-site.aura-editorial .service-detail-media {
+  position: relative;
+}
+
+.aurelia-site.aura-editorial .service-detail-image {
+  max-height: 560px;
+  object-fit: cover;
+}
+
+.aurelia-site.aura-editorial .service-detail-placeholder {
+  background: linear-gradient(140deg, #d7d8d3, #e9e7e0 52%, #c9d3e7);
+  color: #203fb4;
+}
+
+.aurelia-site.aura-editorial .service-detail-title {
+  color: #111216;
+  font: 750 clamp(48px, 6vw, 78px)/.95 'Aptos', 'Segoe UI', sans-serif;
+  letter-spacing: -.075em;
+}
+
+.aurelia-site.aura-editorial .service-detail-description {
+  color: #5c5e63;
+}
+
+.aurelia-site.aura-editorial .service-detail-price {
+  color: #111216;
+  font-family: 'Aptos', 'Segoe UI', sans-serif;
+  font-weight: 700;
+}
+
+.aurelia-site.aura-editorial .service-coordinate {
+  color: #244ddd;
+}
+
+.aurelia-site.aura-editorial .service-coordinate > span {
+  background: #244ddd;
+}
+
+.aura-detail-save {
+  margin-top: 8px;
+}
+
+.aurelia-site.aura-editorial .aurelia-service-booking {
+  grid-template-columns: .7fr 1.2fr;
+  gap: 8vw;
+  padding: 84px 9vw;
+  background: #eae9e2;
+}
+
+.aurelia-site.aura-editorial .aurelia-service-booking .booking-panel {
+  border-top: 4px solid #244ddd;
+  border-radius: 0;
+  background: #f7f6f0;
+  box-shadow: 10px 10px 0 #d4d2c9;
+}
+
+.aurelia-site.aura-editorial .aurelia-service-booking .booking-heading h2 {
+  color: #111216;
+  font: 750 50px/.97 'Aptos', 'Segoe UI', sans-serif;
+  letter-spacing: -.07em;
+}
+
+.aurelia-site.aura-editorial .aurelia-service-booking .booking-heading h2 i {
+  color: #244ddd;
+  font: italic 500 .9em 'Cormorant Garamond', Georgia, serif;
+}
+
+.aurelia-site.aura-editorial .aurelia-service-booking .booking-heading > p:not(.aurelia-kicker) {
+  max-width: 390px;
+  color: #5c5e63;
+}
+
+.aurelia-site.aura-editorial .aurelia-service-booking .aurelia-booking-form label {
+  color: #26272c;
+}
+
+.aurelia-site.aura-editorial .aurelia-service-booking .aurelia-booking-form input,
+.aurelia-site.aura-editorial .aurelia-service-booking .aurelia-booking-form select,
+.aurelia-site.aura-editorial .aurelia-service-booking .aurelia-booking-form textarea {
+  background: #efeee8;
+  border-color: #c9c8c1;
+}
+
+.aurelia-site.aura-editorial .booking-fineprint {
+  color: #5c5e63;
+}
+
+.aurelia-portal {
+  min-height: 100vh;
+  background: #f1f0e9;
+}
+
+.aurelia-portal .portal-header {
+  border-color: #cfcec7;
+}
+
+.aurelia-portal .wordmark-mark {
+  color: #244ddd;
+  border-color: #244ddd;
+  border-radius: 0;
+}
+
+.aurelia-portal .aurelia-kicker,
+.aurelia-portal .portal-appointment-info .appointment-status {
+  color: #1d43c4;
+}
+
+.aurelia-portal .portal-welcome h1 {
+  color: #111216;
+  font: 750 clamp(48px, 6vw, 76px)/.95 'Aptos', 'Segoe UI', sans-serif;
+  letter-spacing: -.07em;
+}
+
+.aurelia-portal .portal-welcome h1 i {
+  color: #244ddd;
+}
+
+.aurelia-portal .portal-appointment,
+.aurelia-portal .portal-empty,
+.aurelia-portal .portal-history-list > article {
+  border-radius: 0;
+  border-color: #cfcec7;
+  background: #f7f6f0;
+}
+
+.aurelia-portal .aurelia-button-brass {
+  background: #244ddd;
+}
+
+.aurelia-portal .portal-appointment-date {
+  color: #18379f;
+}
+
+.aurelia-portal .appointment-status {
+  border-radius: 0;
+}
+
+.aurelia-admin {
+  background: #efeee8;
+}
+
+.aurelia-admin .admin-sidebar {
+  background: #172d70;
+}
+
+.aurelia-admin .admin-sidebar .aurelia-wordmark,
+.aurelia-admin .admin-sidebar .wordmark-mark {
+  color: #fff !important;
+  border-color: #a9b8e3;
+}
+
+.aurelia-admin .admin-sidebar .wordmark-mark {
+  border-radius: 0;
+}
+
+.aurelia-admin .admin-nav-item.active {
+  background: #244ddd;
+}
+
+.aurelia-admin .admin-nav-count,
+.aurelia-admin .admin-primary-button,
+.aurelia-admin .aurelia-button-brass {
+  background: #244ddd;
+}
+
+.aurelia-admin .admin-main {
+  color: #222326;
+}
+
+.aurelia-admin .admin-topbar h1 {
+  color: #101114;
+  font: 750 43px/.98 'Aptos', 'Segoe UI', sans-serif;
+  letter-spacing: -.06em;
+}
+
+.aurelia-admin .aurelia-kicker {
+  color: #244ddd;
+}
+
+.aurelia-admin .admin-metrics article,
+.aurelia-admin .admin-panel,
+.aurelia-admin .admin-appointment-row,
+.aurelia-admin .admin-form,
+.aurelia-admin .admin-settings-form,
+.aurelia-admin .service-editor {
+  border-radius: 0;
+  border-color: #cfcec7;
+  background: #f7f6f0;
+  box-shadow: none;
+}
+
+.aurelia-admin .admin-metrics article strong {
+  color: #172d70;
+}
+
+.aurelia-admin .admin-appointment-row .appointment-status,
+.aurelia-admin .appointment-status {
+  border-radius: 0;
+}
+
+.aurelia-admin .admin-appointment-row select,
+.aurelia-admin .admin-toolbar input,
+.aurelia-admin .admin-toolbar select {
+  border-radius: 0;
+}
+
+.aurelia-admin .admin-print-button {
+  min-height: 40px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #244ddd;
+  background: #244ddd;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.aurelia-admin .admin-search-field {
+  min-height: 40px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #cfcec7;
+  background: #f7f6f0;
+  color: #244ddd;
+}
+
+.aurelia-admin .admin-search-field input {
+  width: 220px;
+  max-width: min(35vw, 220px);
+  padding: 7px 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #111216;
+  font-size: 10px;
+}
+
+.aurelia-admin .admin-search-field:focus-within {
+  outline: 2px solid #244ddd;
+  outline-offset: 2px;
+}
+
+.aurelia-admin .admin-search-field input:focus-visible {
+  outline: 0;
+}
+
+@media (max-width: 980px) {
+  .aura-cover {
+    min-height: auto;
+    grid-template-columns: 90px minmax(260px, .9fr) minmax(260px, 1.1fr);
+    gap: 24px;
+    padding: 38px 5vw 42px 3vw;
+  }
+
+  .aura-cover-art {
+    min-height: 430px;
+  }
+
+  .aura-cover-index {
+    min-height: 340px;
+    gap: 15px;
+  }
+
+  .aura-cover-copy h1 {
+    font-size: clamp(57px, 8vw, 90px);
+  }
+
+  .aura-treatment-index,
+  .aura-atelier-notes {
+    padding-right: 6vw;
+    padding-left: 6vw;
+  }
+
+  .aura-visit-builder {
+    grid-template-columns: minmax(200px, .65fr) minmax(380px, 1.2fr);
+    gap: 5vw;
+    padding-right: 6vw;
+    padding-left: 6vw;
+  }
+
+  .aura-contact-band {
+    grid-template-columns: .9fr 1fr;
+  }
+
+  .aura-contact-band > .aurelia-button {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 760px) {
+  .aura-masthead {
+    height: 65px;
+    padding: 0 18px;
+  }
+
+  .aura-masthead-note {
+    display: none;
+  }
+
+  .aura-masthead .aurelia-menu-toggle {
+    display: block;
+  }
+
+  .aura-masthead .aurelia-nav {
+    top: 64px;
+    left: 0;
+    right: 0;
+    padding: 12px 20px 20px;
+    display: none;
+    align-items: stretch;
+    gap: 4px;
+    background: #f7f6f0;
+    border-bottom: 1px solid #cfcec7;
+  }
+
+  .aura-masthead .aurelia-nav.is-open {
+    display: flex;
+  }
+
+  .aura-masthead .aurelia-nav > .aurelia-scroll-link,
+  .aura-masthead .aurelia-nav > .aurelia-text-button {
+    min-height: 42px;
+    padding: 10px 0;
+    text-align: left;
+  }
+
+  .aura-masthead .aurelia-nav > .aurelia-text-button {
+    border: 0;
+  }
+
+  .aura-cover {
+    padding: 25px 18px 25px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+
+  .aura-cover-index {
+    min-height: auto;
+    padding: 0 0 12px;
+    flex-flow: row wrap;
+    align-items: center;
+    gap: 8px 13px;
+    border-right: 0;
+    border-bottom: 1px solid #cfcec7;
+  }
+
+  .aura-cover-index > span:first-child {
+    flex-basis: 100%;
+  }
+
+  .aura-cover-index b:nth-of-type(n+2),
+  .aura-cover-index .aura-index-rule,
+  .aura-cover-index > button:last-child {
+    display: none;
+  }
+
+  .aura-cover-copy {
+    padding: 14px 0 0;
+  }
+
+  .aura-cover-copy .aurelia-kicker {
+    margin-bottom: 13px;
+  }
+
+  .aura-cover-copy h1 {
+    font-size: clamp(60px, 17vw, 93px);
+  }
+
+  .aura-cover-copy > p:not(.aurelia-kicker) {
+    max-width: 400px;
+    margin: 17px 0 19px;
+    font-size: 13px;
+  }
+
+  .aura-cover-copy .aurelia-button {
+    min-height: 44px;
+  }
+
+  .aura-cover-art {
+    min-height: 300px;
+  }
+
+  .aura-cover-coordinate {
+    display: none;
+  }
+
+  .aura-quick-rail {
+    top: 0;
+    min-height: 52px;
+    padding: 0 16px;
+    gap: 12px;
+  }
+
+  .aura-quick-rail > span {
+    font-size: 9px;
+  }
+
+  .aura-quick-rail > button:first-of-type,
+  .aura-quick-rail > a {
+    display: none;
+  }
+
+  .aura-quick-rail > button:last-of-type {
+    white-space: nowrap;
+    font-size: 9px;
+  }
+
+  .aura-treatment-index,
+  .aura-atelier-notes {
+    padding: 69px 18px 73px;
+  }
+
+  .aura-index-heading {
+    grid-template-columns: 1fr;
+    gap: 17px;
+    margin-bottom: 25px;
+  }
+
+  .aura-index-heading h2 {
+    font-size: 52px;
+  }
+
+  .aura-index-heading > p {
+    max-width: 440px;
+    font-size: 12px;
+  }
+
+  .aura-service-filters {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 9px;
+    margin-bottom: 27px;
+  }
+
+  .aura-service-filters .service-search {
+    grid-column: 1 / -1;
+  }
+
+  .aura-favorites-filter {
+    justify-content: center;
+  }
+
+  .aura-treatment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 33px 14px;
+  }
+
+  .aura-treatment-card,
+  .aura-treatment-card-1,
+  .aura-treatment-card-2,
+  .aura-treatment-card-3 {
+    grid-column: auto;
+    margin: 0;
+  }
+
+  .aura-treatment-card:nth-child(odd) {
+    margin-top: 26px;
+  }
+
+  .aura-treatment-image,
+  .aura-treatment-card-1 .aura-treatment-image,
+  .aura-treatment-card-2 .aura-treatment-image {
+    aspect-ratio: .85;
+  }
+
+  .aura-treatment-meta {
+    flex-wrap: wrap;
+    font-size: 7px;
+  }
+
+  .aura-treatment-title {
+    align-items: flex-start;
+  }
+
+  .aura-treatment-title h3 {
+    font-size: 19px;
+  }
+
+  .aura-treatment-title .aura-save-button {
+    min-width: 35px;
+    min-height: 35px;
+    padding: 0;
+  }
+
+  .aura-treatment-description {
+    min-height: 0;
+    font-size: 10px;
+  }
+
+  .aura-treatment-footer strong {
+    font-size: 14px;
+  }
+
+  .aura-treatment-footer button {
+    font-size: 9px;
+  }
+
+  .aurelia-site.aura-editorial .aurelia-empty-services {
+    padding: 20px 10px;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .aurelia-site.aura-editorial .aurelia-empty-services > button {
+    margin-left: 0;
+  }
+
+  .aura-visit-builder {
+    padding: 65px 18px 72px;
+    grid-template-columns: 1fr;
+    gap: 23px;
+  }
+
+  .aura-builder-aside {
+    min-height: 0;
+  }
+
+  .aura-builder-numeral {
+    margin: 30px 0 0;
+    font-size: 105px;
+  }
+
+  .aura-builder-aside h2 {
+    margin-top: 13px;
+    font-size: 47px;
+  }
+
+  .aura-builder-aside > p:not(.aurelia-kicker) {
+    max-width: 440px;
+    margin-bottom: 18px;
+    font-size: 12px;
+  }
+
+  .aura-builder-step {
+    display: none;
+  }
+
+  .aura-builder-panel {
+    padding: 21px 16px;
+    box-shadow: 6px 6px 0 #d4d2c9;
+  }
+
+  .aura-builder-panel .booking-field-pair {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .aura-builder-summary > strong {
+    font-size: 21px;
+  }
+
+  .aura-atelier-notes > header {
+    align-items: flex-start;
+  }
+
+  .aura-atelier-notes header h2 {
+    font-size: 49px;
+  }
+
+  .aura-atelier-notes header > span {
+    padding: 7px;
+    font-size: 8px;
+  }
+
+  .aura-note-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aura-note-grid > article,
+  .aura-note-grid > article + article {
+    min-height: 250px;
+    padding: 20px 0;
+    border-right: 0;
+    border-bottom: 1px solid #cfcec7;
+  }
+
+  .aura-note-grid > article:last-child {
+    border: 0;
+  }
+
+  .aura-note-space > div {
+    margin-top: auto;
+    padding: 15px;
+  }
+
+  .aura-contact-band {
+    padding: 52px 20px;
+    grid-template-columns: 1fr;
+    gap: 25px;
+  }
+
+  .aura-contact-band h2 {
+    font-size: 49px;
+  }
+
+  .aura-contact-band > .aurelia-button {
+    grid-column: auto;
+  }
+
+  .aurelia-site.aura-editorial .aura-footer {
+    align-items: flex-start;
+    padding: 23px 18px;
+    gap: 14px;
+  }
+
+  .aurelia-site.aura-editorial .aura-footer > span {
+    display: none;
+  }
+
+  .aurelia-site.aura-editorial .aura-footer > div {
+    gap: 14px;
+  }
+
+  .aurelia-site.aura-editorial .service-detail-layout {
+    padding: 28px 18px 38px;
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .aurelia-site.aura-editorial .service-detail-image,
+  .aurelia-site.aura-editorial .service-detail-placeholder {
+    min-height: 310px;
+    max-height: 430px;
+  }
+
+  .aurelia-site.aura-editorial .service-detail-title {
+    font-size: 52px;
+  }
+
+  .aurelia-site.aura-editorial .aurelia-service-booking {
+    padding: 47px 18px 60px;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .aurelia-site.aura-editorial .aurelia-service-booking .booking-heading h2 {
+    font-size: 42px;
+  }
+
+  .aurelia-site.aura-editorial .aurelia-service-booking .booking-field-pair {
+    grid-template-columns: 1fr;
+  }
+
+  .aurelia-site.aura-editorial .aurelia-service-booking .booking-panel {
+    padding: 22px 16px;
+  }
+
+  .aurelia-admin .admin-appointment-filters {
+    align-items: stretch;
+  }
+
+  .aurelia-admin .admin-search-field,
+  .aurelia-admin .admin-appointment-filters > label,
+  .aurelia-admin .admin-appointment-filters > input,
+  .aurelia-admin .admin-print-button {
+    width: 100%;
+    max-width: none;
+  }
+
+  .aurelia-admin .admin-search-field input {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+@media (max-width: 420px) {
+  .aura-treatment-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .aura-treatment-card:nth-child(odd) {
+    margin-top: 0;
+  }
+
+  .aura-treatment-image,
+  .aura-treatment-card-1 .aura-treatment-image,
+  .aura-treatment-card-2 .aura-treatment-image {
+    aspect-ratio: 1.2;
+  }
+
+  .aura-treatment-title h3 {
+    font-size: 23px;
+  }
+
+  .aura-treatment-description {
+    min-height: 0;
+    font-size: 11px;
+  }
+
+  .aura-quick-rail > span {
+    max-width: 46%;
+  }
+
+  .aura-quick-rail > button:last-of-type {
+    gap: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurelia-site.aura-editorial *,
+  .aurelia-site.aura-editorial *::before,
+  .aurelia-site.aura-editorial *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media print {
+  body:has(.aurelia-admin .admin-print-scope) * {
+    visibility: hidden;
+  }
+
+  .aurelia-admin .admin-print-scope,
+  .aurelia-admin .admin-print-scope * {
+    visibility: visible;
+  }
+
+  .aurelia-admin .admin-print-scope {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    background: #fff;
+  }
+
+  .aurelia-admin .admin-print-scope .admin-toolbar > div,
+  .aurelia-admin .agenda-actions,
+  .aurelia-admin .agenda-staff {
+    display: none !important;
+  }
+
+  .aurelia-admin .admin-appointment-row {
+    break-inside: avoid;
+    background: #fff;
+    border-bottom: 1px solid #bbb;
+  }
+}
+
+.aurelia-admin .admin-toolbar > .admin-appointment-filters {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1050px) {
+  .aurelia-admin .admin-appointment-filters {
+    max-width: 100%;
+  }
+
+  .aurelia-admin .admin-search-field input {
+    width: 180px;
+  }
+}
+
+.aurelia-site.aura-editorial .aura-footer {
+  display: block;
+  min-height: auto;
+  padding: 0;
+  background: #101114;
+  color: #f7f6f0;
+}
+
+.aura-footer-close {
+  min-height: 440px;
+  padding: clamp(54px, 8vw, 112px) 8vw clamp(58px, 7vw, 92px);
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(265px, .62fr);
+  align-items: end;
+  gap: clamp(48px, 10vw, 160px);
+  background: #101114;
+}
+
+.aura-footer-message {
+  max-width: 720px;
+}
+
+.aura-footer-message .aurelia-kicker {
+  margin-bottom: 26px;
+  color: #aab9ed;
+  font-size: 9px;
+  letter-spacing: .16em;
+}
+
+.aura-footer-message h2 {
+  margin: 0;
+  color: #f7f6f0;
+  font: 800 clamp(72px, 10vw, 144px)/.83 'Aptos', 'Segoe UI', sans-serif;
+  letter-spacing: -.095em;
+}
+
+.aura-footer-message h2 em {
+  color: #f2c94b;
+  font: italic 500 .88em/.9 'Cormorant Garamond', Georgia, serif;
+  letter-spacing: -.04em;
+}
+
+.aura-footer-message > p:not(.aurelia-kicker) {
+  max-width: 380px;
+  margin: 27px 0 22px;
+  color: #c2c3c8;
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.aura-footer-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 17px;
+}
+
+.aura-footer-actions button {
+  min-height: 47px;
+  padding: 0 17px;
+  display: inline-flex;
+  align-items: center;
+  gap: 15px;
+  border: 1px solid #f2c94b;
+  background: #f2c94b;
+  color: #101114;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  transition: background .2s, color .2s, transform .2s;
+}
+
+.aura-footer-actions button:hover {
+  transform: translateY(-2px);
+}
+
+.aura-footer-actions .aura-footer-secondary {
+  padding: 0;
+  border-color: transparent;
+  background: none;
+  color: #f7f6f0;
+}
+
+.aura-footer-actions .aura-footer-secondary:hover {
+  color: #f2c94b;
+}
+
+.aura-footer-details {
+  min-height: 300px;
+  padding: 24px 0 14px clamp(28px, 4vw, 60px);
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid #44464d;
+}
+
+.aura-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.aura-footer-brand .salon-logo,
+.aura-footer-brand .wordmark-mark {
+  width: 39px;
+  height: 39px;
+}
+
+.aura-footer-brand .wordmark-mark {
+  display: grid;
+  place-items: center;
+  border: 1px solid #8798d1;
+  border-radius: 0;
+  color: #f7f6f0;
+}
+
+.aura-footer-brand > div {
+  display: grid;
+  gap: 4px;
+}
+
+.aura-footer-label {
+  color: #adbbed;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .15em;
+}
+
+.aura-footer-brand strong {
+  color: #fff;
+  font-size: 16px;
+}
+
+.aura-footer-details address {
+  margin-top: 34px;
+  display: grid;
+  gap: 17px;
+  color: #e0e0e2;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.65;
+}
+
+.aura-footer-details address > p,
+.aura-footer-details address > a {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  color: inherit;
+}
+
+.aura-footer-details address > p svg,
+.aura-footer-details address > a svg {
+  margin-top: 2px;
+  color: #f2c94b;
+}
+
+.aura-footer-details address > a:hover {
+  color: #f2c94b;
+}
+
+.aura-footer-details address small {
+  display: block;
+  margin-top: 3px;
+  color: #aeb0b7;
+  font-size: 9px;
+}
+
+.aura-footer-details .aura-footer-unpublished {
+  max-width: 245px;
+  display: block;
+  color: #b8bac0;
+}
+
+.aura-footer-base {
+  min-height: 82px;
+  padding: 16px 5.5vw;
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto minmax(230px, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+  border-top: 1px solid #393b42;
+}
+
+.aurelia-site.aura-editorial .aura-footer .aura-footer-base {
+  display: grid;
+}
+
+.aurelia-site.aura-editorial .aura-footer-base .aurelia-wordmark {
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #fff !important;
+  font-size: 12px;
+}
+
+.aurelia-site.aura-editorial .aura-footer-base .wordmark-mark {
+  width: 30px;
+  height: 30px;
+  color: #fff;
+  border-color: #697dbb;
+}
+
+.aura-footer-coordinate,
+.aura-footer-base > small {
+  color: #aeb0b7;
+  font-size: 8px;
+  letter-spacing: .13em;
+  white-space: nowrap;
+}
+
+.aura-footer-base nav {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 17px;
+}
+
+.aura-footer-base nav button {
+  padding: 7px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: #e7e7e9;
+  font-size: 9px;
+}
+
+.aura-footer-base nav button:hover {
+  color: #f2c94b;
+}
+
+@media (max-width: 980px) {
+  .aura-footer-close {
+    gap: 46px;
+    padding-right: 6vw;
+    padding-left: 6vw;
+  }
+
+  .aura-footer-message h2 {
+    font-size: clamp(68px, 10vw, 104px);
+  }
+
+  .aura-footer-base {
+    grid-template-columns: minmax(145px, 1fr) auto minmax(200px, 1fr);
+  }
+
+  .aura-footer-base > small {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .aura-footer-close {
+    min-height: auto;
+    padding: 60px 20px 54px;
+    grid-template-columns: 1fr;
+    gap: 41px;
+  }
+
+  .aura-footer-message .aurelia-kicker {
+    margin-bottom: 21px;
+  }
+
+  .aura-footer-message h2 {
+    font-size: clamp(67px, 16vw, 105px);
+  }
+
+  .aura-footer-message > p:not(.aurelia-kicker) {
+    margin-top: 20px;
+    font-size: 11px;
+  }
+
+  .aura-footer-details {
+    min-height: 0;
+    padding: 24px 0 0;
+    border-top: 1px solid #44464d;
+    border-left: 0;
+  }
+
+  .aura-footer-details address {
+    margin-top: 23px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 15px 20px;
+  }
+
+  .aura-footer-base {
+    padding: 18px 20px 22px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+  }
+
+  .aurelia-site.aura-editorial .aura-footer .aura-footer-base {
+    display: grid;
+  }
+
+  .aura-footer-coordinate {
+    display: none;
+  }
+
+  .aura-footer-base nav {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    gap: 18px;
+  }
+
+  .aura-footer-base > small {
+    display: block;
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 420px) {
+  .aura-footer-close {
+    padding: 49px 18px 43px;
+  }
+
+  .aura-footer-message h2 {
+    font-size: 64px;
+  }
+
+  .aura-footer-actions {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .aura-footer-details address {
+    grid-template-columns: 1fr;
+  }
+
+  .aura-footer-base {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+}
+
+@media (max-width: 760px) {
+  .aurelia-admin .admin-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .aurelia-admin .admin-toolbar > .admin-appointment-filters {
+    justify-content: flex-start;
+  }
+}

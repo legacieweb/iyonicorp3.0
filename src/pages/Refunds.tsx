@@ -17,6 +17,9 @@ import {
   CreditCard
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import SEO from '../components/SEO';
+import { HomepageFooter } from '../components/HomepageFooter';
+import { StaticSiteHeader } from './static/StaticPageLayout';
 
 export const Refunds: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -105,8 +108,11 @@ export const Refunds: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
+      <SEO title="Refund Center" description="Find an order and review the steps for submitting a refund request." />
+      <StaticSiteHeader />
+      <main className="px-4 py-12 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto">
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-indigo-600 rounded-[2rem] text-white shadow-xl shadow-indigo-100 mb-6">
             <RotateCcw className="w-10 h-10" />
@@ -334,7 +340,9 @@ export const Refunds: React.FC = () => {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+        </div>
+      </main>
+      <HomepageFooter />
     </div>
   );
 };

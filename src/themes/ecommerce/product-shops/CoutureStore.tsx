@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import ThemeMedia from '../../../components/ThemeMedia';
 
 const ICON_MAP: Record<string, any> = {
   truck: Truck,
@@ -29,6 +30,7 @@ interface ThemeProps {
   seller: Seller;
   products: Product[];
   editMode?: boolean;
+  hideInlineEditor?: boolean;
   sellerData?: Seller;
   onUpdateData?: (fieldPath: string, value: any) => void;
   onUpdateThemeCustomization?: (section: string, field: string, value: any) => void;
@@ -97,6 +99,7 @@ const CoutureStore: React.FC<ThemeProps> = ({
   seller: initialSeller,
   products,
   editMode = false,
+  hideInlineEditor = false,
   sellerData,
   onUpdateData,
   onUpdateThemeCustomization,
@@ -188,7 +191,7 @@ const CoutureStore: React.FC<ThemeProps> = ({
   return (
     <div className="min-h-screen bg-white text-black font-sans selection:bg-black selection:text-white" style={{ backgroundColor: customizations.mainBgColor || '#ffffff', color: customizations.mainTextColor || '#000000' }}>
       {/* Modern Live Editor */}
-      {editMode && (
+      {editMode && !hideInlineEditor && (
         <div className="fixed top-0 left-0 right-0 z-[100] bg-white/90 backdrop-blur-xl border-b border-gray-200 px-6 py-3 shadow-lg overflow-x-auto scrollbar-hide">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-8 whitespace-nowrap text-gray-900">
             <div className="flex items-center gap-3 shrink-0">
@@ -323,7 +326,7 @@ const CoutureStore: React.FC<ThemeProps> = ({
                   </span>
                 )}
               </button>
-              <button onClick={() => navigate('/login')} className="text-[10px] font-black uppercase tracking-[0.4em]">Log In</button>
+              <button onClick={() => navigate(`/login?shop=${encodeURIComponent(seller.id)}&subdomain=${encodeURIComponent(seller.subdomain)}`)} className="text-[10px] font-black uppercase tracking-[0.4em]">Log In</button>
             </div>
           </div>
         </div>
@@ -335,7 +338,7 @@ const CoutureStore: React.FC<ThemeProps> = ({
           {!customizations.hideHero && (
             <section className="relative h-[90vh] bg-gray-50 flex items-center justify-center overflow-hidden">
               <div className="absolute inset-0">
-                <img 
+                <ThemeMedia 
                   src={customizations.heroImage || "https://images.unsplash.com/photo-1539109132314-d4a8c62e41dc?q=80&w=2070&auto=format&fit=crop"} 
                   className="w-full h-full object-cover object-top grayscale"
                   alt="Runway"
@@ -497,7 +500,7 @@ const CoutureStore: React.FC<ThemeProps> = ({
           {!customizations.hideStory && (
             <section className="py-48 bg-black text-white text-center overflow-hidden relative group">
               {customizations.storyImage && (
-                <img 
+                <ThemeMedia
                   src={customizations.storyImage} 
                   className="absolute inset-0 w-full h-full object-cover opacity-30 grayscale"
                   alt="Story Background"

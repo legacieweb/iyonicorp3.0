@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useTenant } from '../../context/TenantContext';
 import { useToast } from '../../context/ToastContext';
 import { formatPrice } from '../../utils/currency';
+import { getThemeDashboardRoute, normalizeThemeId } from '../../utils/themeDashboard';
+import ThemeLaunchOverlay, { ThemeLaunchState } from '../../components/ThemeLaunchOverlay';
+import { isVipTheme } from '../../utils/vipThemes';
+import { defaultHomeworkerSettings, HomeworkerSettings, getHomeworkerSettings } from '../../platforms/services/education/homeworker/homeworkerTypes';
 import { Card, CardHeader, Button, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Popup, ConfirmPopup, Input, Textarea, Select } from '../../components/ui';
 import { MarketingSection } from '../../components/marketing';
 import { 
@@ -25,7 +29,6 @@ import {
   Briefcase,
   CheckCircle,
   Palette,
-  Bot,
   Menu,
   X,
   Shield,
@@ -61,10 +64,14 @@ import {
   Share2,
   RotateCcw,
   AlertCircle,
+  HelpCircle,
+  Bot as BotIcon,
+  Bot
 } from 'lucide-react';
-import { Analytics, Seller, Message, Discount, Product, Category, DeliveryLocation, PaymentTerms, discountsAPI, productsAPI, categoriesAPI, uploadAPI, sellersAPI, refundsAPI } from '../../services/api';
+import { Analytics, Seller, Message, Discount, Product, Category, DeliveryLocation, PaymentTerms, discountsAPI, productsAPI, categoriesAPI, uploadAPI, sellersAPI, refundsAPI, api } from '../../services/api';
 
 const PRODUCT_THEMES = [
+  { id: 'neon-pulse', name: 'Neon Pulse', preview: 'https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&q=80&w=400', description: 'A bright, kinetic storefront for brands with energy and a point of view.', tags: ['Animated', 'Bold', 'Modern'], color: 'from-blue-600 to-lime-400' },
   { id: 'modern-ecommerce', name: 'Modern E-commerce', preview: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=400', description: 'Clean and minimal design for product stores. Perfect for fashion and retail.', tags: ['Minimal', 'Clean', 'White'], color: 'from-blue-500 to-cyan-500' },
   { id: 'luxury-boutique', name: 'Luxury Boutique', preview: 'https://images.unsplash.com/photo-1441984908747-5c39bbce50e6?auto=format&fit=crop&q=80&w=400', description: 'Elegant dark theme with gold accents. Sophisticated and premium feel.', tags: ['Dark', 'Luxury', 'Gold'], color: 'from-amber-500 to-yellow-500' },
   { id: 'beauty-store', name: 'Beauty Store', preview: 'https://images.unsplash.com/photo-1596462502278-27bfdc4033c8?auto=format&fit=crop&q=80&w=400', description: 'Soft and modern aesthetics for beauty and skincare brands. Elegant and fresh.', tags: ['Beauty', 'Modern', 'Pink'], color: 'from-pink-400 to-rose-400' },
@@ -75,19 +82,107 @@ const PRODUCT_THEMES = [
 ];
 
 const SERVICE_THEMES = [
+  { id: 'event-planner', name: 'Event Flow', preview: 'https://images.unsplash.com/photo-1519241026294-6ab6492a7c7c?auto=format&fit=crop&q=80&w=400', description: 'Sophisticated event planning platform with navy-and-gold branding, service packages, request-based booking, and dedicated workspaces.', tags: ['Events', 'Planning', 'Booking', 'Premium'], color: 'from-amber-400 to-neutral-800' },
+  { id: 'carnovga', name: 'Carnovga', preview: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=400', description: 'A premium event experience with refined booking flows, luxe branding, and elevated planner dashboards.', tags: ['Luxury', 'Events', 'Modern', 'Elegant'], color: 'from-amber-500 to-stone-900' },
+  { id: 'aura-salon', name: 'Aura Salon', preview: '/logo.png', description: 'A warm editorial salon platform with configured service menus and request-based appointment management.', tags: ['Salon', 'Booking', 'Minimalist'], color: 'from-amber-400 to-neutral-700' },
+  { id: 'craft-collective', name: 'Craft Collective', preview: 'https://images.unsplash.com/photo-1521500546874-973093e6e338?auto=format&fit=crop&q=80&w=400', description: 'A curated artisan marketplace with multi-vendor management, order routing, and community announcements.', tags: ['Marketplace', 'Multi-vendor', 'Artisan'], color: 'from-amber-600 to-neutral-900' },
+  { id: 'point-of-sale', name: 'Point of Sale', preview: 'https://images.unsplash.com/photo-1576086234941-2ad43c7e8e9c?auto=format&fit=crop&q=80&w=400', description: 'A terminal-first POS system with menu management, order routing, and kitchen display for retail and hospitality.', tags: ['POS', 'Terminal', 'Menu'], color: 'from-amber-700 to-neutral-900' },
+  { id: 'apex-pos', name: 'Apex POS', preview: 'https://images.unsplash.com/photo-1552667468-c66351295369?auto=format&fit=crop&q=80&w=400', description: 'An advanced terminal-first POS with table management, employee logins, split billing, tip suggestions, and real-time analytics.', tags: ['POS', 'Advanced', 'Terminal', 'Staff'], color: 'from-amber-800 to-neutral-900' },
+  { id: 'tamira-salon', name: 'Tamira Salon', preview: 'https://images.unsplash.com/photo-1521590832167-7ae8efc79fce?auto=format&fit=crop&q=80&w=400', description: 'Luxury salon platform with premium booking flows, services, treatment menus, and client-led appointment management.', tags: ['Salon', 'Booking', 'Luxury'], color: 'from-rose-500 to-violet-600' },
+  { id: 'pulse-fit', name: 'Pulse Fit', preview: 'https://images.unsplash.com/photo-1571019613454-6804572903d0?auto=format&fit=crop&q=80&w=400', description: 'A complete fitness platform with classes, trainer assignments, schedules, and a member session portal with request-based booking.', tags: ['Fitness', 'Classes', 'Booking'], color: 'from-emerald-600 to-indigo-700' },
+  { id: 'spa-retreat', name: 'Stillwater Spa', preview: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=400', description: 'A restorative spa platform with treatment menus, appointment requests, and a calm guest experience.', tags: ['Spa', 'Treatments', 'Booking'], color: 'from-emerald-800 to-rose-400' },
   { id: 'elite-consulting', name: 'Elite Consulting', preview: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&q=80&w=400', description: 'Corporate and professional theme for consulting and business services.', tags: ['Corporate', 'Consulting', 'Blue'], color: 'from-blue-700 to-indigo-900' },
   { id: 'creative-studio', name: 'Creative Studio', preview: 'https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&q=80&w=400', description: 'Bold and minimalist theme for creative agencies and studios.', tags: ['Creative', 'Bold', 'Modern'], color: 'from-pink-500 to-yellow-500' },
   { id: 'modern-wellness', name: 'Modern Wellness', preview: 'https://images.unsplash.com/photo-1545208393-216c7addb00c?auto=format&fit=crop&q=80&w=400', description: 'Serene and holistic theme for wellness and health practices.', tags: ['Wellness', 'Serene', 'Green'], color: 'from-emerald-700 to-teal-900' },
+  { id: 'utorme', name: 'tutorme', preview: '/logo.png', description: 'Tutor-first education platform with student discovery, session management, and tutor business tools.', tags: ['Tutoring', 'Education', 'Tutor-first'], color: 'from-emerald-700 to-lime-400' },
 ];
 
 const STREAMING_THEMES: any[] = [];
 
 const PAYMENT_THEMES: any[] = [];
 
-type TabType = 'overview' | 'products' | 'orders' | 'customers' | 'analytics' | 'themes' | 'settings' | 'messages' | 'reviews' | 'billing' | 'discounts' | 'refunds' | 'marketing';
+const withTimeout = <T,>(operation: Promise<T>, message: string) => new Promise<T>((resolve, reject) => {
+  const timer = window.setTimeout(() => reject(new Error(message)), 20000);
+  operation.then(
+    (value) => { window.clearTimeout(timer); resolve(value); },
+    (reason) => { window.clearTimeout(timer); reject(reason); },
+  );
+});
+
+type TabType = 'overview' | 'products' | 'orders' | 'customers' | 'analytics' | 'themes' | 'settings' | 'messages' | 'reviews' | 'billing' | 'discounts' | 'refunds' | 'marketing' | 'tables' | 'employees';
+
+type ServiceDashboardProfile = {
+  functions: TabType[];
+  labels: Partial<Record<TabType, string>>;
+};
+
+const SERVICE_THEME_DASHBOARDS: Record<string, ServiceDashboardProfile> = {
+  'event-planner': {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'reviews', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Services', orders: 'Event Requests', customers: 'Clients', messages: 'Inbox', reviews: 'Testimonials', analytics: 'Event Insights' }
+  },
+  carnovga: {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'reviews', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Services', orders: 'Event Requests', customers: 'Clients', messages: 'Inbox', reviews: 'Testimonials', analytics: 'Event Insights' }
+  },
+  'aura-salon': {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'reviews', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Services', orders: 'Appointments', customers: 'Clients', messages: 'Guest Inbox', reviews: 'Salon Reviews', analytics: 'Salon Insights' }
+  },
+  'craft-collective': {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Listings', orders: 'Orders', customers: 'Vendors', messages: 'Inbox', analytics: 'Market Insights' }
+  },
+  'point-of-sale': {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Menu', orders: 'Orders', customers: 'Customers', messages: 'Messages', analytics: 'Sales Analytics' }
+  },
+  'apex-pos': {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'analytics', 'billing', 'tables', 'employees', 'settings'],
+    labels: { products: 'Menu', orders: 'Orders', customers: 'Customers', messages: 'Messages', analytics: 'Sales Analytics', tables: 'Tables', employees: 'Staff' }
+  },
+  'tamira-salon': {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'reviews', 'marketing', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Services', orders: 'Appointments', customers: 'Clients', messages: 'Guest Inbox', reviews: 'Salon Reviews', analytics: 'Salon Insights' }
+  },
+  'pulse-fit': {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'reviews', 'marketing', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Classes', orders: 'Bookings', customers: 'Members', messages: 'Member Inbox', reviews: 'Class Reviews', analytics: 'Studio Insights' }
+  },
+  'spa-retreat': {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'reviews', 'marketing', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Treatments', orders: 'Appointments', customers: 'Guests', messages: 'Guest Inbox', reviews: 'Guest Reviews', analytics: 'Spa Insights' }
+  },
+  'elite-consulting': {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Services', orders: 'Client Requests', customers: 'Clients', messages: 'Inquiries', analytics: 'Business Analytics' }
+  },
+  'creative-studio': {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'reviews', 'marketing', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Creative Services', orders: 'Projects', customers: 'Clients', messages: 'Studio Messages', reviews: 'Client Feedback', analytics: 'Studio Analytics' }
+  },
+  'modern-wellness': {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'reviews', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Treatments', orders: 'Appointments', customers: 'Clients', messages: 'Client Messages', reviews: 'Client Reviews', analytics: 'Practice Analytics' }
+  },
+  utorme: {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Tutoring services', orders: 'Sessions', customers: 'Students', messages: 'Student inbox', analytics: 'Tutor insights' }
+  },
+  essayme: {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Tutoring services', orders: 'Sessions', customers: 'Students', messages: 'Student inbox', analytics: 'Tutor insights' }
+  },
+  homeworker: {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Homework services', orders: 'Assignments', customers: 'Students', messages: 'Student inbox', analytics: 'Platform insights' }
+  }
+};
 
 const WebPreview = ({ id }: { id: string }) => {
-  const url = `${window.location.origin}/#/shop/demo?theme=${id}&preview=true`;
+  const url = id === 'utorme' || id === 'essayme'
+    ? `${window.location.origin}/#/utorme`
+    : `${window.location.origin}/#/shop/demo?theme=${id}&preview=true`;
   return (
     <div className="w-full h-full relative group overflow-hidden bg-gray-100">
       <iframe 
@@ -101,13 +196,34 @@ const WebPreview = ({ id }: { id: string }) => {
   );
 };
 
-const BillingSection = ({ seller, onUpgrade }: { seller: any, onUpgrade: (plan: string) => void }) => {
+const BillingSection = ({ seller, onUpgrade }: { seller: any, onUpgrade: (plan: string, paymentMethod?: 'iyonicpay' | 'paystack') => void }) => {
+  const { showToast } = useToast();
   const { sellerManagers, products } = useData();
   const [timeLeft, setTimeLeft] = useState<{ days: number, hours: number, minutes: number }>({ days: 0, hours: 0, minutes: 0 });
+  const [showBillingHistory, setShowBillingHistory] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'iyonicpay' | 'paystack'>('paystack');
+  const [error, setError] = useState<string | null>(null);
+  const [errorTierId, setErrorTierId] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [successTierId, setSuccessTierId] = useState<string | null>(null);
+  const [autoRenewEnabled, setAutoRenewEnabled] = useState<Record<string, boolean>>({});
   const subscription = seller?.subscription || { plan: 'starter', status: 'active', endDate: null };
   
   const manager = sellerManagers[0];
   const pricingConfig = manager?.pricingConfig;
+
+  useEffect(() => {
+    api.get('/billing/auto-renew').then(res => {
+      const autoRenew = res.data?.autoRenew || {};
+      const enabledMap: Record<string, boolean> = {};
+      Object.keys(autoRenew).forEach(platform => {
+        if (autoRenew[platform]?.enabled) {
+          enabledMap[platform] = true;
+        }
+      });
+      setAutoRenewEnabled(enabledMap);
+    }).catch(() => {});
+  }, []);
   
   useEffect(() => {
     if (!subscription.endDate) return;
@@ -194,16 +310,42 @@ const BillingSection = ({ seller, onUpgrade }: { seller: any, onUpgrade: (plan: 
 
         <Card className="md:w-1/3">
           <CardHeader title="Quick Actions" />
-          <div className="space-y-3">
-            <Button className="w-full justify-start" variant="outline" leftIcon={<CreditCardIcon className="w-4 h-4" />}>
+          <div className="space-y-4">
+            <div className="flex flex-col space-y-2">
+              <span className="text-xs font-bold text-gray-500 uppercase">Payment method</span>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setPaymentMethod('iyonicpay')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-black transition-all ${paymentMethod === 'iyonicpay' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
+                >
+                  IyonicPay
+                </button>
+                <button
+                  onClick={() => setPaymentMethod('paystack')}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-black transition-all ${paymentMethod === 'paystack' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'}`}
+                >
+                  Card &amp; Mobile Wallet
+                </button>
+              </div>
+            </div>
+            <Button className="w-full justify-start" variant="outline" leftIcon={<CreditCardIcon className="w-4 h-4" />} onClick={() => setShowBillingHistory(prev => !prev)}>
               Billing History
-            </Button>
-            <Button className="w-full justify-start" variant="outline" leftIcon={<Settings className="w-4 h-4" />}>
-              Payment Methods
             </Button>
           </div>
         </Card>
       </div>
+
+      {showBillingHistory && (
+        <Card>
+          <CardHeader title="Billing History" subtitle="Subscription activity for this store" />
+          <Table>
+            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Description</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader>
+            <TableBody>
+              <TableRow><TableCell>{subscription.startDate ? new Date(subscription.startDate).toLocaleDateString() : 'Current period'}</TableCell><TableCell className="font-medium">{currentTier.name} subscription</TableCell><TableCell><Badge variant={subscription.status === 'active' ? 'success' : 'warning'}>{subscription.status}</Badge></TableCell><TableCell className="text-right font-semibold">${Number(currentTier.price || 0).toFixed(2)}</TableCell></TableRow>
+            </TableBody>
+          </Table>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {tiers.map((tier) => (
@@ -228,14 +370,148 @@ const BillingSection = ({ seller, onUpgrade }: { seller: any, onUpgrade: (plan: 
                 </li>
               ))}
             </ul>
-            <Button 
-              className="w-full" 
-              variant={subscription.plan === tier.id ? 'outline' : 'primary'}
-              disabled={subscription.plan === tier.id}
-              onClick={() => onUpgrade(tier.id)}
-            >
-              {subscription.plan === tier.id ? 'Current Plan' : (tier.price === 0 ? 'Downgrade' : 'Upgrade Plan')}
-            </Button>
+            {subscription.plan !== tier.id && tier.price > 0 && !['professional', 'enterprise'].includes(tier.id) && (
+              <>
+                {paymentMethod === 'iyonicpay' && (
+                  <Button 
+                    className="w-full" 
+                    variant="secondary"
+                    leftIcon={<Wallet className="w-4 h-4" />}
+                    onClick={async () => {
+                      setError(null);
+                      setErrorTierId(null);
+                      try {
+                        await onUpgrade(tier.id, 'iyonicpay');
+                        setSuccess(`Subscribed to ${tier.name} via IyonicPay`);
+                        setSuccessTierId(tier.id);
+                        setTimeout(() => { setSuccess(null); setSuccessTierId(null); }, 6000);
+                      } catch (e: any) {
+                        setError(e.message || 'Could not process IyonicPay payment');
+                        setErrorTierId(tier.id);
+                      }
+                    }}
+                  >
+                    Pay ${tier.price} with IyonicPay
+                  </Button>
+                )}
+                <Button 
+                  className="w-full" 
+                  variant={subscription.plan === tier.id ? 'outline' : 'primary'}
+                  disabled={subscription.plan === tier.id || paymentMethod === 'iyonicpay'}
+                  onClick={async () => {
+                    setError(null);
+                    setErrorTierId(null);
+                    try {
+                      await onUpgrade(tier.id, 'paystack');
+                      setSuccess(`Successfully upgraded to ${tier.name}!`);
+                      setSuccessTierId(tier.id);
+                      setTimeout(() => { setSuccess(null); setSuccessTierId(null); }, 6000);
+                    } catch (e: any) {
+                      setError(e.message || 'Could not start payment');
+                      setErrorTierId(tier.id);
+                    }
+                  }}
+                >
+                  {subscription.plan === tier.id ? 'Current Plan' : 'Upgrade Plan (Card & Mobile Wallet)'}
+                </Button>
+                {errorTierId === tier.id && error && (
+                  <p className="mt-2 text-center text-xs font-bold text-red-600 bg-red-50 py-2 rounded-xl border border-red-100">{error}</p>
+                )}
+                {successTierId === tier.id && success && (
+                  <div className="mt-3 p-3 bg-green-50 rounded-xl border border-green-200">
+                    <div className="flex items-center justify-center gap-2 text-center">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <p className="text-xs font-bold text-green-800">{success}</p>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+            {subscription.plan !== tier.id && tier.price > 0 && ['professional', 'enterprise'].includes(tier.id) && (
+              <p className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-center text-xs font-bold text-indigo-700">
+                Manage this tier in IyonicPay bundles
+              </p>
+            )}
+            {subscription.plan !== tier.id && tier.price === 0 && (
+              <Button 
+                className="w-full" 
+                variant="primary"
+                onClick={async () => {
+                  setError(null);
+                  setErrorTierId(null);
+                  setSuccess(null);
+                  setSuccessTierId(null);
+                  try {
+                    await onUpgrade(tier.id, paymentMethod);
+                    setSuccess(`Switched to ${tier.name} plan`);
+                    setSuccessTierId(tier.id);
+                    setTimeout(() => { setSuccess(null); setSuccessTierId(null); }, 6000);
+                  } catch (e: any) {
+                    setError(e.message || 'Could not update plan');
+                    setErrorTierId(tier.id);
+                  }
+                }}
+              >
+                Downgrade
+              </Button>
+            )}
+            {subscription.plan === tier.id && (
+              <Button 
+                className="w-full" 
+                variant="outline"
+                disabled
+              >
+                Current Plan
+              </Button>
+            )}
+
+            {subscription.plan === tier.id && tier.price > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <button
+                  type="button"
+                  role="switch"
+                  onClick={async () => {
+                    const currentlyEnabled = autoRenewEnabled.iyonicshop || false;
+                    try {
+                      await api.patch('/billing/auto-renew', {
+                        platform: 'iyonicshop',
+                        enabled: !currentlyEnabled,
+                        planId: tier.id
+                      });
+                      setAutoRenewEnabled(prev => ({ ...prev, iyonicshop: !currentlyEnabled }));
+                      setSuccess(`Auto-renew ${!currentlyEnabled ? 'enabled' : 'disabled'} for ${tier.name}`);
+                      setSuccessTierId(tier.id);
+                      setTimeout(() => { setSuccess(null); setSuccessTierId(null); }, 4000);
+                    } catch (e: any) {
+                      setError(e.message || 'Could not update auto-renew');
+                      setErrorTierId(tier.id);
+                    }
+                  }}
+                  className={`flex items-center justify-between w-full px-3 py-2 rounded-lg transition-all ${
+                    autoRenewEnabled.iyonicshop
+                      ? 'bg-indigo-50 border border-indigo-200'
+                      : 'bg-gray-50 border border-gray-200'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 text-sm">
+                    <Wallet className="w-4 h-4 text-indigo-600" />
+                    <span className="font-bold text-gray-800">Auto-renew with IyonicPay</span>
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    Automatically renew this plan using your wallet balance before expiration.
+                  </span>
+                  <div className="ml-3 flex-shrink-0">
+                    <div className={`w-10 h-5 rounded-full transition-colors relative ${
+                      autoRenewEnabled.iyonicshop ? 'bg-indigo-600' : 'bg-gray-300'
+                    }`}>
+                      <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                        autoRenewEnabled.iyonicshop ? 'left-5' : 'left-0.5'
+                      }`}></div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            )}
           </Card>
         ))}
       </div>
@@ -997,6 +1273,8 @@ export const SellerDashboard: React.FC = () => {
   const { showToast } = useToast();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { 
     products, orders, customers, sellers, 
     addProduct, updateProduct, deleteProduct, 
@@ -1006,7 +1284,12 @@ export const SellerDashboard: React.FC = () => {
     discounts, addDiscount, updateDiscount, deleteDiscount
   } = useData();
   const { refreshTenant } = useTenant();
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const requestedTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<TabType>(
+    requestedTab && requestedTab !== 'themes' && ['overview', 'products', 'orders', 'customers', 'analytics', 'settings', 'messages', 'reviews', 'billing', 'discounts', 'refunds', 'marketing'].includes(requestedTab)
+      ? requestedTab as TabType
+      : 'overview'
+  );
   const [isPayPopupOpen, setIsPayPopupOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -1082,6 +1365,10 @@ export const SellerDashboard: React.FC = () => {
     } as PaymentTerms
   });
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [homeworkerSettingsForm, setHomeworkerSettingsForm] = useState<HomeworkerSettings>(defaultHomeworkerSettings);
+  const [themeApplying, setThemeApplying] = useState<{ themeId: string; themeName: string; preview?: string } | null>(null);
+  const [themeLaunchState, setThemeLaunchState] = useState<ThemeLaunchState>('checking');
+  const [themeLaunchError, setThemeLaunchError] = useState('');
   const [savingSection, setSavingSection] = useState<string | null>(null);
   const [savedSection, setSavedSection] = useState<string | null>(null);
   const [newLocation, setNewLocation] = useState({
@@ -1096,8 +1383,10 @@ export const SellerDashboard: React.FC = () => {
   const sellerId = user?.sellerId;
   const isServiceShop = seller?.shopType === 'service';
   const isPaymentShop = seller?.shopType === 'payment';
+  const serviceThemeId = normalizeThemeId(seller?.themeId || seller?.theme?.selectedTheme);
+  const serviceDashboard = SERVICE_THEME_DASHBOARDS[serviceThemeId];
 
-  const tabs = [
+const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <BarChart3 className="w-5 h-5" /> },
     { id: 'products', label: 'Products', icon: <Package className="w-5 h-5" /> },
     { id: 'orders', label: 'Orders', icon: <ShoppingCart className="w-5 h-5" /> },
@@ -1112,6 +1401,31 @@ export const SellerDashboard: React.FC = () => {
     { id: 'themes', label: 'Themes', icon: <Palette className="w-5 h-5" /> },
     { id: 'settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
   ];
+  const visibleTabs = isServiceShop
+    ? tabs.filter(tab => serviceDashboard
+      ? serviceDashboard.functions.includes(tab.id)
+      : ['overview', 'themes', 'settings', 'billing'].includes(tab.id))
+    : tabs;
+  const getTabLabel = (tabId: TabType, defaultLabel: string) => serviceDashboard?.labels[tabId] || defaultLabel;
+  const themeGalleryThemes = isServiceShop
+    ? SERVICE_THEMES
+    : [...PRODUCT_THEMES, ...SERVICE_THEMES, ...STREAMING_THEMES, ...PAYMENT_THEMES];
+
+  useEffect(() => {
+    const preferredDashboard = getThemeDashboardRoute(serviceThemeId);
+    const dashboardTab = searchParams.get('tab');
+    const isSellerDashboardRoute = location.pathname === '/seller/dashboard' || location.pathname === '/seller';
+
+    if (dashboardTab === 'themes' && isSellerDashboardRoute) {
+      navigate('/themes', { replace: true, state: { from: preferredDashboard } });
+      return;
+    }
+
+    const openingAccountSection = dashboardTab === 'settings' || dashboardTab === 'billing';
+    if (!openingAccountSection && preferredDashboard !== '/seller/dashboard?tab=overview' && isSellerDashboardRoute) {
+      navigate(preferredDashboard, { replace: true });
+    }
+  }, [location.pathname, navigate, searchParams, serviceThemeId]);
 
   useEffect(() => {
     if (sellerId) {
@@ -1131,6 +1445,7 @@ export const SellerDashboard: React.FC = () => {
 
   useEffect(() => {
     if (seller) {
+      setHomeworkerSettingsForm(getHomeworkerSettings(seller));
       if (productForm.type !== seller.shopType) {
         setProductForm(prev => ({ ...prev, type: seller.shopType }));
       }
@@ -1159,7 +1474,7 @@ export const SellerDashboard: React.FC = () => {
           address: seller.contactInfo?.address || '',
           whatsapp: seller.contactInfo?.whatsapp || ''
         },
-        themeId: seller.themeId || '',
+        themeId: seller.themeId || seller.theme?.selectedTheme || '',
         theme: seller.theme || {
           primaryColor: '#3b82f6',
           secondaryColor: '#1e40af',
@@ -1319,10 +1634,8 @@ export const SellerDashboard: React.FC = () => {
     setIsProductPopupOpen(true);
   };
 
-  const handlePayment = async (planId: string) => {
+  const handlePayment = async (planId: string, paymentMethod: 'iyonicpay' | 'paystack' = 'paystack') => {
     if (!sellerId || !planId || !user?.email) return;
-    
-    setIsProcessingPayment(true);
     
     const manager = sellerManagers[0];
     const pricingConfig = manager?.pricingConfig;
@@ -1351,13 +1664,30 @@ export const SellerDashboard: React.FC = () => {
           }
         });
         await refreshData();
+        showToast(`Plan updated`, 'success');
       } catch (err) {
         console.error(err);
-      } finally {
-        setIsProcessingPayment(false);
+        throw new Error('Failed to update plan');
       }
       return;
     }
+
+    if (paymentMethod === 'iyonicpay') {
+      try {
+        const result = await sellersAPI.paySubscriptionWithWallet(planId);
+        await refreshData();
+        showToast(result.message || 'Plan activated via IyonicPay', 'success');
+      } catch (err: any) {
+        if (err.response?.status === 402) {
+          const msg = err.response?.data?.message || 'Insufficient balance in IyonicPay wallet';
+          throw new Error(`Insufficient balance: ${msg}`);
+        }
+        throw new Error(err.response?.data?.message || 'Could not process IyonicPay payment');
+      }
+      return;
+    }
+
+    setIsProcessingPayment(true);
 
     try {
       const handler = (window as any).PaystackPop.setup({
@@ -1393,30 +1723,49 @@ export const SellerDashboard: React.FC = () => {
     } catch (error) {
       console.error('Payment initialization failed:', error);
       setIsProcessingPayment(false);
-      showToast('Payment system failed to load. Please try again.', 'error');
+      throw new Error('Payment system failed to load. Please try again.');
     }
   };
 
   const handleApplyTheme = async (themeId: string) => {
     if (!sellerId) return;
-    
-    // Find theme info to set primary colors etc if needed, though usually we just save the ID
-    const themeInfo = [...PRODUCT_THEMES, ...SERVICE_THEMES, ...STREAMING_THEMES, ...PAYMENT_THEMES].find(t => t.id === themeId);
-    
-    await updateSeller(sellerId, {
-      themeId: themeId,
-      theme: {
-        ...settingsForm.theme,
-        selectedTheme: themeId
-      } as any
-    });
-    
-    // Refresh local data state
-    await refreshData();
-    await refreshTenant();
-    
-    setSettingsSaved(true);
-    setTimeout(() => setSettingsSaved(false), 3000);
+    if (isVipTheme(themeId) && !(seller?.acquiredThemes || []).includes(themeId)) {
+      navigate('/themes', { state: { from: getThemeDashboardRoute(serviceThemeId) } });
+      return;
+    }
+
+    const selectedTheme = [...PRODUCT_THEMES, ...SERVICE_THEMES, ...STREAMING_THEMES, ...PAYMENT_THEMES].find(t => t.id === themeId);
+    const themeName = selectedTheme?.name || 'Business Platform';
+    setThemeApplying({ themeId, themeName, preview: selectedTheme?.preview });
+    setThemeLaunchState('checking');
+    setThemeLaunchError('');
+
+    try {
+      setThemeLaunchState('applying');
+      await withTimeout((async () => {
+        await updateSeller(sellerId, {
+          themeId: themeId,
+          theme: {
+            ...settingsForm.theme,
+            selectedTheme: themeId
+          } as any
+        });
+        await refreshData();
+        await refreshTenant();
+      })(), 'Applying this platform is taking longer than expected. Refresh to confirm the current setup before trying again.');
+
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 3000);
+
+      setThemeLaunchState('ready');
+      await new Promise(resolve => window.setTimeout(resolve, 900));
+      navigate(getThemeDashboardRoute(themeId), { replace: true });
+    } catch (error) {
+      console.error('Failed to apply theme:', error);
+      setThemeLaunchError('The platform could not be applied. Your existing workspace has not been intentionally changed; refresh to confirm its current state before trying again.');
+      setThemeLaunchState('error');
+      showToast('Failed to switch your platform. Please try again.', 'error');
+    }
   };
 
   const updateSection = async (section: string, updates: any) => {
@@ -1555,6 +1904,19 @@ export const SellerDashboard: React.FC = () => {
     }
   };
 
+  const handleUpdateHomeworkerSettings = () => {
+    if (!seller) return;
+    updateSection('Homeworker settings', {
+      theme: {
+        ...seller.theme,
+        customizations: {
+          ...seller.theme?.customizations,
+          homeworker: homeworkerSettingsForm
+        }
+      }
+    });
+  };
+
   if (!analytics) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -1577,6 +1939,7 @@ export const SellerDashboard: React.FC = () => {
       processing: 'info',
       shipped: 'info',
       delivered: 'success',
+      completed: 'success',
       cancelled: 'danger',
     };
     return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
@@ -1662,22 +2025,15 @@ export const SellerDashboard: React.FC = () => {
         </div>
         
         <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-160px)]">
-          {seller && seller.subdomain && (
-            <a
-              href={`${window.location.origin}/#/shop/${seller.subdomain}${!seller.isLive ? '?preview=true' : ''}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all mb-4 group border border-indigo-100"
-            >
-              <ExternalLink className="w-5 h-5" />
-              <span className="font-bold">Visit Shopfront</span>
-            </a>
-          )}
-
-          {tabs.map(tab => (
+          {visibleTabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => {
+                if (tab.id === 'themes') {
+                  navigate('/themes', { state: { from: getThemeDashboardRoute(serviceThemeId) } });
+                  setIsSidebarOpen(false);
+                  return;
+                }
                 setActiveTab(tab.id as TabType);
                 setIsSidebarOpen(false);
               }}
@@ -1688,7 +2044,7 @@ export const SellerDashboard: React.FC = () => {
               }`}
             >
               {tab.id === 'products' && (isServiceShop || isPaymentShop) ? <Briefcase className="w-5 h-5" /> : tab.icon}
-              <span>{tab.id === 'products' && (isServiceShop || isPaymentShop) ? (isPaymentShop ? 'Payments' : 'Services') : tab.label}</span>
+              <span>{isServiceShop ? getTabLabel(tab.id, tab.label) : tab.id === 'products' && isPaymentShop ? 'Payments' : tab.label}</span>
             </button>
           ))}
 
@@ -1715,16 +2071,16 @@ export const SellerDashboard: React.FC = () => {
                 <span className="font-semibold">IyonicPay</span>
               </Link>
             )}
-
-            {user?.username && (
+            {user?.role === 'seller' && (
               <Link
                 to="/iyonicbots"
                 className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-blue-600 hover:bg-blue-50 transition-all border border-transparent hover:border-blue-100"
               >
-                <Bot className="w-4 h-4" />
+                <BotIcon className="w-4 h-4" />
                 <span className="font-semibold">IyonicBots</span>
               </Link>
             )}
+
           </div>
         </nav>
 
@@ -1741,12 +2097,43 @@ export const SellerDashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 md:ml-64 p-4 md:p-8 min-h-screen">
+        {themeApplying && (
+          <ThemeLaunchOverlay
+            themeName={themeApplying.themeName}
+            previewUrl={themeApplying.themeId === 'nlmsongs' || themeApplying.themeId === 'ixstream' || themeApplying.themeId === 'utorme'
+              ? `${window.location.origin}/#/${themeApplying.themeId}`
+              : `${window.location.origin}/#/shop/demo?theme=${encodeURIComponent(themeApplying.themeId)}`}
+            kind="business platform"
+            state={themeLaunchState}
+            error={themeLaunchError}
+            onRetry={() => void handleApplyTheme(themeApplying.themeId)}
+            onClose={() => { setThemeApplying(null); setThemeLaunchError(''); void refreshData(); }}
+          />
+        )}
+
         {/* Overview Tab */}
-        {activeTab === 'overview' && (
+        {activeTab === 'overview' && isServiceShop && !serviceDashboard && (
+          <div className="min-h-[70vh] flex items-center justify-center">
+            <Card className="max-w-2xl w-full p-8 md:p-12 text-center">
+              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <Palette className="w-8 h-8" />
+              </div>
+              <h2 className="text-2xl md:text-3xl font-black text-gray-900 mb-3">Select your service theme to unlock the functions needed.</h2>
+              <p className="text-gray-500 mb-7">Browse the theme library to preview service platforms and choose the dashboard that fits your business.</p>
+              <Button
+                leftIcon={<Palette className="w-4 h-4" />}
+                onClick={() => navigate('/themes', { state: { from: getThemeDashboardRoute(serviceThemeId) } })}
+              >
+                Browse service themes
+              </Button>
+            </Card>
+          </div>
+        )}
+        {activeTab === 'overview' && (!isServiceShop || serviceDashboard) && (
           <div>
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, {user?.name}!</h2>
-              <p className="text-gray-500">Here's what's happening with your store today.</p>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, {user?.name}!</h2>
+              <p className="text-gray-500">{isServiceShop ? `Here's what's happening with your ${SERVICE_THEMES.find(theme => theme.id === serviceThemeId)?.name || 'service business'} today.` : "Here's what's happening with your store today."}</p>
             </div>
 
             {/* Stats Grid */}
@@ -1767,7 +2154,7 @@ export const SellerDashboard: React.FC = () => {
               <Card>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">Total Orders</p>
+                    <p className="text-sm text-gray-500 mb-1">Total {getTabLabel('orders', 'Orders')}</p>
                     <p className="text-2xl font-bold text-gray-900">{analytics.totalOrders}</p>
                     <p className="text-sm text-green-600 mt-1">+{analytics.ordersGrowth}% from last month</p>
                   </div>
@@ -1793,7 +2180,7 @@ export const SellerDashboard: React.FC = () => {
               <Card>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">Total Customers</p>
+                    <p className="text-sm text-gray-500 mb-1">Total {getTabLabel('customers', 'Customers')}</p>
                     <p className="text-2xl font-bold text-gray-900">{analytics.totalCustomers}</p>
                     <p className="text-sm text-gray-500 mt-1">Growing customer base</p>
                   </div>
@@ -1810,20 +2197,20 @@ export const SellerDashboard: React.FC = () => {
               <div className="lg:col-span-2">
                 <Card padding="none">
                   <CardHeader
-                    title="Recent Orders"
-                    subtitle="Latest orders from your customers"
+                    title={isServiceShop ? `Recent ${getTabLabel('orders', 'Requests')}` : 'Recent Orders'}
+                    subtitle={isServiceShop ? 'Latest activity from your clients' : 'Latest orders from your customers'}
                     action={
                       <Button variant="outline" size="sm" onClick={() => setActiveTab('orders')}>
-                        View All
+                        {isServiceShop ? `View ${getTabLabel('orders', 'Requests')}` : 'View All'}
                       </Button>
                     }
                   />
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Order ID</TableHead>
-                        <TableHead>Customer</TableHead>
-                        <TableHead>Total</TableHead>
+                        <TableHead>{isServiceShop ? 'Request ID' : 'Order ID'}</TableHead>
+                        <TableHead>{isServiceShop ? 'Client' : 'Customer'}</TableHead>
+                        <TableHead>{isServiceShop ? 'Fee' : 'Total'}</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Date</TableHead>
                       </TableRow>
@@ -1835,7 +2222,7 @@ export const SellerDashboard: React.FC = () => {
                             <TableCell className="font-medium">{order.id}</TableCell>
                             <TableCell>{order.customerName}</TableCell>
                             <TableCell>{formatPrice(order.total || 0, seller?.currency)}</TableCell>
-                            <TableCell>{getStatusBadge(order.status)}</TableCell>
+                            <TableCell>{getStatusBadge(isServiceShop && order.status === 'delivered' ? 'completed' : order.status)}</TableCell>
                             <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                           </TableRow>
                         ))
@@ -1851,8 +2238,7 @@ export const SellerDashboard: React.FC = () => {
                 </Card>
               </div>
 
-              {/* Delivery Locations Summary */}
-              <div className="lg:col-span-1">
+              {!isServiceShop ? <div className="lg:col-span-1">
                 <Card padding="none">
                   <CardHeader
                     title="Delivery Locations"
@@ -1932,7 +2318,26 @@ export const SellerDashboard: React.FC = () => {
                     </Button>
                   </div>
                 </Card>
-              </div>
+              </div> : <div className="lg:col-span-1">
+                <Card className="h-full">
+                  <div className="flex items-center gap-3 mb-5">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                      <Briefcase className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900">Your Service Business</h3>
+                      <p className="text-xs text-gray-500">{SERVICE_THEMES.find(theme => theme.id === serviceThemeId)?.name}</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-5">You have {sellerProducts.length} service{sellerProducts.length === 1 ? '' : 's'} in your catalog.</p>
+                  <div className="space-y-3">
+                    <Button fullWidth onClick={() => setActiveTab('products')}>Manage {getTabLabel('products', 'Services')}</Button>
+                    <Button fullWidth variant="outline" leftIcon={<Plus className="w-4 h-4" />} onClick={() => { setActiveTab('products'); setIsProductPopupOpen(true); }}>
+                      Add a service
+                    </Button>
+                  </div>
+                </Card>
+              </div>}
             </div>
           </div>
         )}
@@ -1942,7 +2347,7 @@ export const SellerDashboard: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">{isServiceShop ? 'Services' : 'Products'}</h2>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">{isServiceShop ? getTabLabel('products', 'Services') : 'Products'}</h2>
                 <p className="text-gray-500">{isServiceShop ? 'Manage your service catalog' : 'Manage your product catalog'}</p>
               </div>
               <Button leftIcon={<Plus className="w-5 h-5" />} onClick={() => setIsProductPopupOpen(true)}>
@@ -2018,18 +2423,18 @@ export const SellerDashboard: React.FC = () => {
         {activeTab === 'orders' && (
           <div>
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Orders</h2>
-              <p className="text-gray-500">Manage and track your orders</p>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">{getTabLabel('orders', 'Orders')}</h2>
+              <p className="text-gray-500">{isServiceShop ? `Manage and track your ${getTabLabel('orders', 'requests').toLowerCase()}` : 'Manage and track your orders'}</p>
             </div>
 
             <Card padding="none">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Order ID</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Total</TableHead>
+                        <TableHead>{isServiceShop ? 'Request ID' : 'Order ID'}</TableHead>
+                        <TableHead>{isServiceShop ? 'Client' : 'Customer'}</TableHead>
+                        <TableHead>{isServiceShop ? 'Services' : 'Items'}</TableHead>
+                        <TableHead>{isServiceShop ? 'Fee' : 'Total'}</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Actions</TableHead>
@@ -2045,7 +2450,7 @@ export const SellerDashboard: React.FC = () => {
                           <p className="text-sm text-gray-500">{order.customerEmail}</p>
                         </div>
                       </TableCell>
-                      <TableCell>{order.items.length} items</TableCell>
+                      <TableCell>{order.items.length} {isServiceShop ? 'services' : 'items'}</TableCell>
                       <TableCell className="font-medium">{formatPrice(order.total || 0, seller?.currency)}</TableCell>
                       <TableCell>{getStatusBadge(order.status)}</TableCell>
                       <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
@@ -2054,8 +2459,8 @@ export const SellerDashboard: React.FC = () => {
                           options={[
                             { value: 'pending', label: 'Pending' },
                             { value: 'processing', label: 'Processing' },
-                            { value: 'shipped', label: 'Shipped' },
-                            { value: 'delivered', label: 'Delivered' },
+                            ...(!isServiceShop ? [{ value: 'shipped', label: 'Shipped' }] : []),
+                            { value: 'delivered', label: isServiceShop ? 'Completed' : 'Delivered' },
                             { value: 'cancelled', label: 'Cancelled' },
                           ]}
                           value={order.status}
@@ -2075,8 +2480,8 @@ export const SellerDashboard: React.FC = () => {
         {activeTab === 'customers' && (
           <div>
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Customers</h2>
-              <p className="text-gray-500">View and manage your customer base</p>
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">{getTabLabel('customers', 'Customers')}</h2>
+              <p className="text-gray-500">View and manage your {isServiceShop ? getTabLabel('customers', 'clients').toLowerCase() : 'customer base'}</p>
             </div>
 
             <Card padding="none">
@@ -2255,25 +2660,24 @@ export const SellerDashboard: React.FC = () => {
                 <div className="flex-1 text-center md:text-left">
                   <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-widest mb-6">
                     <Palette className="w-4 h-4" />
-                    Premium Store Templates
+                    VIP Platform Library
                   </div>
                   <h2 className="text-4xl md:text-6xl font-black text-white mb-6 leading-tight">
-                    Transform Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Digital Presence</span>
+                    Build a <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">premium service brand</span> that feels world-class.
                   </h2>
                   <p className="text-slate-400 text-lg md:text-xl max-w-2xl mb-10 leading-relaxed">
-                    Choose from our high-performance, conversion-optimized themes. 
-                    Switch styles instantly with a single click.
+                    Discover the premium service platforms we are creating for salons, studios, wellness brands, and professional businesses. Every system includes its own tailored dashboard, client flow, and growth tools.
                   </p>
                   <div className="flex flex-wrap justify-center md:justify-start gap-4">
                     <button 
                       onClick={() => {
-                        const demoTheme = seller?.themeId || (isServiceShop ? SERVICE_THEMES[0].id : PRODUCT_THEMES[0].id);
+                        const demoTheme = seller?.themeId || seller?.theme?.selectedTheme || (isServiceShop ? SERVICE_THEMES[0].id : PRODUCT_THEMES[0].id);
                         window.open(`${window.location.origin}/#/shop/demo?theme=${demoTheme}`, '_blank');
                       }}
                       className="inline-flex items-center gap-2 px-8 py-4 bg-blue-600 text-white rounded-2xl font-black transition-all hover:bg-blue-500 shadow-xl shadow-blue-500/20 hover:-translate-y-1"
                     >
                       <Eye className="w-5 h-5" />
-                      View Full Demo
+                      Preview Platform
                     </button>
                     {seller?.subdomain && (
                       <Link
@@ -2287,17 +2691,17 @@ export const SellerDashboard: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="w-full md:w-1/3 aspect-video md:aspect-square rounded-3xl overflow-hidden border border-slate-800 shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-700 bg-slate-900 group">
+                <div className="w-full md:w-1/3 aspect-video md:aspect-square rounded-3xl overflow-hidden border border-slate-800 shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-700 bg-slate-900 group relative">
                   <img 
-                    src={([...PRODUCT_THEMES, ...SERVICE_THEMES, ...STREAMING_THEMES, ...PAYMENT_THEMES].find(t => t.id === seller?.themeId) || PRODUCT_THEMES[0]).preview} 
+                    src={themeGalleryThemes.find(t => t.id === (seller?.themeId || seller?.theme?.selectedTheme))?.preview || themeGalleryThemes[0]?.preview}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
                     alt="active-theme"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
                   <div className="absolute bottom-6 left-6 right-6">
-                    <p className="text-blue-400 text-xs font-bold uppercase tracking-tighter mb-1">Active Theme</p>
+                    <p className="text-blue-400 text-xs font-bold uppercase tracking-tighter mb-1">{themeGalleryThemes.some(t => t.id === (seller?.themeId || seller?.theme?.selectedTheme)) ? 'Active Platform' : 'Featured Platform'}</p>
                     <p className="text-white font-black text-xl truncate">
-                      {([...PRODUCT_THEMES, ...SERVICE_THEMES, ...STREAMING_THEMES, ...PAYMENT_THEMES].find(t => t.id === seller?.themeId) || PRODUCT_THEMES[0]).name}
+                      {themeGalleryThemes.find(t => t.id === (seller?.themeId || seller?.theme?.selectedTheme))?.name || (isServiceShop ? 'Select a service platform' : 'Select a store theme')}
                     </p>
                   </div>
                 </div>
@@ -2306,19 +2710,17 @@ export const SellerDashboard: React.FC = () => {
 
             {/* Theme Categories */}
             <div className="space-y-16 pb-20">
-              {[
-                { title: 'E-commerce & Retail', description: 'Optimized for physical and digital product sales', themes: PRODUCT_THEMES, type: 'product' },
-                { title: 'Professional Services', description: 'Designed for agencies, consultants, and experts', themes: SERVICE_THEMES, type: 'service' },
-                { title: 'Entertainment & Streaming', description: 'Premium platforms for content creators and media businesses', themes: STREAMING_THEMES, type: 'streaming' },
-                { title: 'Payment & Checkout', description: 'Streamlined conversion focused interfaces', themes: PAYMENT_THEMES, type: 'payment' }
-              ].map((category) => (
+              {(isServiceShop
+                ? [{ title: 'VIP Service Platforms', description: 'Each platform is built as a dedicated business system with its own customer journey, dashboard modules, and brand identity.', themes: SERVICE_THEMES, type: 'service' }]
+                : [{ title: 'E-commerce & Retail', description: 'Optimized for physical and digital product sales', themes: PRODUCT_THEMES, type: 'product' }]
+              ).map((category) => (
                 <div key={category.title}>
                   <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
                     <div>
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-2xl font-black text-slate-900">{category.title}</h3>
                         <Badge variant="outline" className="rounded-md border-slate-200 text-slate-500 uppercase text-[10px] font-bold">
-                          {category.themes.length} Styles
+                          {category.themes.length} VIP Modules
                         </Badge>
                       </div>
                       <p className="text-slate-500 font-medium">{category.description}</p>
@@ -2333,7 +2735,7 @@ export const SellerDashboard: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {category.themes.map(theme => {
-                      const isActive = seller?.themeId === theme.id;
+                      const isActive = (seller?.themeId || seller?.theme?.selectedTheme) === theme.id;
                       const isPending = settingsForm.themeId === theme.id && !isActive;
                       
                       return (
@@ -2361,7 +2763,7 @@ export const SellerDashboard: React.FC = () => {
                             {/* Hover Actions Overlay */}
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-500 translate-y-4 group-hover:translate-y-0 gap-3 px-6 z-40">
                               <button 
-                                onClick={() => handleApplyTheme(theme.id)}
+                                onClick={() => isVipTheme(theme.id) && !(seller?.acquiredThemes || []).includes(theme.id) ? navigate('/themes', { state: { from: getThemeDashboardRoute(serviceThemeId) } }) : handleApplyTheme(theme.id)}
                                 disabled={isActive}
                                 className={`flex-1 flex items-center justify-center gap-2 h-12 rounded-xl font-black text-sm transition-all shadow-xl ${
                                   isActive 
@@ -2374,6 +2776,11 @@ export const SellerDashboard: React.FC = () => {
                                     <CheckCircle className="w-4 h-4" />
                                     Active
                                   </>
+                                ) : isVipTheme(theme.id) && !(seller?.acquiredThemes || []).includes(theme.id) ? (
+                                  <>
+                                    <DollarSign className="w-4 h-4" />
+                                    Acquire theme
+                                  </>
                                 ) : (
                                   <>
                                     <Palette className="w-4 h-4" />
@@ -2382,7 +2789,7 @@ export const SellerDashboard: React.FC = () => {
                                 )}
                               </button>
                               <button 
-                                onClick={() => window.open(`${window.location.origin}/#/shop/demo?theme=${theme.id}`, '_blank')}
+                                onClick={() => window.open(theme.id === 'utorme' || theme.id === 'essayme' ? `${window.location.origin}/#/utorme` : `${window.location.origin}/#/shop/demo?theme=${theme.id}`, '_blank')}
                                 className="w-12 h-12 flex items-center justify-center bg-white/20 backdrop-blur-md border border-white/30 text-white rounded-xl hover:bg-white/40 transition-all"
                                 title="View Demo"
                               >
@@ -2394,13 +2801,30 @@ export const SellerDashboard: React.FC = () => {
                           <div className="p-6 pt-2">
                             <div className="flex items-center justify-between mb-3">
                               <h4 className="font-black text-lg text-slate-900">{theme.name}</h4>
-                              {isActive && (
+                              {isVipTheme(theme.id) && (seller?.acquiredThemes || []).includes(theme.id) ? (
+                                <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-700"><CheckCircle className="h-3.5 w-3.5" /> Acquired</span>
+                              ) : isActive && (
                                 <span className="flex h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>
                               )}
                             </div>
                             <p className="text-slate-500 text-sm font-medium leading-relaxed line-clamp-2 mb-6">
                               {theme.description}
                             </p>
+
+                            {isServiceShop && (
+                              <div className="mb-5">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Dashboard functions</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {(SERVICE_THEME_DASHBOARDS[theme.id]?.functions || [])
+                                    .filter(functionId => !['overview', 'themes', 'settings', 'billing'].includes(functionId))
+                                    .map(functionId => {
+                                      const functionTab = tabs.find(tab => tab.id === functionId);
+                                      const functionLabel = SERVICE_THEME_DASHBOARDS[theme.id]?.labels[functionId] || functionTab?.label || functionId;
+                                      return <span key={functionId} className="px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold">{functionLabel}</span>;
+                                    })}
+                                </div>
+                              </div>
+                            )}
                             
                             {/* Color Palette Preview */}
                             <div className="flex items-center justify-between pt-4 border-t border-slate-50">
@@ -2703,12 +3127,12 @@ export const SellerDashboard: React.FC = () => {
             </div>
             <BillingSection 
               seller={seller} 
-              onUpgrade={(plan) => handlePayment(plan)} 
+              onUpgrade={(plan, method) => handlePayment(plan, method)} 
             />
           </div>
         )}
 
-        {/* Marketing Tab */}
+{/* Marketing Tab */}
         {activeTab === 'marketing' && (
           <MarketingSection />
         )}
@@ -2722,6 +3146,66 @@ export const SellerDashboard: React.FC = () => {
             </div>
 
             <div className="space-y-12">
+              {serviceThemeId === 'homeworker' && (
+                <section>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700">
+                      <Briefcase className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">Homeworker pricing</h3>
+                  </div>
+                  <Card className="border-none shadow-xl shadow-slate-200/50">
+                    <div className="p-8 space-y-6">
+                      <Select
+                        label="Pricing model"
+                        value={homeworkerSettingsForm.pricingModel}
+                        onChange={(event) => setHomeworkerSettingsForm({ ...homeworkerSettingsForm, pricingModel: event.target.value as HomeworkerSettings['pricingModel'] })}
+                        options={[
+                          { value: 'per-page', label: 'Per page' },
+                          { value: 'per-question', label: 'Per question' }
+                        ]}
+                      />
+                      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                        <Input
+                          label="Price per page"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={homeworkerSettingsForm.pricePerPage}
+                          onChange={(event) => setHomeworkerSettingsForm({ ...homeworkerSettingsForm, pricePerPage: Math.max(0, Number(event.target.value) || 0) })}
+                        />
+                        <Input
+                          label="Price per question"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={homeworkerSettingsForm.pricePerQuestion}
+                          onChange={(event) => setHomeworkerSettingsForm({ ...homeworkerSettingsForm, pricePerQuestion: Math.max(0, Number(event.target.value) || 0) })}
+                        />
+                        <Input
+                          label="Deposit percentage"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={homeworkerSettingsForm.depositPercent}
+                          onChange={(event) => setHomeworkerSettingsForm({ ...homeworkerSettingsForm, depositPercent: Math.min(100, Math.max(0, Number(event.target.value) || 0)) })}
+                        />
+                      </div>
+                      <div className="flex justify-end border-t border-slate-100 pt-6">
+                        <Button
+                          onClick={handleUpdateHomeworkerSettings}
+                          loading={savingSection === 'Homeworker settings'}
+                          variant={savedSection === 'Homeworker settings' ? 'success' : 'primary'}
+                        >
+                          {savedSection === 'Homeworker settings' ? 'Homeworker Settings Saved' : 'Save Homeworker Settings'}
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                </section>
+              )}
+
               {/* Store Identity Section */}
               <section>
                 <div className="flex items-center gap-3 mb-6">

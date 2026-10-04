@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth, UserRole } from '../../context/AuthContext';
 import { Button, Input, Card } from '../../components/ui';
-import { Store, Shield, Users, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Store, Shield, Users, Eye, EyeOff, ArrowLeft, KeyRound, Mail, Check, AlertCircle, X } from 'lucide-react';
+import { authAPI } from '../../services/api';
+import { getAuthErrorDetails } from '../../utils/authErrors';
+import { getVipAuthTheme } from '../../utils/vipAuthTheme';
+import './vip-auth.css';
 
 interface LoginProps {
   onSwitchToRegister: () => void;
@@ -11,12 +16,23 @@ interface LoginProps {
 
 export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepage, sellerId: initialSellerId }) => {
   const { login, selectStore, user, isLoading } = useAuth();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [resetError, setResetError] = useState('');
   const [showStoreSelection, setShowStoreSelection] = useState(false);
   const [storeInfo, setStoreInfo] = useState<any>(null);
+  const vipTheme = getVipAuthTheme(location.pathname, location.search, storeInfo?.themeId || storeInfo?.theme?.selectedTheme);
+  const [resetStep, setResetStep] = useState<'email' | 'otp' | 'newPassword' | 'success'>('email');
+  const [resetEmail, setResetEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
 
   React.useEffect(() => {
     if (initialSellerId) {
@@ -31,18 +47,131 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
     }
   }, [initialSellerId]);
 
+  const getErrorMessage = (err: any): string => {
+    const details = getAuthErrorDetails(err, 'Login failed. Please try again.');
+    return `${details.title}: ${details.message}`;
+  };
+
+  const validateLogin = (): string | null => {
+    if (!email.trim()) {
+      return 'Please enter your email address.';
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return 'Please enter a valid email address.';
+    }
+    if (!password.trim()) {
+      return 'Please enter your password.';
+    }
+    return null;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    const validationError = validateLogin();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     try {
       await login(email.trim(), password.trim());
     } catch (err: any) {
-      if (err.message === 'Network Error') {
-        setError('Connection to backend failed. Make sure the server is running on port 5000.');
-      } else {
-        setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
-      }
+      setError(getErrorMessage(err));
     }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError('');
+    setResetLoading(true);
+
+    if (!resetEmail.trim()) {
+      setResetError('Please enter your email address.');
+      setResetLoading(false);
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetEmail)) {
+      setResetError('Please enter a valid email address.');
+      setResetLoading(false);
+      return;
+    }
+
+    try {
+      await authAPI.forgotPassword(resetEmail.trim());
+      setResetError('');
+      setShowForgotPasswordModal(false);
+      setResetStep('otp');
+    } catch (err: any) {
+      setResetError(getErrorMessage(err));
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError('');
+    setResetLoading(true);
+
+    if (!otp.trim() || otp.length !== 6) {
+      setResetError('Please enter a valid 6-digit code.');
+      setResetLoading(false);
+      return;
+    }
+
+    try {
+      const response = await authAPI.verifyOTP(resetEmail.trim(), otp.trim());
+      setResetToken(response.resetToken);
+      setResetError('');
+      setResetStep('newPassword');
+    } catch (err: any) {
+      setResetError(getErrorMessage(err));
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError('');
+    setResetLoading(true);
+
+    if (newPassword.length < 6) {
+      setResetError('Password must be at least 6 characters.');
+      setResetLoading(false);
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setResetError('Passwords do not match. Please try again.');
+      setResetLoading(false);
+      return;
+    }
+
+    try {
+      await authAPI.resetPassword(resetToken, newPassword);
+      setResetError('');
+      setResetStep('success');
+    } catch (err: any) {
+      setResetError(getErrorMessage(err));
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const closeResetModal = () => {
+    setResetStep('email');
+    setResetEmail('');
+    setOtp('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setResetToken('');
+    setResetError('');
+    setError('');
+    setShowForgotPasswordModal(false);
   };
 
   // If user is logged in and is a customer, check if we need store selection
@@ -62,7 +191,8 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
     }
   }, [user, initialSellerId, selectStore]);
 
-  const themePrimary = storeInfo?.theme?.primaryColor || '#2563eb'; // Default blue-600
+  const themePrimary = vipTheme?.primary || '#2563eb';
+  const themeSecondary = vipTheme?.secondary || '#1e1b4b';
 
   if (showStoreSelection && user && user.stores) {
     return (
@@ -115,19 +245,20 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
   }
 
   const getThemeStyles = () => {
-    if (!storeInfo?.theme?.primaryColor) return {};
+    if (!vipTheme) return {};
     return {
-      '--theme-primary': storeInfo.theme.primaryColor,
-      '--theme-primary-hover': storeInfo.theme.secondaryColor || storeInfo.theme.primaryColor,
+      '--theme-primary': themePrimary,
+      '--theme-primary-hover': themeSecondary,
+      '--vip-surface': vipTheme.surface,
     } as React.CSSProperties;
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-white" style={getThemeStyles()}>
+    <div className={`min-h-screen flex flex-col md:flex-row bg-white ${vipTheme ? 'vip-auth-shell' : ''}`} data-vip-theme={vipTheme?.id} style={getThemeStyles()}>
       {/* Left Side - Branding & Illustration */}
       <div 
-        className="hidden md:flex md:w-1/2 p-12 text-white flex-col justify-between relative overflow-hidden"
-        style={{ background: `linear-gradient(to bottom right, ${themePrimary}, ${storeInfo?.theme?.secondaryColor || '#1e1b4b'})` }}
+        className="vip-auth-brand-panel hidden md:flex md:w-1/2 p-12 text-white flex-col justify-between relative overflow-hidden"
+        style={{ background: `linear-gradient(145deg, ${themeSecondary}, ${themePrimary})` }}
       >
         <div className="relative z-10">
           <div className="flex items-center space-x-2 mb-12">
@@ -138,14 +269,14 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
                 <img src="/logo.png" alt="Iyonicorp Logo" className="w-8 h-8 object-contain" />
               </div>
             )}
-            <span className="text-2xl font-bold tracking-tight">{storeInfo?.storeName || 'Iyonicorp'}</span>
+            <span className="text-2xl font-bold tracking-tight">{storeInfo?.storeName || vipTheme?.name || 'Iyonicorp'}</span>
           </div>
           
           <h2 className="text-5xl font-extrabold leading-tight mb-6">
-            {storeInfo ? `Welcome to ${storeInfo.storeName}` : 'The future of e-commerce is here.'}
+            {vipTheme ? vipTheme.headline : storeInfo ? `Welcome to ${storeInfo.storeName}` : 'The future of e-commerce is here.'}
           </h2>
           <p className="text-xl text-blue-100 max-w-lg mb-8">
-            {storeInfo 
+            {vipTheme ? vipTheme.description : storeInfo 
               ? `Sign in to access your account at ${storeInfo.storeName}, track orders, and manage your profile.`
               : 'Empowering thousands of businesses to grow, manage, and scale their online presence with ease.'}
           </p>
@@ -156,8 +287,8 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
                 <Shield className="w-6 h-6" />
               </div>
               <div>
-                <p className="font-semibold text-white">Enterprise Security</p>
-                <p className="text-sm text-blue-200">Bank-grade protection for your data</p>
+                <p className="font-semibold text-white">{vipTheme ? `${vipTheme.name} workspace` : 'Enterprise Security'}</p>
+                <p className="text-sm text-blue-200">{vipTheme ? 'Your tailored tools are ready after sign-in.' : 'Bank-grade protection for your data'}</p>
               </div>
             </div>
             <div className="flex items-center space-x-3 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20">
@@ -165,8 +296,8 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
                 <Users className="w-6 h-6" />
               </div>
               <div>
-                <p className="font-semibold text-white">Multi-vendor Support</p>
-                <p className="text-sm text-blue-200">Manage everything from one dashboard</p>
+                <p className="font-semibold text-white">{vipTheme ? 'Built around your work' : 'Multi-vendor Support'}</p>
+                <p className="text-sm text-blue-200">{vipTheme ? 'A focused space for the way your business runs.' : 'Manage everything from one dashboard'}</p>
               </div>
             </div>
           </div>
@@ -186,7 +317,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
       </div>
 
       {/* Right Side - Login Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-gray-50/50">
+      <div className="vip-auth-form-panel flex-1 flex items-center justify-center p-8 bg-gray-50/50">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="md:hidden flex items-center justify-center space-x-2 mb-8" style={{ color: themePrimary }}>
@@ -197,12 +328,12 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
                 <img src="/logo.png" alt="Iyonicorp Logo" className="w-8 h-8 object-contain" />
               </div>
             )}
-            <span className="text-2xl font-bold">{storeInfo?.storeName || 'Iyonicorp'}</span>
+            <span className="text-2xl font-bold">{storeInfo?.storeName || vipTheme?.name || 'Iyonicorp'}</span>
           </div>
 
           <div className="mb-10 text-center md:text-left">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h1>
-            <p className="text-gray-500">Enter your credentials to access your account</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{vipTheme ? `Welcome back to ${vipTheme.name}` : 'Welcome Back'}</h1>
+            <p className="text-gray-500">{vipTheme ? vipTheme.description : 'Enter your credentials to access your account'}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -220,9 +351,14 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-semibold text-gray-700">Password</label>
-                  <a href="#" className="text-xs font-semibold hover:opacity-80 transition-colors" style={{ color: themePrimary }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPasswordModal(true)}
+                    className="text-xs font-semibold hover:opacity-80 transition-colors"
+                    style={{ color: themePrimary }}
+                  >
                     Forgot Password?
-                  </a>
+                  </button>
                 </div>
                 <div className="relative">
                   <Input
@@ -289,6 +425,175 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
           )}
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {resetStep !== 'email' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md p-8 bg-white">
+            {resetStep === 'otp' && (
+              <>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <KeyRound className="w-8 h-8 text-indigo-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email</h2>
+                  <p className="text-gray-500">Enter the 6-digit code sent to {resetEmail}</p>
+                </div>
+                <form onSubmit={handleVerifyOTP} className="space-y-4">
+                  <Input
+                    label="Verification Code"
+                    type="text"
+                    placeholder="000000"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    maxLength={6}
+                    required
+                    className="bg-white border-gray-200 text-center text-2xl tracking-widest"
+                  />
+                  {resetError && (
+                    <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm">
+                      {resetError}
+                    </div>
+                  )}
+                  <Button
+                    type="submit"
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl"
+                    isLoading={resetLoading}
+                  >
+                    Verify Code
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetStep('email');
+                      setShowForgotPasswordModal(true);
+                    }}
+                    className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    Back to Email
+                  </button>
+                </form>
+              </>
+            )}
+
+            {resetStep === 'newPassword' && (
+              <>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <KeyRound className="w-8 h-8 text-green-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Set New Password</h2>
+                  <p className="text-gray-500">Enter your new password below</p>
+                </div>
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <Input
+                    label="New Password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    className="bg-white border-gray-200"
+                    rightIcon={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    }
+                  />
+                  <Input
+                    label="Confirm New Password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    required
+                    className="bg-white border-gray-200"
+                  />
+                  {resetError && (
+                    <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm">
+                      {resetError}
+                    </div>
+                  )}
+                  <Button
+                    type="submit"
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl"
+                    isLoading={resetLoading}
+                  >
+                    Reset Password
+                  </Button>
+                </form>
+              </>
+            )}
+
+            {resetStep === 'success' && (
+              <>
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Check className="w-8 h-8 text-green-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Password Reset!</h2>
+                  <p className="text-gray-500">Your password has been reset successfully. You can now sign in with your new password.</p>
+                </div>
+                <Button
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl"
+                  onClick={closeResetModal}
+                >
+                  Back to Sign In
+                </Button>
+              </>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Forgot Password Email Form - shown when clicking Forgot Password */}
+      {showForgotPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md p-8 bg-white">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Mail className="w-8 h-8 text-indigo-600" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Reset Password</h2>
+              <p className="text-gray-500">Enter your email to receive a reset code</p>
+            </div>
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <Input
+                label="Email Address"
+                type="email"
+                placeholder="you@example.com"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                required
+                className="bg-white border-gray-200"
+              />
+              {resetError && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm">
+                  {resetError}
+                </div>
+              )}
+              <Button
+                type="submit"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl"
+                isLoading={resetLoading}
+              >
+                Send Reset Code
+              </Button>
+              <button
+                type="button"
+                onClick={() => setShowForgotPasswordModal(false)}
+                className="w-full text-center text-sm text-gray-500 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+            </form>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

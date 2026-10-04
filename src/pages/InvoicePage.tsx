@@ -249,6 +249,7 @@ const InvoicePage: React.FC = () => {
   const [customAmount, setCustomAmount] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'card'>(isAuthenticated ? 'wallet' : 'card');
   const hasAutoPaid = useRef(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     const autoPay = searchParams.get('autoPay') === 'true';
@@ -430,28 +431,30 @@ const InvoicePage: React.FC = () => {
     else handleCardPay();
   };
 
-  const PaymentForm = (isGlass = false, isBrutal = false, isTerminal = false, isMinimal = false) => {
+  const PaymentForm = (isGlass = false, isBrutal = false, isTerminal = false, isMinimal = false, isMagma = false) => {
     const inputClass = isGlass 
       ? "w-full bg-white/10 border-white/20 rounded-2xl px-14 py-5 text-white font-bold focus:ring-4 ring-white/10 transition-all placeholder:text-white/20"
       : isBrutal
       ? "w-full bg-white border-4 border-black px-14 py-5 text-black font-black focus:bg-[#FFDE00] transition-all placeholder:text-black/30"
       : isTerminal
       ? "w-full bg-black border border-[#00FF41]/30 rounded-lg px-14 py-5 text-[#00FF41] font-mono focus:ring-4 ring-[#00FF41]/10 transition-all placeholder:text-[#00FF41]/20"
+      : isMagma
+      ? "w-full bg-[#1a0505] border-2 border-red-900/60 rounded-2xl px-14 py-5 text-red-100 font-black focus:border-orange-500 focus:ring-4 ring-red-600/20 transition-all placeholder:text-red-300/50"
       : isMinimal
       ? "w-full bg-transparent border-b-2 border-gray-100 py-6 text-2xl font-black focus:border-gray-900 transition-all placeholder:text-gray-200 outline-none"
       : "w-full bg-gray-50 border-0 rounded-2xl px-14 py-5 text-gray-900 font-bold focus:ring-4 ring-indigo-50 transition-all placeholder:text-gray-300";
 
-    const labelClass = isTerminal ? "text-[#00FF41]/50 text-[10px] font-black uppercase tracking-[0.2em] ml-1" : "text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] ml-1";
+    const labelClass = isTerminal ? "text-[#00FF41]/50 text-[10px] font-black uppercase tracking-[0.2em] ml-1" : isMagma ? "text-red-300 text-[10px] font-black uppercase tracking-[0.2em] ml-1" : "text-gray-400 text-[10px] font-black uppercase tracking-[0.2em] ml-1";
 
     return (
       <div className="space-y-8">
         {isAuthenticated && (
-          <div className={`flex ${isGlass ? 'bg-white/5 border-white/10' : isBrutal ? 'bg-black p-1' : isTerminal ? 'bg-[#050505] border-[#00FF41]/20' : 'bg-gray-50 border-gray-100'} p-1.5 rounded-2xl border mb-8`}>
-            <button onClick={() => setPaymentMethod('wallet')} className={`flex-1 py-4 rounded-xl text-sm font-black transition-all flex items-center justify-center space-x-2 ${paymentMethod === 'wallet' ? (isGlass ? 'bg-white/20 text-white' : isBrutal ? 'bg-blue-400 text-black border-4 border-black' : isTerminal ? 'bg-[#00FF41]/20 text-[#00FF41]' : 'bg-white text-indigo-600 shadow-sm') : (isGlass ? 'text-white/40 hover:text-white' : isBrutal ? 'text-white' : isTerminal ? 'text-[#00FF41]/30' : 'text-gray-400')}`}>
+          <div className={`flex ${isGlass ? 'bg-white/5 border-white/10' : isBrutal ? 'bg-black p-1' : isTerminal ? 'bg-[#050505] border-[#00FF41]/20' : isMagma ? 'bg-red-950/30 border-red-900/60' : 'bg-gray-50 border-gray-100'} p-1.5 rounded-2xl border mb-8`}>
+            <button onClick={() => setPaymentMethod('wallet')} className={`flex-1 py-4 rounded-xl text-sm font-black transition-all flex items-center justify-center space-x-2 ${paymentMethod === 'wallet' ? (isGlass ? 'bg-white/20 text-white' : isBrutal ? 'bg-blue-400 text-black border-4 border-black' : isTerminal ? 'bg-[#00FF41]/20 text-[#00FF41]' : isMagma ? 'bg-red-600 text-white shadow-[0_0_18px_rgba(220,38,38,0.35)]' : 'bg-white text-indigo-600 shadow-sm') : (isGlass ? 'text-white/40 hover:text-white' : isBrutal ? 'text-white' : isTerminal ? 'text-[#00FF41]/30' : isMagma ? 'text-red-300 hover:text-red-100' : 'text-gray-400')}`}>
               <Wallet className="w-5 h-5" />
               <span>Wallet</span>
             </button>
-            <button onClick={() => setPaymentMethod('card')} className={`flex-1 py-4 rounded-xl text-sm font-black transition-all flex items-center justify-center space-x-2 ${paymentMethod === 'card' ? (isGlass ? 'bg-white/20 text-white' : isBrutal ? 'bg-blue-400 text-black border-4 border-black' : isTerminal ? 'bg-[#00FF41]/20 text-[#00FF41]' : 'bg-white text-indigo-600 shadow-sm') : (isGlass ? 'text-white/40 hover:text-white' : isBrutal ? 'text-white' : isTerminal ? 'text-[#00FF41]/30' : 'text-gray-400')}`}>
+            <button onClick={() => setPaymentMethod('card')} className={`flex-1 py-4 rounded-xl text-sm font-black transition-all flex items-center justify-center space-x-2 ${paymentMethod === 'card' ? (isGlass ? 'bg-white/20 text-white' : isBrutal ? 'bg-blue-400 text-black border-4 border-black' : isTerminal ? 'bg-[#00FF41]/20 text-[#00FF41]' : isMagma ? 'bg-red-600 text-white shadow-[0_0_18px_rgba(220,38,38,0.35)]' : 'bg-white text-indigo-600 shadow-sm') : (isGlass ? 'text-white/40 hover:text-white' : isBrutal ? 'text-white' : isTerminal ? 'text-[#00FF41]/30' : isMagma ? 'text-red-300 hover:text-red-100' : 'text-gray-400')}`}>
               <CreditCard className="w-5 h-5" />
               <span>Card</span>
             </button>
@@ -462,7 +465,7 @@ const InvoicePage: React.FC = () => {
             <div className="space-y-3">
               <label className={labelClass}>Amount ({invoice?.currency || 'USD'})</label>
               <div className="relative">
-                <span className={`absolute ${isMinimal ? 'left-0' : 'left-6'} top-1/2 -translate-y-1/2 w-10 h-10 ${isTerminal ? 'text-[#00FF41]' : isGlass ? 'text-white' : 'text-gray-300'} opacity-30 font-black flex items-center justify-center text-xs`}>
+                <span className={`absolute ${isMinimal ? 'left-0' : 'left-6'} top-1/2 -translate-y-1/2 w-10 h-10 ${isTerminal ? 'text-[#00FF41]' : isMagma ? 'text-red-300' : isGlass ? 'text-white' : 'text-gray-300'} opacity-70 font-black flex items-center justify-center text-xs`}>
                   {invoice?.currency === 'KES' ? 'KSh' : 
                    invoice?.currency === 'EUR' ? '€' : 
                    invoice?.currency === 'GBP' ? '£' : 
@@ -480,19 +483,20 @@ const InvoicePage: React.FC = () => {
           <div className="space-y-3">
             <label className={labelClass}>Name</label>
             <div className="relative">
-              <User className={`absolute ${isMinimal ? 'left-0' : 'left-6'} top-1/2 -translate-y-1/2 w-5 h-5 ${isTerminal ? 'text-[#00FF41]' : isGlass ? 'text-white' : 'text-gray-300'} opacity-30`} />
+              <User className={`absolute ${isMinimal ? 'left-0' : 'left-6'} top-1/2 -translate-y-1/2 w-5 h-5 ${isTerminal ? 'text-[#00FF41]' : isMagma ? 'text-red-500' : isGlass ? 'text-white' : 'text-gray-300'} opacity-60`} />
               <input type="text" placeholder="Full name" value={payerInfo.name} onChange={(e) => setPayerInfo({...payerInfo, name: e.target.value})} className={inputClass} />
             </div>
           </div>
           <div className="space-y-3">
             <label className={labelClass}>Email</label>
             <div className="relative">
-              <Mail className={`absolute ${isMinimal ? 'left-0' : 'left-6'} top-1/2 -translate-y-1/2 w-5 h-5 ${isTerminal ? 'text-[#00FF41]' : isGlass ? 'text-white' : 'text-gray-300'} opacity-30`} />
+              <Mail className={`absolute ${isMinimal ? 'left-0' : 'left-6'} top-1/2 -translate-y-1/2 w-5 h-5 ${isTerminal ? 'text-[#00FF41]' : isMagma ? 'text-red-500' : isGlass ? 'text-white' : 'text-gray-300'} opacity-60`} />
               <input type="email" placeholder="Email address" value={payerInfo.email} onChange={(e) => setPayerInfo({...payerInfo, email: e.target.value})} className={inputClass} />
             </div>
           </div>
         </div>
-        <Button onClick={handlePay} isLoading={paying} className={`w-full font-black py-6 rounded-[2rem] shadow-2xl flex items-center justify-center space-x-3 transition-all transform active:scale-[0.98] ${isGlass ? 'bg-white text-black hover:bg-gray-100 shadow-white/10' : isBrutal ? 'bg-[#FFDE00] text-black border-[6px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:bg-[#FFD700]' : isTerminal ? 'bg-[#00FF41] text-black hover:bg-[#00D437] shadow-[0_0_20px_rgba(0,255,65,0.4)]' : isMinimal ? 'bg-gray-900 text-white hover:bg-black py-8 rounded-none' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100'}`}>
+        {error && <p role="alert" className={`rounded-xl border px-4 py-3 text-sm font-bold ${isMagma ? 'border-red-500/40 bg-red-950/70 text-red-200' : 'border-red-100 bg-red-50 text-red-600'}`}>{error}</p>}
+        <Button onClick={handlePay} isLoading={paying} className={`w-full font-black py-6 rounded-[2rem] shadow-2xl flex items-center justify-center space-x-3 transition-all transform active:scale-[0.98] ${isGlass ? 'bg-white text-black hover:bg-gray-100 shadow-white/10' : isBrutal ? 'bg-[#FFDE00] text-black border-[6px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:bg-[#FFD700]' : isTerminal ? 'bg-[#00FF41] text-black hover:bg-[#00D437] shadow-[0_0_20px_rgba(0,255,65,0.4)]' : isMagma ? 'bg-gradient-to-r from-red-600 via-orange-500 to-red-600 text-white hover:from-red-500 hover:to-orange-400 shadow-[0_0_30px_rgba(220,38,38,0.35)]' : isMinimal ? 'bg-gray-900 text-white hover:bg-black py-8 rounded-none' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-100'}`}>
           {paymentMethod === 'wallet' ? (
             <>
               <Zap className="w-6 h-6 fill-current" />
@@ -1420,7 +1424,7 @@ const InvoicePage: React.FC = () => {
               <h3 className="text-2xl font-black text-red-500 uppercase tracking-[0.4em] mb-4">Execute Settlement</h3>
               <div className="h-1 w-24 bg-gradient-to-r from-transparent via-red-600 to-transparent mx-auto rounded-full"></div>
             </div>
-            {PaymentForm(false, false, false, true)}
+            {PaymentForm(false, false, false, false, true)}
             <p className="mt-12 text-center text-[10px] font-black text-red-900 uppercase tracking-[0.5em] italic">Core Transaction Protocol v4.0</p>
           </div>
         </div>
@@ -1429,8 +1433,6 @@ const InvoicePage: React.FC = () => {
   );
 
   const ExclusiveLayout = () => {
-    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-    
     return (
       <div 
         className="min-h-screen py-20 px-4 flex items-center justify-center bg-[#050505] overflow-hidden relative font-serif"
@@ -1757,14 +1759,16 @@ const InvoicePage: React.FC = () => {
               Continue Shopping
             </Button>
           </div>
+          {RefundPopup()}
         </motion.div>
       </div>
     );
   }
 
 // Custom inline refund modal to avoid z-index issues
-  const RefundPopup = () => (
-    <Popup isOpen={showRefundPopup} onClose={() => setShowRefundPopup(false)} title="Request Refund">
+  function RefundPopup() {
+    return (
+      <Popup isOpen={showRefundPopup} onClose={() => setShowRefundPopup(false)} title="Request Refund">
       {refundSuccess ? (
         <div className="text-center py-8">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -1837,8 +1841,9 @@ const InvoicePage: React.FC = () => {
           </div>
         </div>
       )}
-    </Popup>
-  );
+      </Popup>
+    );
+  }
 
   return (
     <div className={`min-h-screen ${currentTheme.bg} ${currentTheme.font} transition-all duration-1000 overflow-x-hidden relative`}>

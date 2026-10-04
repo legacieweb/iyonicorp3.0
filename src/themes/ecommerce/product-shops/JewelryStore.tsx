@@ -9,11 +9,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import ThemeMedia from '../../../components/ThemeMedia';
 
 interface ThemeProps {
   seller: Seller;
   products: Product[];
   editMode?: boolean;
+  hideInlineEditor?: boolean;
   sellerData?: Seller;
   onUpdateData?: (fieldPath: string, value: any) => void;
   onUpdateThemeCustomization?: (section: string, field: string, value: any) => void;
@@ -79,6 +81,7 @@ const JewelryStore: React.FC<ThemeProps> = ({
   seller: initialSeller,
   products,
   editMode = false,
+  hideInlineEditor = false,
   sellerData,
   onUpdateData,
   onUpdateThemeCustomization,
@@ -170,7 +173,7 @@ const JewelryStore: React.FC<ThemeProps> = ({
   return (
     <div className="min-h-screen font-serif" style={{ backgroundColor: customizations.mainBgColor || '#050505', color: customizations.mainTextColor || '#ffffff' }}>
       {/* Modern Live Editor */}
-      {editMode && (
+      {editMode && !hideInlineEditor && (
         <div className="fixed top-0 left-0 right-0 z-[100] bg-white/90 backdrop-blur-xl border-b border-gray-200 px-6 py-3 shadow-lg overflow-x-auto scrollbar-hide">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-8 whitespace-nowrap text-gray-900">
             <div className="flex items-center gap-3 shrink-0">
@@ -322,7 +325,7 @@ const JewelryStore: React.FC<ThemeProps> = ({
               </button>
               {!user ? (
                 <button 
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate(`/login?shop=${encodeURIComponent(seller.id)}&subdomain=${encodeURIComponent(seller.subdomain)}`)}
                   className="px-8 py-3 border border-white/20 text-white text-[9px] font-black uppercase tracking-[0.3em] hover:bg-white hover:text-black transition-all"
                 >
                   Account
@@ -343,7 +346,7 @@ const JewelryStore: React.FC<ThemeProps> = ({
           {!customizations.hideHero && (
             <section className="relative h-screen flex items-center justify-center overflow-hidden">
               <div className="absolute inset-0 z-0">
-                <img 
+                <ThemeMedia 
                   src={customizations.heroImage || "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?q=80&w=2070&auto=format&fit=crop"} 
                   className="w-full h-full object-cover opacity-50 scale-105 animate-slow-zoom"
                   alt="Jewelry Hero"
@@ -450,7 +453,7 @@ const JewelryStore: React.FC<ThemeProps> = ({
                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row items-center gap-24">
                   <div className="lg:w-1/2 relative group">
                      <div className="aspect-[4/5] overflow-hidden border border-white/5">
-                        <img 
+                        <ThemeMedia
                           src={customizations.storyImage || "https://images.unsplash.com/photo-1573408302355-a9d35b79bb6d?q=80&w=1924&auto=format&fit=crop"} 
                           className="w-full h-full object-cover opacity-80 transition-transform duration-700 group-hover:scale-110" 
                           alt="Craftsmanship" 

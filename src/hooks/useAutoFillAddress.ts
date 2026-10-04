@@ -6,36 +6,29 @@ export const useAutoFillAddress = (setCheckoutData: (data: any) => void) => {
   const { user } = useAuth();
 
   useEffect(() => {
-    const fetchAndAutoFill = async () => {
-      if (user) {
-        // Initial user basic info
-        setCheckoutData((prev: any) => ({
-          ...prev,
-          name: user.name || (user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : ''),
-          email: user.email || '',
-          phoneNumber: user.phoneNumber || ''
-        }));
+    if (user) {
+      // Auto-fill contact info from logged-in user
+      setCheckoutData((prev: any) => ({
+        ...prev,
+        name: user.name || (user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : ''),
+        email: user.email || '',
+        phone: user.phoneNumber || ''
+      }));
 
-        try {
-          // Fetch saved addresses
-          const addresses = await userAPI.getAddresses();
+      // Fetch saved addresses if available
+      userAPI.getAddresses()
+        .then(addresses => {
           if (addresses && addresses.length > 0) {
             const primary = addresses.find(a => a.isDefault) || addresses[0];
+            const fullAddress = [primary.street, primary.city, primary.state, primary.country, primary.zipCode]
+              .filter(Boolean).join(', ');
             setCheckoutData((prev: any) => ({
               ...prev,
-              street: primary.street || prev.street,
-              city: primary.city || prev.city,
-              state: primary.state || prev.state,
-              country: primary.country || prev.country,
-              zipCode: primary.zipCode || prev.zipCode
+              address: fullAddress || prev.address
             }));
           }
-        } catch (err) {
-          console.error('Failed to auto-fill address:', err);
-        }
-      }
-    };
-
-    fetchAndAutoFill();
+        })
+        .catch(err => console.error('Failed to auto-fill address:', err));
+    }
   }, [user, setCheckoutData]);
 };

@@ -25,9 +25,10 @@ import {
   RotateCcw,
   AlertCircle
 } from 'lucide-react';
-import { ordersAPI, api, userAPI } from '../../services/api';
+import { ordersAPI, api, sellersAPI, userAPI } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 import { formatPrice } from '../../utils/currency';
+import { getThemeClientDashboardRoute } from '../../utils/themeDashboard';
 
 const CustomerDashboard: React.FC = () => {
   const { user, selectStore, logout } = useAuth();
@@ -38,6 +39,13 @@ const CustomerDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selectedStore, setSelectedStore] = useState<any>(null);
   const navigate = useNavigate();
+
+  const normalizeOrder = (order: any) => ({
+    ...order,
+    total: Number(order.total) || 0,
+    amountPaid: Number(order.amountPaid) || 0,
+    remainingBalance: Number(order.remainingBalance) || 0,
+  });
 
   // Profile and Address states
   const [profileData, setProfileData] = useState({
@@ -191,11 +199,26 @@ const CustomerDashboard: React.FC = () => {
     }
   }, [user?.sellerId, user?.stores]);
 
+  useEffect(() => {
+    if (user?.role !== 'customer' || !user?.sellerId) return;
+
+    let active = true;
+    sellersAPI.getPublicById(user.sellerId).then((seller) => {
+      if (!active) return;
+      const themeRoute = getThemeClientDashboardRoute(seller.themeId || seller.theme?.selectedTheme);
+      if (themeRoute !== '/customer/dashboard' && window.location.pathname.startsWith('/customer')) {
+        navigate(themeRoute, { replace: true });
+      }
+    }).catch(() => {});
+
+    return () => { active = false; };
+  }, [user, navigate]);
+
   const fetchOrders = async (sellerId: string) => {
     setLoading(true);
     try {
       const res = await ordersAPI.getBySellerId(sellerId);
-      setOrders(res);
+      setOrders(res.map(normalizeOrder));
     } catch (err) {
       console.error('Failed to fetch orders:', err);
     } finally {
@@ -207,7 +230,7 @@ const CustomerDashboard: React.FC = () => {
     setLoading(true);
     try {
       const res = await ordersAPI.getAll();
-      setOrders(res);
+      setOrders(res.map(normalizeOrder));
     } catch (err) {
       console.error('Failed to fetch all orders:', err);
     } finally {
@@ -484,7 +507,14 @@ const CustomerDashboard: React.FC = () => {
                                 <td className="px-6 py-4 text-sm text-gray-600">
                                   {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
                                 </td>
-                                <td className="px-6 py-4 text-sm font-bold text-gray-900">{formatPrice(parseFloat(order.total), order.currency || selectedStore?.storeCurrency || 'USD')}</td>
+                                <td className="px-6 py-4 text-sm font-bold text-gray-900">
+                                  {formatPrice(parseFloat(order.total), order.currency || selectedStore?.storeCurrency || 'USD')}
+                                  {order.paymentType === 'deposit' && order.remainingBalance > 0 && (
+                                    <span className="block text-xs font-medium text-orange-600">
+                                      {formatPrice(order.remainingBalance, order.currency || selectedStore?.storeCurrency || 'USD')} remaining
+                                    </span>
+                                  )}
+                                </td>
                                 <td className="px-6 py-4">
                                   <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(order.status)}`}>
                                     {order.status}
@@ -569,10 +599,15 @@ const CustomerDashboard: React.FC = () => {
                             </div>
                           </div>
                           
-                          <div className="flex items-center justify-between lg:justify-end lg:space-x-8 border-t lg:border-t-0 pt-4 lg:pt-0">
+                            <div className="flex items-center justify-between lg:justify-end lg:space-x-8 border-t lg:border-t-0 pt-4 lg:pt-0">
                             <div className="text-right">
                               <p className="text-xs text-gray-500 font-medium uppercase">Total Amount</p>
                               <p className="text-xl font-black text-gray-900">{formatPrice(parseFloat(order.total), order.currency || selectedStore?.storeCurrency || 'USD')}</p>
+                              {order.paymentType === 'deposit' && order.remainingBalance > 0 && (
+                                <p className="text-sm text-orange-600 mt-1">
+                                  Paid: {formatPrice(order.amountPaid || 0, order.currency || 'USD')} | Remaining: {formatPrice(order.remainingBalance, order.currency || 'USD')}
+                                </p>
+                              )}
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2">
                               <Button 

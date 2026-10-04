@@ -1,100 +1,75 @@
 import React from 'react';
-import { Hexagon, MapPin, Clock, ArrowRight, ChevronRight } from 'lucide-react';
+import { ArrowRight, Code2, Headphones, Layers, Palette, Sparkles } from 'lucide-react';
 import SEO from '../../components/SEO';
-import { Button } from '../../components/ui';
+import { StaticPageLayout } from './StaticPageLayout';
 
-const jobOpenings = [
-  { title: 'Senior Frontend Engineer', department: 'Engineering', location: 'Remote', type: 'Full-time' },
-  { title: 'Backend Engineer', department: 'Engineering', location: 'Remote', type: 'Full-time' },
-  { title: 'Product Designer', department: 'Design', location: 'Remote', type: 'Full-time' },
-  { title: 'DevOps Engineer', department: 'Infrastructure', location: 'Remote', type: 'Full-time' },
-  { title: 'Customer Success Manager', department: 'Support', location: 'Remote', type: 'Full-time' },
-  { title: 'Technical Writer', department: 'Documentation', location: 'Remote', type: 'Contract' },
+const roleAreas = [
+  { icon: Code2, title: 'Engineering', description: 'Build resilient product experiences, platform services, and integrations.' },
+  { icon: Palette, title: 'Product and design', description: 'Make complex commerce workflows clear, coherent, and accessible.' },
+  { icon: Headphones, title: 'Customer experience', description: 'Help sellers solve real problems and bring their feedback back to the team.' },
+  { icon: Layers, title: 'Operations', description: 'Improve the systems that help a growing platform run reliably.' },
 ];
 
 const Careers: React.FC = () => {
   return (
-    <div className="min-h-screen bg-white">
-      <SEO 
-        title="Careers" 
-        description="Join the Iyonicorp team and help build the future of modular commerce." 
-      />
-      <nav className="border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 flex items-center justify-center">
-                <img src="/logo.png" alt="Iyonicorp Logo" className="w-10 h-10 object-contain" />
-              </div>
-              <a href="/" className="text-xl font-black tracking-tighter">IYONICORP</a>
-            </div>
-            <a href="/" className="text-sm font-bold text-gray-600 hover:text-gray-900">Back to Home</a>
-          </div>
-        </div>
-      </nav>
+    <>
+      <SEO title="Careers at Iyonicorp" description="Explore the kinds of work that shape Iyonicorp and how to reach our team about future opportunities." />
+      <StaticPageLayout
+        title="Build tools that make business feel possible."
+        eyebrow="Company / Careers"
+        description="We’re working on the connected systems behind modern commerce. Bring curiosity, care for the details, and a bias toward making useful things."
+        icon={Sparkles}
+      >
+        <div className="grid gap-16 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <div>
+            <section>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">The work</p>
+              <h2 className="mt-3 max-w-2xl text-3xl font-bold leading-tight text-gray-950">Good commerce software is a team sport.</h2>
+              <p className="mt-5 max-w-3xl text-lg leading-8 text-gray-600">Every improvement touches more than a screen. It can change how a seller runs a day, how a customer gets help, or how a team understands its next decision. We value people who can connect those details and make the whole experience better.</p>
+            </section>
 
-      <div className="max-w-4xl mx-auto px-6 py-20">
-        <h1 className="text-5xl lg:text-6xl font-black text-gray-900 mb-8">Careers at Iyonicorp</h1>
-        
-        <p className="text-xl text-gray-600 mb-12">
-          Join our team and help build the future of commerce. We're looking for passionate 
-          people who want to make a difference.
-        </p>
-
-        <div className="mb-16">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Why Join Us?</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              { title: 'Remote-First', desc: 'Work from anywhere' },
-              { title: 'Competitive Pay', desc: 'Industry-leading salaries' },
-              { title: 'Health Benefits', desc: 'Full medical & dental' }
-            ].map((item, i) => (
-              <div key={i} className="bg-gray-50 p-6 rounded-2xl">
-                <h3 className="font-bold text-gray-900 mb-2">{item.title}</h3>
-                <p className="text-gray-500 text-sm">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Open Positions</h2>
-          <div className="space-y-4">
-            {jobOpenings.map((job, i) => (
-              <div key={i} className="border border-gray-200 p-6 rounded-2xl hover:border-gray-400 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-xl text-gray-900 mb-2">{job.title}</h3>
-                    <div className="flex items-center space-x-4 text-gray-500">
-                      <span>{job.department}</span>
-                      <span>•</span>
-                      <span className="flex items-center"><MapPin className="w-4 h-4 mr-1" />{job.location}</span>
-                      <span>•</span>
-                      <span className="flex items-center"><Clock className="w-4 h-4 mr-1" />{job.type}</span>
-                    </div>
+            <section className="mt-16 border-t border-gray-200 pt-10">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Where you can contribute</p>
+              <h2 className="mt-3 text-2xl font-bold text-gray-950">Explore the kinds of problems we work on</h2>
+              <div className="mt-6 divide-y divide-gray-200 border-y border-gray-200">
+                {roleAreas.map(({ icon: Icon, title, description }) => (
+                  <div key={title} className="grid gap-4 py-5 sm:grid-cols-[2rem_12rem_1fr] sm:items-center">
+                    <Icon className="h-5 w-5 text-blue-700" aria-hidden="true" />
+                    <h3 className="font-bold text-gray-950">{title}</h3>
+                    <p className="leading-6 text-gray-600">{description}</p>
                   </div>
-                  <ChevronRight className="w-6 h-6 text-gray-400" />
-                </div>
+                ))}
               </div>
-            ))}
+            </section>
+
+            <section className="mt-16">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">What matters here</p>
+              <div className="mt-6 grid gap-x-10 divide-y divide-gray-200 border-y border-gray-200 sm:grid-cols-3 sm:divide-y-0">
+                {[
+                  { title: 'Useful over flashy', text: 'Solve a real problem clearly, then keep improving it.' },
+                  { title: 'Own the outcome', text: 'Follow the work through details, delivery, and feedback.' },
+                  { title: 'Make room for people', text: 'Build with care for the different people using the product.' },
+                ].map((value) => <div key={value.title} className="py-6 sm:border-b sm:border-gray-200"><h3 className="font-bold text-gray-950">{value.title}</h3><p className="mt-2 text-sm leading-6 text-gray-600">{value.text}</p></div>)}
+              </div>
+            </section>
+
+            <section className="mt-16 border-l-4 border-blue-700 bg-blue-50/70 p-6 sm:p-8">
+              <p className="text-xs font-bold uppercase tracking-wider text-blue-800">Current openings</p>
+              <h2 className="mt-2 text-xl font-bold text-gray-950">No roles are listed here right now.</h2>
+              <p className="mt-3 max-w-2xl leading-7 text-gray-600">We’ll use this page to share opportunities when they’re open. For now, you can contact our team with a short note about the kind of work you do and the problems you care about.</p>
+              <a href="mailto:support@iyonicorp.com?subject=Career%20inquiry" className="mt-5 inline-flex items-center gap-2 font-bold text-blue-800 hover:text-blue-950">Contact the team <ArrowRight className="h-4 w-4" /></a>
+            </section>
           </div>
-        </div>
 
-        <div className="mt-16 bg-gray-900 text-white rounded-3xl p-12 text-center">
-          <h2 className="text-2xl font-bold mb-4">Don't see the right role?</h2>
-          <p className="text-gray-400 mb-8">We're always looking for exceptional talent. Send us your resume.</p>
-          <Button className="bg-white text-gray-900 hover:bg-gray-100 rounded-full px-8 py-4 font-bold">
-            Email Us <ArrowRight className="ml-2 w-5 h-5" />
-          </Button>
+          <aside className="h-fit border-l-4 border-gray-950 bg-gray-50 p-6 sm:p-8">
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-500">A thoughtful application</p>
+            <h2 className="mt-3 text-xl font-bold text-gray-950">Tell us what you’ve made.</h2>
+            <p className="mt-3 text-sm leading-6 text-gray-600">Include the kind of role or problem you’re interested in, a few examples of your work, and how we can reach you.</p>
+            <p className="mt-5 text-sm leading-6 text-gray-600">We’ll share specific expectations and working arrangements with each published role.</p>
+          </aside>
         </div>
-      </div>
-
-      <footer className="border-t border-gray-100 py-8">
-        <div className="max-w-7xl mx-auto px-6 text-center text-gray-400 text-sm">
-          © 2026 Iyonicorp Inc. All rights reserved.
-        </div>
-      </footer>
-    </div>
+      </StaticPageLayout>
+    </>
   );
 };
 

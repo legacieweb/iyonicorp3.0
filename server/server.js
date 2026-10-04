@@ -12,9 +12,13 @@ import nodemailer from 'nodemailer';
 import { nanoid } from 'nanoid';
 import db, { initDb } from './db.js';
 import * as mailer from './mailer.js';
+import { createTransporterFromSettings } from './mailer.js';
 import { triggerAutomation } from './automations.js';
+import { THEME_IDS, THEME_PRICE_USD_CENTS, isValidThemePrice } from '../shared/themePricing.js';
+import { mountPosRoutes } from './posRoutes.js';
 
 const Paystack = PaystackFactory.default || PaystackFactory;
+const VIP_THEME_IDS = THEME_IDS;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,10 +37,32 @@ async function hasSellerEmailConfig(sellerId) {
   }
 }
 
+// Helper to load settings by ID and build a transporter
+async function buildTransporterFromSettingsId(settingsId) {
+  const result = await db.query(
+    'SELECT * FROM email_marketing_settings WHERE id = $1 AND is_active = TRUE',
+    [settingsId]
+  );
+
+  if (result.rows.length === 0) {
+    return { settings: null, transporter: null };
+  }
+
+  const settings = result.rows[0];
+  const transporter = createTransporterFromSettings(settings);
+
+  if (!transporter) {
+    const { sendEmail } = await import('./mailer.js');
+    return { settings, transporter: { sendMail: sendEmail } };
+  }
+
+  return { settings, transporter };
+}
+
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 2823;
 const JWT_SECRET = process.env.JWT_SECRET || 'iyonicorp_secret_key';
 
 // Helper to format price
@@ -76,6 +102,78 @@ const upload = multer({
     }
   }
 });
+
+const nlmAudioExtensions = new Set(['.mp3', '.wav', '.m4a']);
+const nlmImageExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+const nlmUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadDir = path.join(__dirname, 'public/uploads');
+      fs.mkdir(uploadDir, { recursive: true }, (error) => cb(error, uploadDir));
+    },
+    filename: (req, file, cb) => cb(null, `nlm-${nanoid(20)}${path.extname(file.originalname).toLowerCase()}`)
+  }),
+  limits: { fileSize: 200 * 1024 * 1024, files: 2 },
+  fileFilter: (req, file, cb) => {
+    const extension = path.extname(file.originalname).toLowerCase();
+    const allowed = file.fieldname === 'audio'
+      ? nlmAudioExtensions.has(extension) && (file.mimetype.startsWith('audio/') || file.mimetype === 'application/octet-stream' || (extension === '.m4a' && file.mimetype === 'video/mp4'))
+      : file.fieldname === 'thumbnail' && nlmImageExtensions.has(extension) && file.mimetype.startsWith('image/');
+    cb(allowed ? null : new Error('Choose a supported audio file and an image thumbnail.'), allowed);
+  }
+});
+const nlmSongUpload = nlmUpload.fields([{ name: 'audio', maxCount: 1 }, { name: 'thumbnail', maxCount: 1 }]);
+const handleNlmSongUpload = (req, res, next) => nlmSongUpload(req, res, (error) => {
+  if (error) return res.status(400).json({ message: error.message });
+  next();
+});
+
+const ixsVideoExtensions = new Set(['.mp4', '.mov', '.avi', '.mkv', '.wmv']);
+const ixsImageExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+const ixsUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const uploadDir = path.join(__dirname, 'public/uploads');
+      fs.mkdir(uploadDir, { recursive: true }, (error) => cb(error, uploadDir));
+    },
+    filename: (req, file, cb) => cb(null, `ixs-${nanoid(20)}${path.extname(file.originalname).toLowerCase()}`)
+  }),
+  limits: { fileSize: 500 * 1024 * 1024, files: 2 },
+  fileFilter: (req, file, cb) => {
+    const extension = path.extname(file.originalname).toLowerCase();
+    const allowed = (file.fieldname === 'video' && ixsVideoExtensions.has(extension) && (file.mimetype.startsWith('video/') || file.mimetype === 'application/octet-stream'))
+      || (file.fieldname === 'thumbnail' && ixsImageExtensions.has(extension) && file.mimetype.startsWith('image/'));
+    cb(allowed ? null : new Error('Choose a supported video file and an image thumbnail.'), allowed);
+  }
+});
+const handleIxsUpload = (req, res, next) => ixsUpload.fields([{ name: 'video', maxCount: 1 }, { name: 'thumbnail', maxCount: 1 }])(req, res, (error) => {
+  if (error) return res.status(400).json({ message: error.message });
+  next();
+});
+
+const requireIxsAdmin = async (req, res, next) => {
+  if (req.user?.role === 'manager_admin') return next();
+  if (req.user?.role !== 'seller' || !req.user.sellerId) {
+    return res.status(403).json({ message: 'A seller account with the IxStream theme is required.' });
+  }
+  try {
+    const seller = await db.query(`SELECT id FROM sellers WHERE id = $1 AND user_id = $2 AND theme->>'selectedTheme' = 'ixstream'`, [req.user.sellerId, req.user.id]);
+    if (!seller.rows.length) return res.status(403).json({ message: 'Apply the IxStream theme before managing its catalogue.' });
+    next();
+  } catch (err) {
+    console.error('IxStream permission check error:', err);
+    res.status(500).json({ message: 'Could not verify IxStream access.' });
+  }
+};
+
+const ixsFileUrl = (file) => file ? `/uploads/${file.filename}` : null;
+const removeIxsFiles = async (urls) => {
+  for (const url of urls.filter(Boolean)) {
+    const filename = path.basename(String(url).split('?')[0]);
+    if (!filename.startsWith('ixs-')) continue;
+    await fs.promises.unlink(path.join(__dirname, 'public/uploads', filename)).catch(() => {});
+  }
+};
 
 // Serving static files from public/uploads
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
@@ -201,12 +299,26 @@ const seedDefaultTemplates = async () => {
 };
 
 // Middleware to authenticate JWT
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   const token = req.header('x-auth-token');
   if (!token) return res.status(401).json({ message: 'No token, authorization denied' });
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+
+    if (decoded.id !== 'admin-id') {
+      const userRes = await db.query('SELECT is_suspended FROM users WHERE id = $1', [decoded.id]);
+      if (userRes.rows.length === 0) {
+        return res.status(401).json({ message: 'Account not found. Please sign in again.' });
+      }
+      if (userRes.rows[0].is_suspended) {
+        return res.status(403).json({
+          code: 'ACCOUNT_SUSPENDED',
+          message: 'Your account has been suspended. Please contact support.'
+        });
+      }
+    }
+
     req.user = decoded;
     next();
   } catch (err) {
@@ -279,7 +391,10 @@ app.post('/api/auth/register', async (req, res) => {
         });
       }
 
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(409).json({
+        code: 'EMAIL_ALREADY_EXISTS',
+        message: 'An account with this email address already exists. Please sign in instead.'
+      });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -398,6 +513,16 @@ await client.query(
       // Send welcome email
       mailer.sendWelcomeEmail(user, 'IyoniCorp');
 
+      // Log activity for seller registration
+      if (role === 'seller') {
+        const sellerRes = await client.query('SELECT id FROM sellers WHERE user_id = $1', [user.id]);
+        const newSellerId = sellerRes.rows[0]?.id;
+        await client.query(
+          'INSERT INTO admin_activities (action, description, entity_type, entity_id, user_id, user_name, severity) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          ['seller_registered', `New seller "${storeName}" registered`, 'seller', newSellerId || sellerId, user.id, user.name, 'success']
+        );
+      }
+
       res.status(201).json({ user: { ...user, sellerId: role === 'customer' ? requestSellerId : sellerId, managerId }, token });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -423,13 +548,25 @@ app.post('/api/auth/link-store', async (req, res) => {
   try {
     const userRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userRes.rows.length === 0) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(404).json({
+        code: 'ACCOUNT_NOT_FOUND',
+        message: 'We could not find an account with that email address.'
+      });
     }
 
     const user = userRes.rows[0];
+    if (user.is_suspended) {
+      return res.status(403).json({
+        code: 'ACCOUNT_SUSPENDED',
+        message: 'Your account has been suspended. Please contact support.'
+      });
+    }
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(401).json({
+        code: 'INCORRECT_PASSWORD',
+        message: 'The password you entered is incorrect. Please try again or reset your password.'
+      });
     }
 
     // Check if already a customer for THIS seller
@@ -498,19 +635,41 @@ app.post('/api/auth/login', async (req, res) => {
     `, [email]);
     
     if (userRes.rows.length === 0) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(404).json({
+        code: 'ACCOUNT_NOT_FOUND',
+        message: 'We could not find an account with that email address.'
+      });
     }
 
     const user = userRes.rows[0];
 
     if (user.is_suspended) {
-      return res.status(403).json({ message: 'Your account has been suspended. Please contact support.' });
+      return res.status(403).json({
+        code: 'ACCOUNT_SUSPENDED',
+        message: 'Your account has been suspended. Please contact support.'
+      });
     }
 
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      // Log failed login attempt
+      const adminUserId = user.id === 'admin-id' ? null : user.id;
+      await db.query(
+        'INSERT INTO admin_activities (action, description, user_id, user_name, user_email, severity) VALUES ($1, $2, $3, $4, $5, $6)',
+        ['login_failed', 'Failed login attempt', adminUserId, user.name || 'Unknown', email, 'warning']
+      );
+      return res.status(401).json({
+        code: 'INCORRECT_PASSWORD',
+        message: 'The password you entered is incorrect. Please try again or reset your password.'
+      });
     }
+
+    // Log successful login
+    const adminUserId = user.id === 'admin-id' ? null : user.id;
+    await db.query(
+      'INSERT INTO admin_activities (action, description, user_id, user_name, user_email, severity) VALUES ($1, $2, $3, $4, $5, $6)',
+      ['login', 'User logged in successfully', adminUserId, user.name || 'Admin', user.email || 'admin@iyonicorp.com', 'info']
+    );
 
     // For customers, fetch all stores they are registered in
     let stores = [];
@@ -573,6 +732,160 @@ app.post('/api/auth/select-store', authenticateToken, async (req, res) => {
     res.json({ token, sellerId: finalSellerId });
   } catch (err) {
     res.status(500).json({ message: 'Server error selecting store' });
+  }
+});
+
+// Forgot Password - Request OTP
+app.post('/api/auth/forgot-password', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required' });
+  }
+
+  try {
+    const userRes = await db.query('SELECT id, email, name FROM users WHERE email = $1', [email]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ message: 'No account found with this email address' });
+    }
+
+    const user = userRes.rows[0];
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    // Store OTP in database
+    await db.query(
+      'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET token = $2, expires_at = $3',
+      [user.id, otp, expiresAt]
+    );
+
+    // Send email with OTP
+    const subject = 'Password Reset Code - IyoniCorp';
+    const html = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h2>Password Reset Request</h2>
+        <p>Hello ${user.name},</p>
+        <p>Your password reset code is:</p>
+        <div style="background: #4f46e5; color: white; padding: 20px; text-align: center; font-size: 32px; font-weight: bold; border-radius: 8px; letter-spacing: 5px;">
+          ${otp}
+        </div>
+        <p style="margin-top: 20px;">This code will expire in 15 minutes.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+      </div>
+    `;
+
+    await mailer.sendEmail({ to: user.email, subject, html });
+    res.json({ message: 'Reset code sent to your email' });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ message: 'Server error processing request' });
+  }
+});
+
+// Verify OTP
+app.post('/api/auth/verify-otp', async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return res.status(400).json({ message: 'Email and OTP are required' });
+  }
+
+  try {
+    const userRes = await db.query('SELECT id, email FROM users WHERE email = $1', [email]);
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ message: 'No account found with this email address' });
+    }
+
+    const user = userRes.rows[0];
+    const tokenRes = await db.query(
+      'SELECT token, expires_at FROM password_reset_tokens WHERE user_id = $1 AND token = $2',
+      [user.id, otp]
+    );
+
+    if (tokenRes.rows.length === 0) {
+      return res.status(400).json({ message: 'Invalid reset code' });
+    }
+
+    const storedToken = tokenRes.rows[0];
+    if (new Date(storedToken.expires_at) < new Date()) {
+      return res.status(400).json({ message: 'Reset code has expired. Please request a new one.' });
+    }
+
+    // Generate verification token for password reset
+    const resetToken = nanoid(32);
+    await db.query(
+      'UPDATE password_reset_tokens SET reset_token = $1 WHERE user_id = $2',
+      [resetToken, user.id]
+    );
+
+    res.json({ message: 'OTP verified successfully', resetToken });
+  } catch (err) {
+    console.error('Verify OTP error:', err);
+    res.status(500).json({ message: 'Server error verifying code' });
+  }
+});
+
+// Reset Password
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { resetToken, newPassword } = req.body;
+
+  if (!resetToken || !newPassword) {
+    return res.status(400).json({ message: 'Reset token and new password are required' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters' });
+  }
+
+  try {
+    const tokenRes = await db.query(
+      'SELECT user_id, expires_at FROM password_reset_tokens WHERE reset_token = $1',
+      [resetToken]
+    );
+
+    if (tokenRes.rows.length === 0) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    const storedToken = tokenRes.rows[0];
+    if (new Date(storedToken.expires_at) < new Date()) {
+      return res.status(400).json({ message: 'Reset token has expired. Please request a new one.' });
+    }
+
+    // Get user info for logging and email BEFORE other operations
+    const userRes = await db.query('SELECT email, name FROM users WHERE id = $1', [storedToken.user_id]);
+    const targetUser = userRes.rows[0];
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+
+    await db.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, storedToken.user_id]);
+    await db.query('DELETE FROM password_reset_tokens WHERE user_id = $1', [storedToken.user_id]);
+
+    // Log activity with correct user name
+    await db.query(
+      'INSERT INTO admin_activities (action, description, user_id, user_name, severity) VALUES ($1, $2, $3, $4, $5)',
+      ['password_reset', 'Password was reset successfully', storedToken.user_id, targetUser?.name || 'Unknown user', 'info']
+    );
+
+    const subject = 'Password Reset Successful - IyoniCorp';
+    const html = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+        <h2>Password Changed Successfully</h2>
+        <p>Hello ${targetUser?.name},</p>
+        <p>Your password has been successfully reset.</p>
+        <p>You can now log in with your new password.</p>
+        <p style="margin-top: 20px; color: #666; font-size: 14px;">
+          If you didn't make this change, please contact support immediately.
+        </p>
+      </div>
+    `;
+
+    await mailer.sendEmail({ to: targetUser.email, subject, html });
+    res.json({ message: 'Password reset successful. You can now log in.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ message: 'Server error resetting password' });
   }
 });
 
@@ -786,13 +1099,28 @@ app.patch('/api/users/:id/suspend', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Cannot suspend the platform admin account' });
     }
 
-    const userRes = await db.query('SELECT is_suspended FROM users WHERE id = $1', [req.params.id]);
+    const userRes = await db.query('SELECT is_suspended, name, email, role FROM users WHERE id = $1', [req.params.id]);
     if (userRes.rows.length === 0) return res.status(404).json({ message: 'User not found' });
     
     const newStatus = !userRes.rows[0].is_suspended;
+    const affectedUser = userRes.rows[0];
+    const userName = affectedUser.name;
     await db.query('UPDATE users SET is_suspended = $1 WHERE id = $2', [newStatus, req.params.id]);
+
+    const emailResult = await mailer.sendAccountStatusEmail(affectedUser, newStatus);
     
-    res.json({ message: `User ${newStatus ? 'suspended' : 'unsuspended'} successfully`, isSuspended: newStatus });
+// Log activity - handle admin-id which is not UUID compatible
+     const adminUserId = req.user.id === 'admin-id' ? null : req.user.id;
+     await db.query(
+       'INSERT INTO admin_activities (action, description, entity_type, entity_id, user_id, user_name, user_email, severity) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+       ['suspension', `User "${userName}" ${newStatus ? 'suspended' : 'unsuspended'}`, 'user', req.params.id, adminUserId, req.user.name || 'Admin', req.user.email || 'admin@iyonicorp.com', 'warning']
+     );
+    
+    res.json({
+      message: `User ${newStatus ? 'suspended' : 'unsuspended'} successfully`,
+      isSuspended: newStatus,
+      emailSent: Boolean(emailResult)
+    });
   } catch (err) {
     console.error('Suspend User Error:', err);
     res.status(500).json({ message: 'Server error' });
@@ -820,7 +1148,11 @@ app.get('/api/sellers', authenticateToken, async (req, res) => {
     }
     
     let query = `
-      SELECT s.*, u.name as owner_name, u.email as owner_email 
+            SELECT s.*, u.name as owner_name, u.email as owner_email,
+              (SELECT COUNT(*) FROM products p WHERE p.seller_id = s.id) as live_total_products,
+              (SELECT COUNT(*) FROM orders o WHERE o.seller_id = s.id) as live_total_orders,
+              (SELECT COUNT(*) FROM customers c WHERE c.seller_id = s.id) as live_total_customers,
+              COALESCE((SELECT SUM(o.total) FROM orders o WHERE o.seller_id = s.id AND o.status != 'pending'), 0) as live_total_revenue
       FROM sellers s
       JOIN users u ON s.user_id = u.id
     `;
@@ -834,7 +1166,16 @@ app.get('/api/sellers', authenticateToken, async (req, res) => {
     query += ' ORDER BY s.created_at DESC';
     
     const sellersRes = await db.query(query, params);
-    res.json(toCamel(sellersRes.rows));
+    res.json(toCamel(sellersRes.rows.map(seller => ({
+      ...seller,
+      stats: {
+        ...(seller.stats || {}),
+        totalProducts: Number(seller.live_total_products || 0),
+        totalOrders: Number(seller.live_total_orders || 0),
+        totalCustomers: Number(seller.live_total_customers || 0),
+        totalRevenue: Number(seller.live_total_revenue || 0)
+      }
+    }))));
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -880,6 +1221,16 @@ app.patch('/api/sellers/me', authenticateToken, async (req, res) => {
   const finalSubscription = subscription !== undefined ? JSON.stringify(subscription) : undefined;
 
   try {
+    const selectedThemeId = (theme && typeof theme === 'object' && theme.selectedTheme) || req.body.themeId;
+    if (VIP_THEME_IDS.has(selectedThemeId)) {
+      const ownership = await db.query('SELECT acquired_themes, theme FROM sellers WHERE user_id = $1', [req.user.id]);
+      const acquiredThemes = ownership.rows[0]?.acquired_themes || [];
+      const currentThemeId = ownership.rows[0]?.theme?.selectedTheme;
+      if (!acquiredThemes.includes(selectedThemeId) && selectedThemeId !== currentThemeId) {
+        return res.status(403).json({ message: 'Acquire this theme before applying it.' });
+      }
+    }
+
     const sellerRes = await db.query(
       `UPDATE sellers SET 
         store_name = COALESCE($1, store_name), 
@@ -992,6 +1343,584 @@ if (updatedSeller.manager_id) {
   }
 });
 
+app.post('/api/sellers/me/themes/purchase/initialize', authenticateToken, async (req, res) => {
+  const { themeId } = req.body;
+  const amountCents = THEME_PRICE_USD_CENTS[themeId];
+  if (req.user.role !== 'seller' || !VIP_THEME_IDS.has(themeId) || !isValidThemePrice(amountCents)) {
+    return res.status(400).json({ message: 'Invalid theme.' });
+  }
+
+  try {
+    const sellerRes = await db.query(
+      'SELECT s.id, s.acquired_themes, u.email FROM sellers s JOIN users u ON u.id = s.user_id WHERE s.user_id = $1',
+      [req.user.id]
+    );
+    const seller = sellerRes.rows[0];
+    if (!seller) return res.status(404).json({ message: 'Seller not found.' });
+    if ((seller.acquired_themes || []).includes(themeId)) {
+      return res.status(409).json({ message: 'This theme is already acquired.' });
+    }
+    if (!process.env.PAYSTACK_SECRET_KEY) {
+      return res.status(503).json({ message: 'Theme checkout is not configured.' });
+    }
+
+    const response = await new Promise((resolve, reject) => {
+      Paystack(process.env.PAYSTACK_SECRET_KEY).transaction.initialize({
+        email: seller.email,
+        amount: amountCents,
+        currency: 'USD',
+        callback_url: `${req.headers.origin || process.env.FRONTEND_URL || ''}/#/themes?verifyTheme=${encodeURIComponent(themeId)}`,
+        metadata: {
+          type: 'vip_theme_purchase',
+          theme_id: themeId,
+          seller_id: seller.id,
+          user_id: req.user.id
+        }
+      }, (error, body) => {
+        if (error || body?.status === false) reject(new Error(body?.message || error?.message || 'Payment initialization failed'));
+        else resolve(body);
+      });
+    });
+
+    res.json(response);
+  } catch (error) {
+    console.error('VIP theme payment initialization failed:', error);
+    res.status(500).json({ message: 'Could not start theme checkout.' });
+  }
+});
+
+app.post('/api/sellers/me/themes/purchase/verify', authenticateToken, async (req, res) => {
+  const { themeId, reference } = req.body;
+  const amountCents = THEME_PRICE_USD_CENTS[themeId];
+  if (req.user.role !== 'seller' || !VIP_THEME_IDS.has(themeId) ||
+    !isValidThemePrice(amountCents) || typeof reference !== 'string' || !reference.trim()) {
+    return res.status(400).json({ message: 'Invalid theme payment details.' });
+  }
+
+  const client = await db.pool.connect();
+  try {
+    const payment = await new Promise((resolve, reject) => {
+      Paystack(process.env.PAYSTACK_SECRET_KEY).transaction.verify(reference, (error, body) => {
+        if (error) reject(error);
+        else resolve(body);
+      });
+    });
+    const metadata = payment?.data?.metadata || {};
+    if (!payment?.status || payment.data.status !== 'success' ||
+      metadata.type !== 'vip_theme_purchase' || metadata.theme_id !== themeId ||
+      metadata.user_id !== req.user.id || metadata.seller_id == null ||
+      payment.data.amount !== amountCents ||
+      payment.data.currency !== 'USD') {
+      return res.status(400).json({ message: 'Payment could not be verified for this theme.' });
+    }
+
+    await client.query('BEGIN');
+    const sellerRes = await client.query('SELECT id FROM sellers WHERE user_id = $1 FOR UPDATE', [req.user.id]);
+    const seller = sellerRes.rows[0];
+    if (!seller || seller.id !== metadata.seller_id) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ message: 'Payment does not belong to this seller.' });
+    }
+
+    const purchaseRes = await client.query(
+      `INSERT INTO vip_theme_purchases (seller_id, theme_id, reference, amount)
+       VALUES ($1, $2, $3, $4) ON CONFLICT (reference) DO NOTHING RETURNING id`,
+      [seller.id, themeId, reference, amountCents / 100]
+    );
+    if (purchaseRes.rows.length === 0) {
+      const existing = await client.query('SELECT seller_id, theme_id FROM vip_theme_purchases WHERE reference = $1', [reference]);
+      if (existing.rows[0]?.seller_id !== seller.id || existing.rows[0]?.theme_id !== themeId) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ message: 'This payment reference has already been used.' });
+      }
+    }
+
+    const updated = await client.query(
+      `UPDATE sellers SET acquired_themes = CASE
+         WHEN COALESCE(acquired_themes, '[]'::jsonb) ? $2 THEN COALESCE(acquired_themes, '[]'::jsonb)
+         ELSE COALESCE(acquired_themes, '[]'::jsonb) || jsonb_build_array($2)
+       END WHERE id = $1 RETURNING acquired_themes`,
+      [seller.id, themeId]
+    );
+    await client.query('COMMIT');
+    res.json({ acquiredThemes: updated.rows[0].acquired_themes || [] });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('VIP theme payment verification failed:', error);
+    res.status(500).json({ message: 'Could not verify the theme payment.' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/sellers/me/themes/offers', authenticateToken, async (req, res) => {
+  const { themeId, amount, message = '' } = req.body;
+  const offerAmount = Number(amount);
+  if (req.user.role !== 'seller' || !VIP_THEME_IDS.has(themeId) ||
+    !Number.isFinite(offerAmount) || offerAmount <= 0 || offerAmount > 50000 ||
+    typeof message !== 'string' || message.length > 1000) {
+    return res.status(400).json({ message: 'Enter a valid VIP theme offer.' });
+  }
+
+  const ownerEmail = process.env.THEME_OWNER_EMAIL || process.env.ADMIN_EMAIL || process.env.SMTP_USER;
+  if (!ownerEmail) return res.status(503).json({ message: 'Theme offers are not configured yet.' });
+
+  try {
+    const sellerRes = await db.query('SELECT id, store_name FROM sellers WHERE user_id = $1', [req.user.id]);
+    const seller = sellerRes.rows[0];
+    if (!seller) return res.status(404).json({ message: 'Seller not found.' });
+    await db.query(
+      'INSERT INTO vip_theme_offers (seller_id, theme_id, amount, message) VALUES ($1, $2, $3, $4)',
+      [seller.id, themeId, offerAmount, message.trim()]
+    );
+    await mailer.sendEmail({
+      to: ownerEmail,
+      subject: `VIP theme offer: ${themeId}`,
+      text: `${seller.store_name} offered $${offerAmount.toFixed(2)} for ${themeId}.\n\n${message.trim() || 'No additional message.'}`
+    });
+    res.status(201).json({ message: 'Your offer was sent to the theme owner.' });
+  } catch (error) {
+    console.error('VIP theme offer failed:', error);
+    res.status(500).json({ message: 'Could not submit the offer.' });
+  }
+});
+
+app.post('/api/sellers/me/pay-subscription', authenticateToken, async (req, res) => {
+  const { planId } = req.body;
+  if (planId === 'professional' || planId === 'enterprise') {
+    return res.status(400).json({ message: 'Professional and Enterprise are managed through IyonicPay bundles.' });
+  }
+  const defaultSellerPricing = {
+    starter: 0,
+    basic: 15,
+    professional: 29,
+    enterprise: 99
+  };
+
+  const price = defaultSellerPricing[planId] ?? 0;
+  if (!price) return res.status(400).json({ message: 'Free plans do not require payment.' });
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const sellerRes = await client.query('SELECT id, manager_id FROM sellers WHERE user_id = $1 FOR UPDATE', [req.user.id]);
+    if (sellerRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Seller not found' });
+    }
+    const seller = sellerRes.rows[0];
+
+    const walletRes = await client.query('SELECT id, balance, currency FROM wallets WHERE user_id = $1 FOR UPDATE', [req.user.id]);
+    const wallet = walletRes.rows[0];
+    if (!wallet || Number(wallet.balance) < price) {
+      await client.query('ROLLBACK');
+      return res.status(402).json({ message: `You need $${price.toFixed(2)} USD in your IyonicPay wallet to activate this plan.` });
+    }
+
+    const nextMonth = new Date();
+    nextMonth.setDate(nextMonth.getDate() + 30);
+
+    await client.query(
+      'UPDATE wallets SET balance = balance - $1 WHERE id = $2',
+      [price, wallet.id]
+    );
+
+    await client.query(
+      `INSERT INTO transactions (sender_wallet_id, amount, currency, type, status, description)
+       VALUES ($1, $2, $3, 'invoice_payment', 'completed', $4)`,
+      [wallet.id, price, wallet.currency || 'USD', `IyonicShop ${planId.charAt(0).toUpperCase() + planId.slice(1)} plan`]
+    );
+
+    const nextSubscription = { plan: planId, status: 'active', startDate: new Date().toISOString(), endDate: nextMonth.toISOString() };
+    await client.query(
+      'UPDATE sellers SET subscription = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [JSON.stringify(nextSubscription), seller.id]
+    );
+
+    await client.query('COMMIT');
+
+    // Log activity
+    try {
+      await db.query(
+        `INSERT INTO admin_activities (action, description, user_id, severity)
+         VALUES ($1, $2, $3, $4)`,
+        ['seller_upgrade', `Seller ${seller.id} upgraded to ${planId} plan via IyonicPay wallet`, req.user.id, 'success']
+      );
+    } catch (logErr) { console.error('Activity log error:', logErr); }
+
+    res.json({ message: `${planId.charAt(0).toUpperCase() + planId.slice(1)} plan activated via IyonicPay`, plan: planId, price });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Wallet subscription payment error:', err);
+    res.status(500).json({ message: 'Could not process IyonicPay payment' });
+  } finally {
+    client.release();
+  }
+});
+
+const SELLER_PLANS = {
+  starter: { name: 'Starter', price: 0, description: 'Perfect to get started with IyonicShop and IyonicBots.', features: ['20 Products Limit', 'IyonicPay Integration', '7% Commission', 'Basic IyonicBots'] },
+  basic: { name: 'Basic', price: 15, description: 'For growing businesses needing more products and advanced bots.', features: ['100 Products', 'IyonicPay + 2% Commission', 'Pro IyonicBots', 'Basic Automation'] },
+  professional: { name: 'Professional', price: 29, description: 'For established stores with high volume and priority support.', features: ['Unlimited Products', 'IyonicPay + 1% Commission', 'Pro Max IyonicBots', 'Advanced Automation'] },
+  enterprise: { name: 'Enterprise', price: 99, description: 'Custom solutions and white-glove support for large businesses.', features: ['Unlimited Products', 'Custom Pricing', 'Enterprise IyonicBots', 'VIP Support'] }
+};
+
+const BILL_ADDONS = {
+  customDomain: { name: 'Custom Domain', price: 3, category: 'Brand', description: 'Connect your own domain to your store.' },
+  advancedAnalytics: { name: 'Advanced Analytics', price: 7, category: 'Growth', description: 'Track sales, conversion and customer trends.' },
+  premiumSupport: { name: 'Priority Support', price: 9, category: 'Support', description: 'Faster support response for your business.' },
+  apiAccess: { name: 'API Access', price: 8, category: 'Automation', description: 'Connect your tools to IyonicShop and IyonicBots.' },
+  whiteLabel: { name: 'White Label', price: 12, category: 'Brand', description: 'Remove Iyonicorp branding from your storefront.' }
+};
+
+const BUNDLES = {
+  starter: { name: 'Starter Bundle', planIds: ['starter', 'starter'], basePrice: 0, description: 'Starter Shop + Starter Bots' },
+  growth: { name: 'Basic Bundle', planIds: ['basic', 'basic'], basePrice: 16, description: 'Basic Shop + Basic Bots' },
+  pro: { name: 'Professional Bundle', planIds: ['professional', 'pro'], basePrice: 34.99, description: 'Professional Shop + Pro Bots' },
+  enterprise: { name: 'Enterprise Bundle', planIds: ['enterprise', 'promax'], basePrice: 118.99, description: 'Enterprise Shop + Pro Max Bots' }
+};
+
+const calculateBundleDiscount = (shopPlan, botPlan) => {
+  const shopPrice = SELLER_PLANS[shopPlan]?.price || 0;
+  const botPrice = IYONIC_BOT_PLANS[botPlan]?.price || 0;
+  let discount = 0;
+  if (shopPlan === 'basic' && botPlan === 'basic') discount = 1;
+  else if (shopPlan === 'professional' && botPlan === 'pro') discount = 4;
+  else if (shopPlan === 'enterprise' && botPlan === 'promax') discount = 10;
+  return { basePrice: shopPrice + botPrice, discount, finalPrice: shopPrice + botPrice - discount };
+};
+
+app.get('/api/sellers/me/billing', authenticateToken, async (req, res) => {
+  try {
+    const sellerRes = await db.query('SELECT subscription FROM sellers WHERE user_id = $1', [req.user.id]);
+    if (sellerRes.rows.length === 0) {
+      return res.status(404).json({ message: 'Seller not found' });
+    }
+    const subscription = sellerRes.rows[0]?.subscription || { plan: 'starter', status: 'active', endDate: null };
+    const wallet = await db.query('SELECT balance, currency FROM wallets WHERE user_id = $1', [req.user.id]);
+    res.json({ subscription, plans: SELLER_PLANS, wallet: wallet.rows[0] || { balance: 0, currency: 'USD' } });
+  } catch (err) {
+    res.status(500).json({ message: 'Unable to load seller billing' });
+  }
+});
+
+app.post('/api/sellers/me/paystack/initialize', authenticateToken, async (req, res) => {
+  const { planId } = req.body;
+  if (planId === 'professional' || planId === 'enterprise') return res.status(400).json({ message: 'Professional and Enterprise are managed through IyonicPay bundles.' });
+  const selectedPlan = SELLER_PLANS[planId];
+  if (!selectedPlan || selectedPlan.price <= 0) return res.status(400).json({ message: 'Choose a paid plan.' });
+  const sellerRes = await db.query('SELECT id FROM sellers WHERE user_id = $1', [req.user.id]);
+  if (sellerRes.rows.length === 0) return res.status(404).json({ message: 'Seller not found' });
+  if (!process.env.PAYSTACK_SECRET_KEY) return res.status(503).json({ message: 'Direct card payments are not configured yet.' });
+
+  try {
+    const userResult = await db.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+    const email = userResult.rows[0]?.email;
+    if (!email) return res.status(422).json({ message: 'We could not find an email address for this account.' });
+    const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY);
+    const callbackUrl = `${process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:4000/'}/#/iyonicpay?tab=my-bills`;
+    const payment = await new Promise((resolve, reject) => {
+      paystack.transaction.initialize({
+        email,
+        amount: Math.round(selectedPlan.price * 100),
+        currency: process.env.PAYSTACK_CURRENCY || 'USD',
+        channels: ['card', 'mobile_money'],
+        callback_url: callbackUrl,
+        metadata: { type: 'iyonicshop_plan', planId, sellerId: sellerRes.rows[0].id }
+      }, (err, body) => err ? reject(err) : resolve(body));
+    });
+    res.json({ authorizationUrl: payment.data.authorization_url, reference: payment.data.reference, planId });
+  } catch (err) {
+    console.error('Seller Paystack initialization error:', err);
+    res.status(500).json({ message: 'Could not start direct payment' });
+  }
+});
+
+app.post('/api/sellers/me/paystack/verify', authenticateToken, async (req, res) => {
+  const { reference } = req.body;
+  const { planId } = req.body;
+  if (planId === 'professional' || planId === 'enterprise') return res.status(400).json({ message: 'Professional and Enterprise are managed through IyonicPay bundles.' });
+  const selectedPlan = SELLER_PLANS[planId];
+  if (!reference || !selectedPlan || selectedPlan.price <= 0) return res.status(400).json({ message: 'Invalid payment verification request' });
+  const sellerRes = await db.query('SELECT id FROM sellers WHERE user_id = $1', [req.user.id]);
+  if (sellerRes.rows.length === 0) return res.status(404).json({ message: 'Seller not found' });
+
+  try {
+    const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY);
+    const payment = await new Promise((resolve, reject) => {
+      paystack.transaction.verify(reference, (err, body) => err ? reject(err) : resolve(body));
+    });
+    if (!payment.status || payment.data?.status !== 'success') return res.status(402).json({ message: 'Payment was not completed' });
+    const paidAmount = Number(payment.data.amount) / 100;
+    if (paidAmount < selectedPlan.price) return res.status(402).json({ message: 'Payment amount does not match the selected plan' });
+
+    const nextMonth = new Date();
+    nextMonth.setDate(nextMonth.getDate() + 30);
+    const nextSubscription = { plan: planId, status: 'active', startDate: new Date().toISOString(), endDate: nextMonth.toISOString() };
+    await db.query('UPDATE sellers SET subscription = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [JSON.stringify(nextSubscription), sellerRes.rows[0].id]);
+    res.json({ message: `${selectedPlan.name} plan activated`, plan: { id: planId, ...selectedPlan } });
+  } catch (err) {
+    console.error('Seller Paystack verification error:', err);
+    res.status(500).json({ message: 'Could not verify direct payment' });
+  }
+});
+
+app.get('/api/billing/auto-renew', authenticateToken, async (req, res) => {
+  try {
+    const sellerRes = await db.query('SELECT auto_renew, subscription FROM sellers WHERE user_id = $1', [req.user.id]);
+    if (sellerRes.rows.length === 0) return res.status(404).json({ message: 'Seller not found' });
+    const seller = sellerRes.rows[0];
+    const autoRenew = seller.auto_renew || { iyonicshop: { enabled: false }, iyonicbots: { enabled: false } };
+    const shopPlan = (seller.subscription || {}).plan || 'starter';
+    const shopEndDate = (seller.subscription || {}).endDate || null;
+    const botPlan = (seller.subscription || {}).botPlan || 'starter';
+    res.json({
+      autoRenew,
+      currentPlans: {
+        iyonicshop: { plan: shopPlan, endDate: shopEndDate, status: (seller.subscription || {}).status || 'active' },
+        iyonicbots: { plan: botPlan, endDate: (seller.subscription || {}).botPlanStartedAt || null, status: 'active' }
+      },
+      plans: SUBSCRIPTION_PLANS_CONFIG,
+      wallet: seller.wallet || { balance: 0, currency: 'USD' }
+    });
+  } catch (err) {
+    console.error('Auto-renew fetch error:', err);
+    res.status(500).json({ message: 'Could not load auto-renew settings' });
+  }
+});
+
+app.patch('/api/billing/auto-renew', authenticateToken, async (req, res) => {
+  const { platform, enabled, planId } = req.body;
+  if (!platform || !['iyonicshop', 'iyonicbots'].includes(platform)) {
+    return res.status(400).json({ message: 'Invalid platform' });
+  }
+
+  try {
+    const sellerRes = await db.query('SELECT auto_renew FROM sellers WHERE user_id = $1', [req.user.id]);
+    if (sellerRes.rows.length === 0) return res.status(404).json({ message: 'Seller not found' });
+    const current = sellerRes.rows[0].auto_renew || {};
+    const updated = {
+      ...current,
+      [platform]: {
+        enabled,
+        plan: planId || (current[platform]?.plan || null),
+        updatedAt: new Date().toISOString()
+      }
+    };
+    await db.query('UPDATE sellers SET auto_renew = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2', [JSON.stringify(updated), req.user.id]);
+    res.json({ message: `Auto-renew updated for ${platform}`, autoRenew: updated });
+  } catch (err) {
+    console.error('Auto-renew update error:', err);
+    res.status(500).json({ message: 'Could not update auto-renew settings' });
+  }
+});
+
+app.get('/api/billing/unified', authenticateToken, async (req, res) => {
+  try {
+    const sellerRes = await db.query(
+      'SELECT subscription, auto_renew FROM sellers WHERE user_id = $1',
+      [req.user.id]
+    );
+    if (sellerRes.rows.length === 0) return res.status(404).json({ message: 'Seller not found' });
+    const seller = sellerRes.rows[0];
+    const subscription = seller.subscription || {};
+    const shopPlan = subscription.plan || 'starter';
+    const botPlan = subscription.botPlan || 'starter';
+    const autoRenew = seller.auto_renew || {
+      iyonicshop: { enabled: false, plan: shopPlan },
+      iyonicbots: { enabled: false, plan: botPlan }
+    };
+    const wallet = await db.query('SELECT balance, currency FROM wallets WHERE user_id = $1', [req.user.id]);
+
+    res.json({
+      bundles: BUNDLES,
+      addons: BILL_ADDONS,
+      shopPlans: SELLER_PLANS,
+      botPlans: IYONIC_BOT_PLANS,
+      currentSubscription: {
+        shopPlan,
+        botPlan,
+        endDate: subscription.endDate || null,
+        autoRenewEnabled: {
+          iyonicshop: autoRenew.iyonicshop?.enabled || false,
+          iyonicbots: autoRenew.iyonicbots?.enabled || false
+        }
+      },
+      wallet: wallet.rows[0] || { balance: 0, currency: 'USD' },
+      discounts: {
+        starter: { name: 'Starter', planIds: ['starter', 'basic'], basePrice: 0, discount: 0, finalPrice: 0 },
+        growth: calculateBundleDiscount('basic', 'basic'),
+        pro: calculateBundleDiscount('professional', 'pro'),
+        enterprise: calculateBundleDiscount('enterprise', 'promax')
+      }
+    });
+  } catch (err) {
+    console.error('Unified billing fetch error:', err);
+    res.status(500).json({ message: 'Could not load unified billing' });
+  }
+});
+
+app.post('/api/billing/unified/subscribe', authenticateToken, async (req, res) => {
+  const { bundleId, addons, shopPlan, botPlan } = req.body;
+  const wallet = await db.query('SELECT id, balance, currency FROM wallets WHERE user_id = $1 FOR UPDATE', [req.user.id]);
+  const sellerRes = await db.query('SELECT id, subscription FROM sellers WHERE user_id = $1 FOR UPDATE', [req.user.id]);
+  if (sellerRes.rows.length === 0) return res.status(404).json({ message: 'Seller not found' });
+  const sellerId = sellerRes.rows[0].id;
+  const walletRow = wallet.rows[0];
+  if (!walletRow) return res.status(402).json({ message: 'No wallet found' });
+
+  let totalPrice = 0;
+  let descriptionParts = [];
+
+  if (bundleId && BUNDLES[bundleId]) {
+    const bundle = BUNDLES[bundleId];
+    const bundlePricing = calculateBundleDiscount(bundle.planIds[0], bundle.planIds[1]);
+    totalPrice += bundlePricing.finalPrice;
+    descriptionParts.push(bundle.name);
+  } else {
+    if (shopPlan && SELLER_PLANS[shopPlan]) {
+      totalPrice += SELLER_PLANS[shopPlan].price;
+      descriptionParts.push(`IyonicShop ${SELLER_PLANS[shopPlan].name}`);
+    }
+    if (botPlan && IYONIC_BOT_PLANS[botPlan]) {
+      totalPrice += IYONIC_BOT_PLANS[botPlan].price;
+      descriptionParts.push(`IyonicBots ${IYONIC_BOT_PLANS[botPlan].name}`);
+    }
+  }
+
+  if (addons && Array.isArray(addons)) {
+    for (const addonId of addons) {
+      if (BILL_ADDONS[addonId]) {
+        totalPrice += BILL_ADDONS[addonId].price;
+        descriptionParts.push(BILL_ADDONS[addonId].name);
+      }
+    }
+  }
+
+  if (totalPrice <= 0) return res.status(400).json({ message: 'No paid items selected' });
+
+  if (Number(walletRow.balance) < totalPrice) {
+    return res.status(402).json({ message: `You need $${totalPrice.toFixed(2)} USD in your IyonicPay wallet to complete this purchase.` });
+  }
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [totalPrice, walletRow.id]);
+    await client.query(
+      `INSERT INTO transactions (sender_wallet_id, amount, currency, type, status, description)
+       VALUES ($1, $2, $3, 'invoice_payment', 'completed', $4)`,
+      [walletRow.id, totalPrice, walletRow.currency || 'USD', descriptionParts.join(' + ')]
+    );
+
+    const nextMonth = new Date();
+    nextMonth.setDate(nextMonth.getDate() + 30);
+    const currentSub = sellerRes.rows[0].subscription || {};
+
+    if (bundleId && BUNDLES[bundleId]) {
+      const bundle = BUNDLES[bundleId];
+      const plans = BUNDLES[bundleId].planIds;
+      const shopP = plans[0];
+      const botPl = plans[1];
+      const nextSub = {
+        ...currentSub,
+        plan: shopP,
+        botPlan: botPl,
+        status: 'active',
+        startDate: new Date().toISOString(),
+        endDate: nextMonth.toISOString(),
+        botPlanStartedAt: new Date().toISOString(),
+        addons: addons || [],
+        bundle: bundleId
+      };
+      await client.query('UPDATE sellers SET subscription = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [JSON.stringify(nextSub), sellerId]);
+    } else {
+      const nextSub = {
+        ...currentSub,
+        plan: shopPlan || currentSub.plan,
+        botPlan: botPlan || currentSub.botPlan,
+        status: 'active',
+        startDate: new Date().toISOString(),
+        endDate: shopPlan ? nextMonth.toISOString() : currentSub.endDate,
+        botPlanStartedAt: botPlan ? new Date().toISOString() : currentSub.botPlanStartedAt,
+        addons: [...(currentSub.addons || []), ...(addons || [])],
+        bundle: null
+      };
+      await client.query('UPDATE sellers SET subscription = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [JSON.stringify(nextSub), sellerId]);
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: 'Subscription updated via IyonicPay wallet', totalAmount: totalPrice, description: descriptionParts.join(' + ') });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Unified subscription error:', err);
+    res.status(500).json({ message: 'Could not process subscription' });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete('/api/billing/unified/cancel', authenticateToken, async (req, res) => {
+  const { platform } = req.body;
+  try {
+    const sellerRes = await db.query('SELECT subscription, auto_renew FROM sellers WHERE user_id = $1', [req.user.id]);
+    if (sellerRes.rows.length === 0) return res.status(404).json({ message: 'Seller not found' });
+    const currentSub = sellerRes.rows[0].subscription || {};
+    const currentAutoRenew = sellerRes.rows[0].auto_renew || {};
+
+    let nextSub = { ...currentSub };
+
+    if (platform === 'iyonicshop' || !platform) {
+      nextSub = {
+        ...nextSub,
+        plan: 'starter',
+        status: 'cancelled',
+        endDate: null
+      };
+    }
+    if (platform === 'iyonicbots' || !platform) {
+      nextSub = {
+        ...nextSub,
+        botPlan: 'basic',
+        botPlanStartedAt: null
+      };
+    }
+    if (!platform) {
+      nextSub = {
+        ...nextSub,
+        addons: [],
+        bundle: null
+      };
+    }
+
+    let nextAutoRenew = { ...currentAutoRenew };
+    if (platform && nextAutoRenew[platform]) {
+      nextAutoRenew[platform] = { ...nextAutoRenew[platform], enabled: false };
+    }
+    if (!platform) {
+      nextAutoRenew = { iyonicshop: { enabled: false }, iyonicbots: { enabled: false } };
+    }
+
+    const cancelShop = platform === 'iyonicshop' || !platform;
+    await db.query(`UPDATE sellers
+      SET subscription = $1,
+          auto_renew = $2,
+          theme = CASE
+            WHEN $4 AND theme->>'selectedTheme' = 'tamira-salon'
+            THEN jsonb_set(COALESCE(theme, '{}'::jsonb), '{selectedTheme}', '"modern-wellness"'::jsonb, TRUE)
+            ELSE theme
+          END,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = $3`,
+      [JSON.stringify(nextSub), JSON.stringify(nextAutoRenew), req.user.id, cancelShop]);
+
+    res.json({ message: platform ? `${platform} subscription cancelled` : 'All subscriptions cancelled', subscription: nextSub });
+  } catch (err) {
+    console.error('Cancel subscription error:', err);
+    res.status(500).json({ message: 'Could not cancel subscription' });
+  }
+});
+
 // Get Messages for Seller (Authenticated)
 app.get('/api/messages', authenticateToken, async (req, res) => {
   try {
@@ -1081,7 +2010,7 @@ app.post('/api/sellers/:id/approve-subdomain', authenticateToken, async (req, re
 // Get Seller by ID (Public)
 app.get('/api/sellers/:id/public', async (req, res) => {
   try {
-    const sellerRes = await db.query('SELECT id, store_name, subdomain, logo, theme, shop_type, description FROM sellers WHERE id = $1', [req.params.id]);
+    const sellerRes = await db.query("SELECT id, store_name, subdomain, logo, theme, theme->>'selectedTheme' AS theme_id, shop_type, description, contact_info, currency FROM sellers WHERE id = $1", [req.params.id]);
     if (sellerRes.rows.length === 0) return res.status(404).json({ message: 'Store not found' });
     res.json(toCamel(sellerRes.rows[0]));
   } catch (err) {
@@ -1359,7 +2288,8 @@ app.post('/api/iyonicpay/send', authenticateToken, async (req, res) => {
       mailer.sendTransactionNotification(
         { amount, type: 'send', description },
         senderUserRes.rows[0],
-        receiverUserRes.rows[0]
+        receiverUserRes.rows[0],
+        'USD'
       );
     }
 
@@ -1611,7 +2541,7 @@ app.post('/api/iyonicpay/deposit/initialize', authenticateToken, async (req, res
           email,
           amount: Math.round(amount * 100), // cents
           currency: currency,
-          callback_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/iyonicpay/callback`,
+          callback_url: `${process.env.FRONTEND_URL || 'http://localhost:4000'}/iyonicpay/callback`,
           metadata: {
             user_id: req.user.id,
             type: 'deposit'
@@ -1707,7 +2637,8 @@ app.post('/api/iyonicpay/deposit/verify', authenticateToken, async (req, res) =>
         mailer.sendTransactionNotification(
           { amount, type: 'deposit', description: 'Paystack Deposit' },
           null, // No sender for deposit
-          userRes.rows[0]
+          userRes.rows[0],
+          'USD'
         );
       }
 
@@ -1950,7 +2881,7 @@ app.post('/api/iyonicpay/invoices/:token/pay', authenticateToken, async (req, re
 
         // Fetch seller details for the email
         const sellerInfoRes = await client.query(
-          'SELECT s.store_name, u.email, u.name as user_name FROM sellers s JOIN users u ON s.user_id = u.id WHERE s.id = $1', 
+          'SELECT s.store_name, s.currency, u.email, u.name as user_name FROM sellers s JOIN users u ON s.user_id = u.id WHERE s.id = $1', 
           [order.seller_id]
         );
         const sellerInfo = sellerInfoRes.rows[0];
@@ -1958,7 +2889,8 @@ app.post('/api/iyonicpay/invoices/:token/pay', authenticateToken, async (req, re
         const sellerData = {
           name: sellerInfo?.user_name || 'Seller',
           email: sellerInfo?.email,
-          storeName: sellerInfo?.store_name || 'Our Store'
+          storeName: sellerInfo?.store_name || 'Our Store',
+          currency: sellerInfo?.currency || 'USD'
         };
 
         const customerData = {
@@ -2167,7 +3099,7 @@ app.post('/api/iyonicpay/invoices/:token/verify-external-payment', async (req, r
 
             // Fetch seller details for the email
             const sellerInfoRes = await client.query(
-              'SELECT s.store_name, u.email, u.name as user_name FROM sellers s JOIN users u ON s.user_id = u.id WHERE s.id = $1', 
+              'SELECT s.store_name, s.currency, u.email, u.name as user_name FROM sellers s JOIN users u ON s.user_id = u.id WHERE s.id = $1', 
               [order.seller_id]
             );
             const sellerInfo = sellerInfoRes.rows[0];
@@ -2175,7 +3107,8 @@ app.post('/api/iyonicpay/invoices/:token/verify-external-payment', async (req, r
             const sellerData = {
               name: sellerInfo?.user_name || 'Seller',
               email: sellerInfo?.email,
-              storeName: sellerInfo?.store_name || 'Our Store'
+              storeName: sellerInfo?.store_name || 'Our Store',
+              currency: sellerInfo?.currency || 'USD'
             };
 
             const customerData = {
@@ -2205,7 +3138,7 @@ app.post('/api/iyonicpay/invoices/:token/verify-external-payment', async (req, r
 
         // Send invoice payment notification emails
         const sellerUserRes = await client.query(
-          'SELECT u.email, u.name, s.store_name FROM users u LEFT JOIN sellers s ON u.id = s.user_id WHERE u.id = $1',
+          'SELECT u.email, u.name, s.store_name, s.currency FROM users u LEFT JOIN sellers s ON u.id = s.user_id WHERE u.id = $1',
           [invoice.user_id]
         );
         const sellerUser = sellerUserRes.rows[0];
@@ -2213,7 +3146,8 @@ app.post('/api/iyonicpay/invoices/:token/verify-external-payment', async (req, r
         const invoiceSellerData = {
           name: sellerUser?.name || 'Seller',
           email: sellerUser?.email,
-          storeName: sellerUser?.store_name || 'Our Store'
+          storeName: sellerUser?.store_name || 'Our Store',
+          currency: sellerUser?.currency || currency
         };
 
         const invoiceCustomerData = {
@@ -2259,8 +3193,11 @@ app.post('/api/iyonicpay/withdrawals', authenticateToken, async (req, res) => {
     if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
       return res.status(400).json({ message: 'Please enter a valid amount greater than 0' });
     }
-    if (!bankDetails || !bankDetails.bankName?.trim() || !bankDetails.accountNo?.trim() || !bankDetails.accountName?.trim()) {
-      return res.status(400).json({ message: 'Please provide all required bank details' });
+    const payoutMethod = bankDetails?.method || 'bank';
+    const bankPayoutValid = bankDetails?.bankName?.trim() && bankDetails?.accountNo?.trim() && bankDetails?.accountName?.trim();
+    const walletPayoutValid = bankDetails?.walletProvider?.trim() && bankDetails?.walletNumber?.trim() && bankDetails?.accountName?.trim();
+    if (payoutMethod === 'mobile_wallet' ? !walletPayoutValid : !bankPayoutValid) {
+      return res.status(400).json({ message: payoutMethod === 'mobile_wallet' ? 'Please provide the mobile wallet provider, wallet number, and account name' : 'Please provide the bank name, account number, and account name' });
     }
     await client.query('BEGIN');
     
@@ -2271,22 +3208,27 @@ app.post('/api/iyonicpay/withdrawals', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Wallet not found. Please opt-in to IyonicPay first.' });
     }
 
+    const ratesToUSD = { USD: 1, KES: 125, EUR: 0.92, GBP: 0.79, NGN: 1500, GHS: 13 };
+    const requestedCurrency = String(currency || wallet.currency || 'USD').toUpperCase();
+    const walletCurrency = String(wallet.currency || 'USD').toUpperCase();
+    const requestedAmount = parseFloat(amount);
+    const walletAmount = requestedAmount / (ratesToUSD[requestedCurrency] || 1) * (ratesToUSD[walletCurrency] || 1);
     const walletBalance = parseFloat(wallet.balance || 0);
-    if (walletBalance < parseFloat(amount)) {
-      return res.status(400).json({ message: 'Insufficient funds' });
+    if (walletBalance < walletAmount) {
+      return res.status(400).json({ message: `Insufficient funds. Available balance: ${walletBalance.toFixed(2)} ${walletCurrency}` });
     }
 
-    await client.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [amount, wallet.id]);
+    await client.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [walletAmount, wallet.id]);
     
     const withdrawalRes = await client.query(
       'INSERT INTO withdrawals (user_id, amount, bank_details, status) VALUES ($1, $2, $3, $4) RETURNING *',
-      [req.user.id, parseFloat(amount), JSON.stringify(bankDetails), 'pending']
+      [req.user.id, walletAmount, JSON.stringify({ ...bankDetails, requestedAmount, requestedCurrency, walletAmount, walletCurrency }), 'pending']
     );
 
     await client.query(`
-      INSERT INTO transactions (sender_wallet_id, amount, type, status, description) 
-      VALUES ($1, $2, 'withdrawal', 'pending', 'Withdrawal Request')
-    `, [wallet.id, parseFloat(amount)]);
+      INSERT INTO transactions (sender_wallet_id, amount, currency, type, status, description) 
+      VALUES ($1, $2, $3, 'withdrawal', 'pending', 'Withdrawal Request')
+    `, [wallet.id, walletAmount, walletCurrency]);
 
     await client.query('COMMIT');
 
@@ -2294,11 +3236,16 @@ app.post('/api/iyonicpay/withdrawals', authenticateToken, async (req, res) => {
     const userRes = await db.query('SELECT name, email FROM users WHERE id = $1', [req.user.id]);
     const user = userRes.rows[0];
     const withdrawal = withdrawalRes.rows[0];
+    const userCurrency = wallet.currency || 'USD';
     
     // To User
-    mailer.sendWithdrawalNotification(withdrawal, user, false);
+    mailer.sendWithdrawalNotification(withdrawal, user, false, userCurrency).catch(err => {
+      console.error('Failed to send withdrawal notification to user:', err.message || err);
+    });
     // To Admin
-    mailer.sendWithdrawalNotification(withdrawal, user, true);
+    mailer.sendWithdrawalNotification(withdrawal, user, true, userCurrency).catch(err => {
+      console.error('Failed to send withdrawal notification to admin:', err.message || err);
+    });
 
     res.status(201).json(toCamel(withdrawalRes.rows[0]));
   } catch (err) {
@@ -2652,6 +3599,524 @@ app.post('/api/discounts/validate', async (req, res) => {
 
 // --- File Upload Routes ---
 
+const requireNlmAdmin = async (req, res, next) => {
+  if (req.user?.role === 'manager_admin') return next();
+  if (req.user?.role !== 'seller' || !req.user.sellerId) {
+    return res.status(403).json({ message: 'A seller account with the NLM Songs theme is required.' });
+  }
+
+  try {
+    const seller = await db.query(`SELECT id FROM sellers
+      WHERE id = $1 AND user_id = $2 AND theme->>'selectedTheme' = 'nlmsongs'`, [req.user.sellerId, req.user.id]);
+    if (!seller.rows.length) {
+      return res.status(403).json({ message: 'Apply the NLM Songs theme before managing its catalogue.' });
+    }
+    next();
+  } catch (err) {
+    console.error('NLMSongs permission check error:', err);
+    res.status(500).json({ message: 'Could not verify NLM Songs access.' });
+  }
+};
+
+const parseNlmTags = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string' || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return value.split(',');
+  }
+};
+
+const cleanNlmTags = (value) => [...new Set(parseNlmTags(value)
+  .map((tag) => String(tag).trim().slice(0, 50))
+  .filter(Boolean))].slice(0, 20);
+
+const nlmFileUrl = (file) => file ? `/uploads/${file.filename}` : null;
+const removeNlmFiles = async (urls) => {
+  for (const url of urls.filter(Boolean)) {
+    const filename = path.basename(String(url).split('?')[0]);
+    if (!filename.startsWith('nlm-')) continue;
+    await fs.promises.unlink(path.join(__dirname, 'public/uploads', filename)).catch(() => {});
+  }
+};
+
+app.get('/api/nlmsongs', async (req, res) => {
+  try {
+    const songs = await db.query(`SELECT id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, created_at
+      FROM nlm_songs WHERE is_active = TRUE ORDER BY created_at DESC`);
+    res.json(toCamel(songs.rows));
+  } catch (err) {
+    console.error('NLMSongs public catalogue error:', err);
+    res.status(500).json({ message: 'Could not load the NLMSongs library.' });
+  }
+});
+
+app.get('/api/nlmsongs/admin', authenticateToken, requireNlmAdmin, async (req, res) => {
+  try {
+    const songs = req.user.role === 'manager_admin'
+      ? await db.query('SELECT * FROM nlm_songs ORDER BY created_at DESC')
+      : await db.query('SELECT * FROM nlm_songs WHERE seller_id = $1 ORDER BY created_at DESC', [req.user.sellerId]);
+    res.json(toCamel(songs.rows));
+  } catch (err) {
+    console.error('NLMSongs admin catalogue error:', err);
+    res.status(500).json({ message: 'Could not load the NLMSongs catalogue.' });
+  }
+});
+
+app.post('/api/nlmsongs', authenticateToken, requireNlmAdmin, handleNlmSongUpload, async (req, res) => {
+  const audio = req.files?.audio?.[0];
+  const thumbnail = req.files?.thumbnail?.[0];
+  const title = String(req.body.title || '').trim();
+  const artist = String(req.body.artist || '').trim();
+  const description = String(req.body.description || '').trim();
+  const genre = String(req.body.genre || '').trim();
+  const lyrics = String(req.body.lyrics || '').trim();
+  const tags = cleanNlmTags(req.body.tags);
+  if (!title || !artist || !audio) {
+    await removeNlmFiles([nlmFileUrl(audio), nlmFileUrl(thumbnail)]);
+    return res.status(400).json({ message: 'Track title and audio file are required.' });
+  }
+  try {
+    const result = await db.query(`INSERT INTO nlm_songs (seller_id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, is_active, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+    [req.user.role === 'seller' ? req.user.sellerId : null, title.slice(0, 255), artist.slice(0, 255), description, genre.slice(0, 100), tags, lyrics, nlmFileUrl(audio), nlmFileUrl(thumbnail), req.body.isActive !== 'false', req.user.id]);
+    res.status(201).json(toCamel(result.rows[0]));
+  } catch (err) {
+    await removeNlmFiles([nlmFileUrl(audio), nlmFileUrl(thumbnail)]);
+    console.error('NLMSongs create error:', err);
+    res.status(500).json({ message: 'Could not publish this song.' });
+  }
+});
+
+app.patch('/api/nlmsongs/:id', authenticateToken, requireNlmAdmin, handleNlmSongUpload, async (req, res) => {
+  const audio = req.files?.audio?.[0];
+  const thumbnail = req.files?.thumbnail?.[0];
+  try {
+    const current = req.user.role === 'manager_admin'
+      ? await db.query('SELECT * FROM nlm_songs WHERE id = $1', [req.params.id])
+      : await db.query('SELECT * FROM nlm_songs WHERE id = $1 AND seller_id = $2', [req.params.id, req.user.sellerId]);
+    if (!current.rows.length) {
+      await removeNlmFiles([nlmFileUrl(audio), nlmFileUrl(thumbnail)]);
+      return res.status(404).json({ message: 'Song not found.' });
+    }
+    const oldSong = current.rows[0];
+    const nextTags = req.body.tags === undefined ? oldSong.tags : cleanNlmTags(req.body.tags);
+    const result = await db.query(`UPDATE nlm_songs SET
+      title = COALESCE($1, title), artist = COALESCE($2, artist), description = COALESCE($3, description),
+      genre = COALESCE($4, genre), tags = COALESCE($5, tags), lyrics = COALESCE($6, lyrics),
+      audio_url = COALESCE($7, audio_url), thumbnail_url = CASE WHEN $8::boolean THEN $9 ELSE thumbnail_url END,
+      is_active = COALESCE($10, is_active), updated_at = CURRENT_TIMESTAMP
+      WHERE id = $11 AND ($12::boolean OR seller_id = $13) RETURNING *`, [
+      req.body.title === undefined ? null : String(req.body.title).trim().slice(0, 255),
+      req.body.artist === undefined ? null : String(req.body.artist).trim().slice(0, 255),
+      req.body.description === undefined ? null : String(req.body.description).trim(),
+      req.body.genre === undefined ? null : String(req.body.genre).trim().slice(0, 100),
+      req.body.tags === undefined ? null : nextTags,
+      req.body.lyrics === undefined ? null : String(req.body.lyrics).trim(),
+      nlmFileUrl(audio), Boolean(req.body.removeThumbnail === 'true' || thumbnail),
+      req.body.removeThumbnail === 'true' ? null : nlmFileUrl(thumbnail),
+      req.body.isActive === undefined ? null : req.body.isActive === 'true', req.params.id,
+      req.user.role === 'manager_admin', req.user.sellerId || null
+    ]);
+    await removeNlmFiles([audio ? oldSong.audio_url : null, thumbnail || req.body.removeThumbnail === 'true' ? oldSong.thumbnail_url : null]);
+    res.json(toCamel(result.rows[0]));
+  } catch (err) {
+    await removeNlmFiles([nlmFileUrl(audio), nlmFileUrl(thumbnail)]);
+    console.error('NLMSongs update error:', err);
+    res.status(500).json({ message: 'Could not update this song.' });
+  }
+});
+
+app.delete('/api/nlmsongs/:id', authenticateToken, requireNlmAdmin, async (req, res) => {
+  try {
+    const result = req.user.role === 'manager_admin'
+      ? await db.query('DELETE FROM nlm_songs WHERE id = $1 RETURNING audio_url, thumbnail_url', [req.params.id])
+      : await db.query('DELETE FROM nlm_songs WHERE id = $1 AND seller_id = $2 RETURNING audio_url, thumbnail_url', [req.params.id, req.user.sellerId]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Song not found.' });
+    await removeNlmFiles([result.rows[0].audio_url, result.rows[0].thumbnail_url]);
+    res.json({ message: 'Song removed from the catalogue.' });
+  } catch (err) {
+    console.error('NLMSongs delete error:', err);
+    res.status(500).json({ message: 'Could not remove this song.' });
+  }
+});
+
+// --- IxStream API Routes ---
+
+app.get('/api/ixstream/content', async (req, res) => {
+  try {
+    const query = req.query;
+    const typeFilter = query.type;
+    const searchFilter = query.search ? `AND (title ILIKE '%${String(query.search).replace(/'/g, "''")}%' OR description ILIKE '%${String(query.search).replace(/'/g, "''")}%' OR genre ILIKE '%${String(query.search).replace(/'/g, "''")}%')` : '';
+    const genreFilter = query.genre ? `AND genre = '${String(query.genre).replace(/'/g, "''")}'` : '';
+    const songsResult = await db.query(`SELECT id, seller_id, title, description, type, genre, tags, release_year, duration, rating, thumbnail_url, video_url, is_active, created_at, updated_at
+      FROM ixstream_content WHERE is_active = TRUE ${genreFilter} ${searchFilter} ${typeFilter ? `AND type = '${typeFilter}'` : ''} ORDER BY created_at DESC`);
+    res.json(toCamel(songsResult.rows));
+  } catch (err) {
+    console.error('IxStream public catalogue error:', err);
+    res.status(500).json({ message: 'Could not load the IxStream catalogue.' });
+  }
+});
+
+app.get('/api/ixstream/content/admin', authenticateToken, requireIxsAdmin, async (req, res) => {
+  try {
+    const typeFilter = req.query.type;
+    const result = req.user.role === 'manager_admin'
+      ? await db.query(`SELECT * FROM ixstream_content ORDER BY created_at DESC${typeFilter ? " WHERE type = '" + typeFilter + "'" : ""}`)
+      : await db.query(`SELECT * FROM ixstream_content WHERE seller_id = $1 ORDER BY created_at DESC${typeFilter ? " AND type = '" + typeFilter + "'" : ""}`, [req.user.sellerId]);
+    res.json(toCamel(result.rows));
+  } catch (err) {
+    console.error('IxStream admin catalogue error:', err);
+    res.status(500).json({ message: 'Could not load the IxStream catalogue.' });
+  }
+});
+
+app.get('/api/ixstream/content/:id', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM ixstream_content WHERE id = $1 AND is_active = TRUE', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Title not found.' });
+    const content = toCamel(result.rows[0]);
+    if (content.type === 'tvshow') {
+      const seasonsResult = await db.query('SELECT * FROM ixstream_seasons WHERE content_id = $1 ORDER BY season_number', [req.params.id]);
+      content.seasons = toCamel(seasonsResult.rows);
+    }
+    res.json(content);
+  } catch (err) {
+    console.error('IxStream get error:', err);
+    res.status(500).json({ message: 'Could not load this title.' });
+  }
+});
+
+app.post('/api/ixstream/content', authenticateToken, requireIxsAdmin, handleIxsUpload, async (req, res) => {
+  const video = req.files?.video?.[0];
+  const thumbnail = req.files?.thumbnail?.[0];
+  const title = String(req.body.title || '').trim();
+  const description = String(req.body.description || '').trim();
+  const contentType = String(req.body.type || 'movie').trim();
+  const genre = String(req.body.genre || '').trim();
+  const tags = (Array.isArray(req.body.tags) ? req.body.tags : String(req.body.tags || '').split(',').filter((t) => t.trim())).map((t) => String(t).trim()).filter(Boolean);
+  const releaseYear = req.body.releaseYear ? parseInt(req.body.releaseYear) : null;
+  const duration = req.body.duration ? parseInt(req.body.duration) : null;
+  const rating = req.body.rating ? parseFloat(req.body.rating) : null;
+  if (!title || !video || !['movie', 'tvshow'].includes(contentType)) {
+    await removeIxsFiles([ixsFileUrl(video), ixsFileUrl(thumbnail)]);
+    return res.status(400).json({ message: 'Title, video file, and a valid type (movie or tvshow) are required.' });
+  }
+  try {
+    const result = await db.query(`INSERT INTO ixstream_content (seller_id, title, description, type, genre, tags, release_year, duration, rating, video_url, thumbnail_url, is_active, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+    [req.user.role === 'seller' ? req.user.sellerId : null, title.slice(0, 255), description, contentType, genre.slice(0, 100), tags, releaseYear, duration, rating, ixsFileUrl(video), ixsFileUrl(thumbnail), req.body.isActive !== 'false', req.user.id]);
+    res.status(201).json(toCamel(result.rows[0]));
+  } catch (err) {
+    await removeIxsFiles([ixsFileUrl(video), ixsFileUrl(thumbnail)]);
+    console.error('IxStream create error:', err);
+    res.status(500).json({ message: 'Could not publish this title.' });
+  }
+});
+
+app.patch('/api/ixstream/content/:id', authenticateToken, requireIxsAdmin, handleIxsUpload, async (req, res) => {
+  const video = req.files?.video?.[0];
+  const thumbnail = req.files?.thumbnail?.[0];
+  try {
+    const current = req.user.role === 'manager_admin'
+      ? await db.query('SELECT * FROM ixstream_content WHERE id = $1', [req.params.id])
+      : await db.query('SELECT * FROM ixstream_content WHERE id = $1 AND seller_id = $2', [req.params.id, req.user.sellerId]);
+    if (!current.rows.length) {
+      await removeIxsFiles([ixsFileUrl(video), ixsFileUrl(thumbnail)]);
+      return res.status(404).json({ message: 'Title not found.' });
+    }
+    const old = current.rows[0];
+    const result = await db.query(`UPDATE ixstream_content SET
+      title = COALESCE($1, title), description = COALESCE($2, description), type = COALESCE($3, type),
+      genre = COALESCE($4, genre), tags = COALESCE($5, tags), release_year = COALESCE($6, release_year),
+      duration = COALESCE($7, duration), rating = COALESCE($8, rating),
+      video_url = COALESCE($9, video_url), thumbnail_url = CASE WHEN $10::boolean THEN $11 ELSE thumbnail_url END,
+      is_active = COALESCE($12, is_active), updated_at = CURRENT_TIMESTAMP
+      WHERE id = $13 AND ($14::boolean OR seller_id = $15) RETURNING *`,
+    [
+      req.body.title === undefined ? null : String(req.body.title).trim().slice(0, 255),
+      req.body.description === undefined ? null : String(req.body.description).trim(),
+      req.body.type === undefined ? null : String(req.body.type),
+      req.body.genre === undefined ? null : String(req.body.genre).trim().slice(0, 100),
+      req.body.tags === undefined ? null : (Array.isArray(req.body.tags) ? req.body.tags : String(req.body.tags).split(',').filter((t) => t.trim())),
+      req.body.releaseYear === undefined ? null : parseInt(req.body.releaseYear),
+      req.body.duration === undefined ? null : parseInt(req.body.duration),
+      req.body.rating === undefined ? null : parseFloat(req.body.rating),
+      ixsFileUrl(video),
+      Boolean(req.body.removeThumbnail === 'true' || thumbnail),
+      req.body.removeThumbnail === 'true' ? null : ixsFileUrl(thumbnail),
+      req.body.isActive === undefined ? null : req.body.isActive === 'true',
+      req.params.id,
+      req.user.role === 'manager_admin', req.user.sellerId || null
+    ]);
+    await removeIxsFiles([video ? old.video_url : null, (thumbnail || req.body.removeThumbnail === 'true') ? old.thumbnail_url : null]);
+    res.json(toCamel(result.rows[0]));
+  } catch (err) {
+    await removeIxsFiles([ixsFileUrl(video), ixsFileUrl(thumbnail)]);
+    console.error('IxStream update error:', err);
+    res.status(500).json({ message: 'Could not update this title.' });
+  }
+});
+
+app.delete('/api/ixstream/content/:id', authenticateToken, requireIxsAdmin, async (req, res) => {
+  try {
+    const result = req.user.role === 'manager_admin'
+      ? await db.query('DELETE FROM ixstream_content WHERE id = $1 RETURNING video_url, thumbnail_url', [req.params.id])
+      : await db.query('DELETE FROM ixstream_content WHERE id = $1 AND seller_id = $2 RETURNING video_url, thumbnail_url', [req.params.id, req.user.sellerId]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Title not found.' });
+    await removeIxsFiles([result.rows[0].video_url, result.rows[0].thumbnail_url]);
+    res.json({ message: 'Title removed from the catalogue.' });
+  } catch (err) {
+    console.error('IxStream delete error:', err);
+    res.status(500).json({ message: 'Could not remove this title.' });
+  }
+});
+
+app.get('/api/ixstream/content/:contentId/seasons', async (req, res) => {
+  try {
+    const seasons = await db.query('SELECT * FROM ixstream_seasons WHERE content_id = $1 ORDER BY season_number', [req.params.contentId]);
+    res.json(toCamel(seasons.rows));
+  } catch (err) {
+    console.error('IxStream seasons error:', err);
+    res.status(500).json({ message: 'Could not load seasons.' });
+  }
+});
+
+app.post('/api/ixstream/content/:contentId/seasons', authenticateToken, requireIxsAdmin, async (req, res) => {
+  const { seasonNumber, title, description } = req.body;
+  try {
+    const result = await db.query('INSERT INTO ixstream_seasons (content_id, season_number, title, description) VALUES ($1, $2, $3, $4) RETURNING *',
+      [req.params.contentId, seasonNumber, title || null, description || '']);
+    res.status(201).json(toCamel(result.rows[0]));
+  } catch (err) {
+    console.error('IxStream create season error:', err);
+    res.status(500).json({ message: 'Could not create season.' });
+  }
+});
+
+app.get('/api/ixstream/seasons/:seasonId/episodes', async (req, res) => {
+  try {
+    const episodes = await db.query('SELECT * FROM ixstream_episodes WHERE season_id = $1 ORDER BY episode_number', [req.params.seasonId]);
+    res.json(toCamel(episodes.rows));
+  } catch (err) {
+    console.error('IxStream episodes error:', err);
+    res.status(500).json({ message: 'Could not load episodes.' });
+  }
+});
+
+app.post('/api/ixstream/episodes', authenticateToken, requireIxsAdmin, handleIxsUpload, async (req, res) => {
+  const video = req.files?.video?.[0];
+  const thumbnail = req.files?.thumbnail?.[0];
+  const { seasonId, episodeNumber, title, description, duration } = req.body;
+  if (!seasonId || !episodeNumber || !title || !video) {
+    await removeIxsFiles([ixsFileUrl(video), ixsFileUrl(thumbnail)]);
+    return res.status(400).json({ message: 'Season, episode number, title, and video are required.' });
+  }
+  try {
+    const result = await db.query(`INSERT INTO ixstream_episodes (season_id, episode_number, title, description, duration, video_url, thumbnail_url) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [seasonId, parseInt(episodeNumber), title.slice(0, 255), description || '', duration ? parseInt(duration) : null, ixsFileUrl(video), ixsFileUrl(thumbnail)]);
+    res.status(201).json(toCamel(result.rows[0]));
+  } catch (err) {
+    await removeIxsFiles([ixsFileUrl(video), ixsFileUrl(thumbnail)]);
+    console.error('IxStream create episode error:', err);
+    res.status(500).json({ message: 'Could not create episode.' });
+  }
+});
+
+app.patch('/api/ixstream/episodes/:id', authenticateToken, requireIxsAdmin, handleIxsUpload, async (req, res) => {
+  const video = req.files?.video?.[0];
+  const thumbnail = req.files?.thumbnail?.[0];
+  try {
+    const current = await db.query('SELECT * FROM ixstream_episodes WHERE id = $1', [req.params.id]);
+    if (!current.rows.length) {
+      await removeIxsFiles([ixsFileUrl(video), ixsFileUrl(thumbnail)]);
+      return res.status(404).json({ message: 'Episode not found.' });
+    }
+    const old = current.rows[0];
+    const result = await db.query(`UPDATE ixstream_episodes SET
+      episode_number = COALESCE($1, episode_number), title = COALESCE($2, title),
+      description = COALESCE($3, description), duration = COALESCE($4, duration),
+      video_url = COALESCE($5, video_url), thumbnail_url = CASE WHEN $6::boolean THEN $7 ELSE thumbnail_url END, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $8 RETURNING *`,
+    [
+      req.body.episodeNumber === undefined ? null : parseInt(req.body.episodeNumber),
+      req.body.title === undefined ? null : String(req.body.title).trim().slice(0, 255),
+      req.body.description === undefined ? null : String(req.body.description).trim(),
+      req.body.duration === undefined ? null : parseInt(req.body.duration),
+      ixsFileUrl(video),
+      Boolean(req.body.removeThumbnail === 'true' || thumbnail),
+      req.body.removeThumbnail === 'true' ? null : ixsFileUrl(thumbnail),
+      req.params.id
+    ]);
+    await removeIxsFiles([video ? old.video_url : null, (thumbnail || req.body.removeThumbnail === 'true') ? old.thumbnail_url : null]);
+    res.json(toCamel(result.rows[0]));
+  } catch (err) {
+    await removeIxsFiles([ixsFileUrl(video), ixsFileUrl(thumbnail)]);
+    console.error('IxStream update episode error:', err);
+    res.status(500).json({ message: 'Could not update episode.' });
+  }
+});
+
+app.delete('/api/ixstream/episodes/:id', authenticateToken, requireIxsAdmin, async (req, res) => {
+  try {
+    const result = await db.query('DELETE FROM ixstream_episodes WHERE id = $1 RETURNING video_url, thumbnail_url', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Episode not found.' });
+    await removeIxsFiles([result.rows[0].video_url, result.rows[0].thumbnail_url]);
+    res.json({ message: 'Episode removed.' });
+  } catch (err) {
+    console.error('IxStream delete episode error:', err);
+    res.status(500).json({ message: 'Could not remove this episode.' });
+  }
+});
+
+app.get('/api/ixstream/plans', async (req, res) => {
+  try {
+    const plans = await db.query('SELECT * FROM ixstream_subscription_plans WHERE is_active = TRUE ORDER BY sort_order, created_at');
+    res.json(toCamel(plans.rows));
+  } catch (err) {
+    console.error('IxStream plans error:', err);
+    res.status(500).json({ message: 'Could not load plans.' });
+  }
+});
+
+app.post('/api/ixstream/plans', authenticateToken, requireIxsAdmin, async (req, res) => {
+  const { name, description, priceCents, currency, intervalType, intervalCount, features } = req.body;
+  try {
+    const result = await db.query(`INSERT INTO ixstream_subscription_plans (seller_id, name, description, price_cents, currency, interval_type, interval_count, features)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    [req.user.role === 'seller' ? req.user.sellerId : null, name, description || '', priceCents, currency || 'USD', intervalType, intervalCount, features || []]);
+    res.status(201).json(toCamel(result.rows[0]));
+  } catch (err) {
+    console.error('IxStream create plan error:', err);
+    res.status(500).json({ message: 'Could not create plan.' });
+  }
+});
+
+app.patch('/api/ixstream/plans/:id', authenticateToken, requireIxsAdmin, async (req, res) => {
+  const { name, description, priceCents, currency, intervalType, intervalCount, features, isActive } = req.body;
+  try {
+    const result = await db.query(`UPDATE ixstream_subscription_plans SET
+      name = COALESCE($1, name), description = COALESCE($2, description), price_cents = COALESCE($3, price_cents),
+      currency = COALESCE($4, currency), interval_type = COALESCE($5, interval_type), interval_count = COALESCE($6, interval_count),
+      features = COALESCE($7, features), is_active = COALESCE($8, is_active), updated_at = CURRENT_TIMESTAMP WHERE id = $9 RETURNING *`,
+    [name, description, priceCents, currency, intervalType, intervalCount, features, isActive, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Plan not found.' });
+    res.json(toCamel(result.rows[0]));
+  } catch (err) {
+    console.error('IxStream update plan error:', err);
+    res.status(500).json({ message: 'Could not update plan.' });
+  }
+});
+
+app.delete('/api/ixstream/plans/:id', authenticateToken, requireIxsAdmin, async (req, res) => {
+  try {
+    const result = await db.query('DELETE FROM ixstream_subscription_plans WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Plan not found.' });
+    res.json({ message: 'Plan deleted.' });
+  } catch (err) {
+    console.error('IxStream delete plan error:', err);
+    res.status(500).json({ message: 'Could not delete plan.' });
+  }
+});
+
+app.get('/api/ixstream/subscriptions', authenticateToken, async (req, res) => {
+  try {
+    const result = await db.query(`SELECT s.*, p.name as plan_name, p.description as plan_description, p.price_cents, p.currency, p.interval_type, p.interval_count, p.features
+      FROM ixstream_subscriptions s JOIN ixstream_subscription_plans p ON s.plan_id = p.id
+      WHERE s.user_id = $1 ORDER BY s.created_at DESC`, [req.user.id]);
+    res.json(toCamel(result.rows));
+  } catch (err) {
+    console.error('IxStream subscriptions error:', err);
+    res.status(500).json({ message: 'Could not load subscriptions.' });
+  }
+});
+
+app.post('/api/ixstream/subscriptions', authenticateToken, async (req, res) => {
+  const { planId } = req.body;
+  if (!planId) return res.status(400).json({ message: 'A plan ID is required.' });
+  try {
+    const planResult = await db.query('SELECT * FROM ixstream_subscription_plans WHERE id = $1 AND is_active = TRUE', [planId]);
+    if (!planResult.rows.length) return res.status(404).json({ message: 'Plan not found.' });
+    const plan = planResult.rows[0];
+    const now = new Date();
+    const periodEnd = new Date(now);
+    if (plan.interval_type === 'day') periodEnd.setDate(periodEnd.getDate() + plan.interval_count);
+    else if (plan.interval_type === 'week') periodEnd.setDate(periodEnd.getDate() + (plan.interval_count * 7));
+    else if (plan.interval_type === 'month') periodEnd.setMonth(periodEnd.getMonth() + plan.interval_count);
+    else if (plan.interval_type === 'year') periodEnd.setFullYear(periodEnd.getFullYear() + plan.interval_count);
+    const result = await db.query(`INSERT INTO ixstream_subscriptions (user_id, seller_id, plan_id, status, current_period_start, current_period_end)
+      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [req.user.id, plan.seller_id, plan.id, 'incomplete', now, periodEnd]);
+    res.status(201).json(toCamel(result.rows[0]));
+  } catch (err) {
+    console.error('IxStream create subscription error:', err);
+    res.status(500).json({ message: 'Could not subscribe.' });
+  }
+});
+
+app.patch('/api/ixstream/subscriptions/:id/cancel', authenticateToken, async (req, res) => {
+  try {
+    const result = await db.query('UPDATE ixstream_subscriptions SET status = CASE WHEN current_period_end <= CURRENT_TIMESTAMP THEN \'canceled\' ELSE \'canceled\' END, cancel_at_period_end = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND user_id = $2 RETURNING *', [req.params.id, req.user.id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Subscription not found.' });
+    res.json(toCamel(result.rows[0]));
+  } catch (err) {
+    console.error('IxStream cancel subscription error:', err);
+    res.status(500).json({ message: 'Could not cancel subscription.' });
+  }
+});
+
+app.post('/api/ixstream/subscriptions/paystack/initialize', authenticateToken, async (req, res) => {
+  const { planId } = req.body;
+  if (!planId) return res.status(400).json({ message: 'A plan ID is required.' });
+  try {
+    const planResult = await db.query('SELECT * FROM ixstream_subscription_plans WHERE id = $1', [planId]);
+    if (!planResult.rows.length) return res.status(404).json({ message: 'Plan not found.' });
+    const plan = planResult.rows[0];
+    const reference = `ixs-sub-${nanoid(12)}`;
+    const paystack = new Paystack(process.env.PAYSTACK_SECRET_KEY);
+    const response = await paystack.transaction.initialize({
+      amount: plan.price_cents,
+      currency: plan.currency,
+      email: req.user.email,
+      reference,
+      callback_url: `${req.protocol}://${req.get('host')}/ixstream`,
+    });
+    res.json({ authorizationUrl: response.data.authorization_url, reference });
+  } catch (err) {
+    console.error('IxStream paystack init error:', err);
+    res.status(500).json({ message: 'Could not initialize payment.' });
+  }
+});
+
+app.post('/api/ixstream/subscriptions/paystack/verify', authenticateToken, async (req, res) => {
+  const { reference } = req.body;
+  if (!reference) return res.status(400).json({ message: 'Reference is required.' });
+  try {
+    const paystack = new Paystack(process.env.PAYSTACK_SECRET_KEY);
+    const response = await paystack.transaction.verify({ reference });
+    if (response.data.status === 'success') {
+      const planResult = await db.query('SELECT * FROM ixstream_subscription_plans WHERE price_cents = $1 AND currency = $2', [response.data.amount / 100, response.data.currency]);
+      if (planResult.rows.length > 0) {
+        const plan = planResult.rows[0];
+        const now = new Date();
+        const periodEnd = new Date(now);
+        if (plan.interval_type === 'month') periodEnd.setMonth(periodEnd.getMonth() + plan.interval_count);
+        else if (plan.interval_type === 'year') periodEnd.setFullYear(periodEnd.getFullYear() + plan.interval_count);
+        const subResult = await db.query(`INSERT INTO ixstream_subscriptions (user_id, seller_id, plan_id, status, current_period_start, current_period_end, payment_reference)
+          VALUES ($1, $2, $3, 'active', $4, $5, $6) RETURNING *`,
+        [req.user.id, plan.seller_id, plan.id, now, periodEnd, reference]);
+        return res.json({ success: true, subscription: toCamel(subResult.rows[0]) });
+      }
+    }
+    res.json({ success: false, subscription: null });
+  } catch (err) {
+    console.error('IxStream paystack verify error:', err);
+    res.status(500).json({ message: 'Could not verify payment.' });
+  }
+});
+
 app.post('/api/upload', authenticateToken, upload.array('files', 10), (req, res) => {
   try {
     const fileUrls = req.files.map(file => `${req.protocol}://${req.get('host')}/uploads/${file.filename}`);
@@ -2785,6 +4250,28 @@ app.delete('/api/products/:id', authenticateToken, async (req, res) => {
 
 // --- Order Routes ---
 
+app.get('/api/orders/my', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'customer') {
+    return res.status(403).json({ message: 'Customer access required' });
+  }
+
+  try {
+    const ordersRes = await db.query(
+      `SELECT o.* FROM orders o
+       WHERE EXISTS (
+         SELECT 1 FROM customers c
+         WHERE c.id = o.customer_id AND c.user_id = $1
+       )
+       ORDER BY o.created_at DESC`,
+      [req.user.id]
+    );
+    res.json(toCamel(ordersRes.rows));
+  } catch (err) {
+    console.error('Fetch Customer Orders Error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 app.get('/api/orders', authenticateToken, async (req, res) => {
   try {
     const { seller_id } = req.query;
@@ -2823,13 +4310,20 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
 });
 
 app.post('/api/orders', async (req, res) => {
-  const { sellerId, customerId, customerName, customerEmail, customerPhone, items, total, currency: bodyCurrency, shippingAddress, paymentMethod, discount, subtotal, originalTotal, deliveryFee, deliveryLocation } = req.body;
+  const { sellerId, customerId, customerName, customerEmail, customerPhone, items, total, subtotal, originalTotal, discount, currency: bodyCurrency, shippingAddress, paymentMethod, deliveryFee, deliveryLocation, paymentType, amountPaid, remainingBalance } = req.body;
   const client = await db.pool.connect();
   try {
     // Get seller's default currency and store name
     const sellerInfoRes = await db.query('SELECT currency, store_name FROM sellers WHERE id = $1', [sellerId]);
     const currency = bodyCurrency || sellerInfoRes.rows[0]?.currency || 'USD';
     const storeName = sellerInfoRes.rows[0]?.store_name || 'Our Store';
+    const orderTotal = Math.max(0, Number(total) || 0);
+    const paidAmount = paymentType === 'deposit'
+      ? Math.min(orderTotal, Math.max(0, Number(amountPaid) || 0))
+      : paymentType === 'pod' ? 0 : orderTotal;
+    const balanceDue = paymentType === 'deposit'
+      ? Math.max(0, Math.round((orderTotal - paidAmount) * 100) / 100)
+      : 0;
     
     await client.query('BEGIN');
 
@@ -2882,9 +4376,9 @@ app.post('/api/orders', async (req, res) => {
     }
 
     const orderRes = await client.query(
-      `INSERT INTO orders (seller_id, customer_id, customer_name, customer_email, items, total, subtotal, original_total, discount, currency, status, shipping_address, delivery_fee, delivery_location) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12, $13) RETURNING *`,
-      [sellerId, finalCustomerId, customerName, customerEmail, JSON.stringify(items), total, subtotal, originalTotal, JSON.stringify(discount), currency, JSON.stringify(shippingAddress), deliveryFee, deliveryLocation]
+      `INSERT INTO orders (seller_id, customer_id, customer_name, customer_email, items, total, subtotal, original_total, discount, currency, status, shipping_address, delivery_fee, delivery_location, amount_paid, remaining_balance, payment_type) 
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11, $12, $13, $14, $15, $16) RETURNING *`,
+      [sellerId, finalCustomerId, customerName, customerEmail, JSON.stringify(items), orderTotal, subtotal, originalTotal, JSON.stringify(discount), currency, JSON.stringify(shippingAddress), deliveryFee, deliveryLocation, paidAmount, balanceDue, paymentType || 'site']
     );
 
     const order = toCamel(orderRes.rows[0]);
@@ -2931,7 +4425,7 @@ app.post('/api/orders', async (req, res) => {
           const paystackResponse = await new Promise((resolve, reject) => {
             sellerPaystack.transaction.initialize({
               email: customerEmail,
-              amount: Math.round(total * 100),
+               amount: Math.round((amountPaid || total) * 100),
               currency: currency,
               metadata: { order_id: order.id, type: 'order_payment' }
             }, (err, body) => {
@@ -2966,7 +4460,7 @@ app.post('/api/orders', async (req, res) => {
       const linkToken = nanoid(12);
       await db.query(
         'INSERT INTO invoices (user_id, order_id, amount, description, link_token) VALUES ($1, $2, $3, $4, $5)',
-        [sellerUserId, order.id, total, `Payment for Order #${order.id}`, linkToken]
+        [sellerUserId, order.id, amountPaid || total, `Payment for Order #${order.id}`, linkToken]
       );
       
       return res.status(201).json({
@@ -2983,7 +4477,7 @@ app.post('/api/orders', async (req, res) => {
         const paystackResponse = await new Promise((resolve, reject) => {
           paystack.transaction.initialize({
             email: customerEmail,
-            amount: Math.round(total * 100), // in kobo/cents
+            amount: Math.round((amountPaid || total) * 100), // in kobo/cents
             currency: currency,
             metadata: {
               order_id: order.id,
@@ -4022,29 +5516,22 @@ app.get('/api/seller-managers', authenticateToken, async (req, res) => {
     }
     
     const managersRes = await db.query(`
-      SELECT sm.*, u.name, u.email 
+      SELECT sm.*, u.name, u.email,
+             (SELECT COUNT(*) FROM sellers s WHERE s.manager_id = sm.id) as live_total_sellers,
+             (SELECT COUNT(*) FROM sellers s WHERE s.manager_id = sm.id AND s.subscription->>'status' = 'active') as live_active_sellers,
+             COALESCE((SELECT SUM(o.total) FROM orders o JOIN sellers s ON s.id = o.seller_id WHERE s.manager_id = sm.id AND o.status != 'pending'), 0) as live_total_revenue
       FROM seller_managers sm
       JOIN users u ON sm.user_id = u.id
     `);
 
-    const statsRes = await db.query(`
-      SELECT 
-        COUNT(*) as total_sellers,
-        COUNT(*) FILTER (WHERE (subscription->>'status') = 'active') as active_sellers,
-        (SELECT COALESCE(SUM(total), 0) FROM orders) as total_revenue
-      FROM sellers
-    `);
-
-    const globalStats = statsRes.rows[0] || { total_sellers: 0, active_sellers: 0, total_revenue: 0 };
-    const totalRevenue = parseFloat(globalStats.total_revenue || 0);
-
     const managersWithStats = managersRes.rows.map(manager => {
       const commissionRate = parseFloat(manager.commission_rate || 0.05);
+      const totalRevenue = parseFloat(manager.live_total_revenue || 0);
       return {
         ...manager,
         stats: {
-          totalSellers: parseInt(globalStats.total_sellers || 0),
-          activeSellers: parseInt(globalStats.active_sellers || 0),
+          totalSellers: parseInt(manager.live_total_sellers || 0),
+          activeSellers: parseInt(manager.live_active_sellers || 0),
           totalRevenue: totalRevenue,
           totalCommission: totalRevenue * commissionRate
         },
@@ -4405,6 +5892,151 @@ app.get('/api/seller-managers/me/analytics', authenticateToken, async (req, res)
 
 // --- IyonicBots Routes ---
 
+const IYONIC_BOT_PLANS = {
+  starter: { name: 'Starter', price: 0, advanced: false, description: 'One role-based bot to get your store started.' },
+  basic: { name: 'Basic', price: 2, advanced: false, description: 'Three role-based bots for everyday store support.' },
+  pro: { name: 'Pro', price: 9.99, advanced: true, description: 'Advanced training and deployment for Professional sellers.' },
+  promax: { name: 'Pro Max', price: 29.99, advanced: true, description: 'The complete IyonicBots capability set for Enterprise sellers.' }
+};
+
+const SUBSCRIPTION_PLANS_CONFIG = {
+  iyonicshop: {
+    plans: {
+      starter: { name: 'Starter', price: 0, botPlan: 'basic' },
+      basic: { name: 'Basic', price: 15, botPlan: 'basic' },
+      professional: { name: 'Professional', price: 29, botPlan: 'pro' },
+      enterprise: { name: 'Enterprise', price: 99, botPlan: 'promax' }
+    }
+  },
+  iyonicbots: {
+    plans: IYONIC_BOT_PLANS
+  }
+};
+
+const getSellerBotPlan = async (sellerId) => {
+  const result = await db.query('SELECT subscription FROM sellers WHERE id = $1', [sellerId]);
+  const subscription = result.rows[0]?.subscription || {};
+  const shopPlan = subscription.plan || 'starter';
+  const planId = subscription.botPlan || 'starter';
+  return { id: planId, shopPlan, ...IYONIC_BOT_PLANS[planId] };
+};
+
+app.get('/api/bots/billing', authenticateToken, async (req, res) => {
+  try {
+    if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can manage bot billing' });
+    const plan = await getSellerBotPlan(req.user.sellerId);
+    const wallet = await db.query('SELECT balance, currency FROM wallets WHERE user_id = $1', [req.user.id]);
+    const sellerRes = await db.query('SELECT auto_renew FROM sellers WHERE user_id = $1', [req.user.id]);
+    const autoRenew = sellerRes.rows[0]?.auto_renew || { iyonicbots: { enabled: false } };
+    res.json({ plan, plans: IYONIC_BOT_PLANS, wallet: wallet.rows[0] || { balance: 0, currency: 'USD' }, autoRenew });
+  } catch (err) {
+    res.status(500).json({ message: 'Unable to load bot billing' });
+  }
+});
+
+app.post('/api/bots/billing/subscribe', authenticateToken, async (req, res) => {
+  const requestedPlanId = req.body.planId === 'studio' ? 'pro' : req.body.planId === 'scale' ? 'promax' : req.body.planId;
+  const planId = requestedPlanId;
+  const selectedPlan = IYONIC_BOT_PLANS[planId];
+  if (!selectedPlan) return res.status(400).json({ message: 'Invalid bot plan' });
+  if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can subscribe to bot plans' });
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const sellerResult = await client.query('SELECT subscription FROM sellers WHERE id = $1 FOR UPDATE', [req.user.sellerId]);
+    const subscription = sellerResult.rows[0]?.subscription || {};
+    const currentPlan = subscription.botPlan || 'starter';
+    if (currentPlan === planId) {
+      await client.query('ROLLBACK');
+      return res.json({ message: 'Plan already active', plan: { id: planId, ...selectedPlan } });
+    }
+
+    if (selectedPlan.price > 0) {
+      const walletResult = await client.query('SELECT id, balance, currency FROM wallets WHERE user_id = $1 FOR UPDATE', [req.user.id]);
+      const wallet = walletResult.rows[0];
+      if (!wallet || Number(wallet.balance) < selectedPlan.price) {
+        await client.query('ROLLBACK');
+        return res.status(402).json({ message: `You need ${selectedPlan.price.toFixed(2)} USD in your IyonicPay wallet to activate this plan.` });
+      }
+      await client.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [selectedPlan.price, wallet.id]);
+      await client.query(
+        `INSERT INTO transactions (sender_wallet_id, amount, currency, type, status, description)
+         VALUES ($1, $2, $3, 'invoice_payment', 'completed', $4)`,
+        [wallet.id, selectedPlan.price, wallet.currency || 'USD', `IyonicBots ${selectedPlan.name} plan`]
+      );
+    }
+
+    const nextSubscription = { ...subscription, botPlan: planId, botPlanStartedAt: new Date().toISOString() };
+    const updated = await client.query('UPDATE sellers SET subscription = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING subscription', [JSON.stringify(nextSubscription), req.user.sellerId]);
+    await client.query('COMMIT');
+    res.json({ message: `${selectedPlan.name} plan activated`, plan: { id: planId, ...selectedPlan }, subscription: updated.rows[0].subscription });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Bot billing error:', err);
+    res.status(500).json({ message: 'Could not activate bot plan' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/bots/billing/paystack/initialize', authenticateToken, async (req, res) => {
+  const planId = req.body.planId === 'studio' ? 'pro' : req.body.planId === 'scale' ? 'promax' : req.body.planId;
+  const selectedPlan = IYONIC_BOT_PLANS[planId];
+  if (!selectedPlan || selectedPlan.price <= 0) return res.status(400).json({ message: 'Choose a paid bot plan.' });
+  if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can subscribe to bot plans' });
+  if (!process.env.PAYSTACK_SECRET_KEY) return res.status(503).json({ message: 'Direct card payments are not configured yet.' });
+
+  try {
+    const userResult = await db.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+    const email = userResult.rows[0]?.email;
+    if (!email) return res.status(422).json({ message: 'We could not find an email address for this account.' });
+    const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY);
+    const callbackUrl = `${process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:4000'}/#/iyonicbots?plan=${encodeURIComponent(planId)}`;
+    const payment = await new Promise((resolve, reject) => {
+      paystack.transaction.initialize({
+        email,
+        amount: Math.round(selectedPlan.price * 100),
+        currency: process.env.PAYSTACK_CURRENCY || 'USD',
+        channels: ['card', 'mobile_money'],
+        callback_url: callbackUrl,
+        metadata: { type: 'iyonicbots_plan', planId, sellerId: req.user.sellerId }
+      }, (err, body) => err ? reject(err) : resolve(body));
+    });
+    res.json({ authorizationUrl: payment.data.authorization_url, reference: payment.data.reference, planId });
+  } catch (err) {
+    console.error('Bot Paystack initialization error:', err);
+    res.status(500).json({ message: 'Could not start direct payment' });
+  }
+});
+
+app.post('/api/bots/billing/paystack/verify', authenticateToken, async (req, res) => {
+  const { reference } = req.body;
+  const planId = req.body.planId === 'studio' ? 'pro' : req.body.planId === 'scale' ? 'promax' : req.body.planId;
+  const selectedPlan = IYONIC_BOT_PLANS[planId];
+  if (!reference || !selectedPlan || selectedPlan.price <= 0) return res.status(400).json({ message: 'Invalid payment verification request' });
+  if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can verify bot payments' });
+
+  try {
+    const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY);
+    const payment = await new Promise((resolve, reject) => {
+      paystack.transaction.verify(reference, (err, body) => err ? reject(err) : resolve(body));
+    });
+    if (!payment.status || payment.data?.status !== 'success') return res.status(402).json({ message: 'Payment was not completed' });
+    const paidAmount = Number(payment.data.amount) / 100;
+    if (paidAmount < selectedPlan.price) return res.status(402).json({ message: 'Payment amount does not match the selected plan' });
+
+    const sellerResult = await db.query('SELECT subscription FROM sellers WHERE id = $1', [req.user.sellerId]);
+    const subscription = sellerResult.rows[0]?.subscription || {};
+    const nextSubscription = { ...subscription, botPlan: planId, botPlanStartedAt: new Date().toISOString() };
+    await db.query('UPDATE sellers SET subscription = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [JSON.stringify(nextSubscription), req.user.sellerId]);
+    res.json({ message: `${selectedPlan.name} plan activated`, plan: { id: planId, ...selectedPlan } });
+  } catch (err) {
+    console.error('Bot Paystack verification error:', err);
+    res.status(500).json({ message: 'Could not verify direct payment' });
+  }
+});
+
 // Get all bots for the current seller
 app.get('/api/bots', authenticateToken, async (req, res) => {
   console.log('GET /api/bots hit', { sellerId: req.user.sellerId });
@@ -4421,14 +6053,110 @@ app.get('/api/bots', authenticateToken, async (req, res) => {
   }
 });
 
+// Business Brain: every query is scoped from the authenticated seller identity.
+app.get('/api/bots/knowledge', authenticateToken, async (req, res) => {
+  try {
+    if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can access business knowledge' });
+    const [documents, faqs, gaps] = await Promise.all([
+      db.query('SELECT id, title, document_type, source, source_url, metadata, status, created_at, updated_at FROM bot_knowledge_documents WHERE seller_id = $1 AND status <> \'archived\' ORDER BY created_at DESC', [req.user.sellerId]),
+      db.query('SELECT id, question, answer, category, source, status, created_at, updated_at FROM bot_faqs WHERE seller_id = $1 AND status <> \'archived\' ORDER BY created_at DESC', [req.user.sellerId]),
+      db.query('SELECT id, question, frequency, last_asked_at, suggested_category, sample_response, status FROM bot_knowledge_gaps WHERE seller_id = $1 ORDER BY frequency DESC, last_asked_at DESC LIMIT 50', [req.user.sellerId])
+    ]);
+    res.json({ documents: toCamel(documents.rows), faqs: toCamel(faqs.rows), gaps: toCamel(gaps.rows) });
+  } catch (err) {
+    console.error('Business Brain read error:', err);
+    res.status(500).json({ message: 'Unable to load business knowledge' });
+  }
+});
+
+app.post('/api/bots/knowledge/documents', authenticateToken, async (req, res) => {
+  const { title, content, documentType = 'text', source = 'seller', sourceUrl = '', metadata = {} } = req.body;
+  if (!title?.trim() || !content?.trim()) return res.status(400).json({ message: 'Title and content are required' });
+  try {
+    if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can add business knowledge' });
+    const result = await db.query(
+      `INSERT INTO bot_knowledge_documents (seller_id, title, document_type, source, source_url, content, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, title, document_type, source, source_url, metadata, status, created_at, updated_at`,
+      [req.user.sellerId, title.trim(), documentType, source, sourceUrl, content.trim(), JSON.stringify(metadata)]
+    );
+    res.status(201).json(toCamel(result.rows[0]));
+  } catch (err) {
+    console.error('Business Brain document error:', err);
+    res.status(500).json({ message: 'Unable to save this knowledge document' });
+  }
+});
+
+app.delete('/api/bots/knowledge/documents/:id', authenticateToken, async (req, res) => {
+  try {
+    if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can remove business knowledge' });
+    const result = await db.query('UPDATE bot_knowledge_documents SET status = \'archived\', updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND seller_id = $2 RETURNING id', [req.params.id, req.user.sellerId]);
+    if (result.rows.length === 0) return res.status(404).json({ message: 'Knowledge document not found' });
+    res.json({ message: 'Knowledge document archived' });
+  } catch (err) {
+    res.status(500).json({ message: 'Unable to remove this knowledge document' });
+  }
+});
+
+app.post('/api/bots/knowledge/faqs', authenticateToken, async (req, res) => {
+  const { question, answer, category = 'general' } = req.body;
+  if (!question?.trim() || !answer?.trim()) return res.status(400).json({ message: 'Question and answer are required' });
+  try {
+    if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can add FAQs' });
+    const result = await db.query(
+      `INSERT INTO bot_faqs (seller_id, question, answer, category) VALUES ($1, $2, $3, $4)
+       RETURNING id, question, answer, category, source, status, created_at, updated_at`,
+      [req.user.sellerId, question.trim(), answer.trim(), category]
+    );
+    res.status(201).json(toCamel(result.rows[0]));
+  } catch (err) {
+    res.status(500).json({ message: 'Unable to save this FAQ' });
+  }
+});
+
+app.get('/api/bots/conversations', authenticateToken, async (req, res) => {
+  try {
+    if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can access conversations' });
+    const result = await db.query(
+      `SELECT c.id, c.bot_id, c.session_id, c.status, c.resolution_status, c.created_at, c.updated_at,
+              (SELECT content FROM bot_messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) AS last_message,
+              (SELECT COUNT(*) FROM bot_messages WHERE conversation_id = c.id) AS message_count
+       FROM bot_conversations c WHERE c.seller_id = $1 ORDER BY c.updated_at DESC LIMIT 100`,
+      [req.user.sellerId]
+    );
+    res.json(toCamel(result.rows));
+  } catch (err) {
+    res.status(500).json({ message: 'Unable to load conversations' });
+  }
+});
+
+app.get('/api/bots/analytics', authenticateToken, async (req, res) => {
+  try {
+    if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can access analytics' });
+    const [conversationStats, messageStats, gapStats] = await Promise.all([
+      db.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status = 'active')::int AS active, COUNT(*) FILTER (WHERE status = 'resolved')::int AS resolved, COUNT(*) FILTER (WHERE status = 'escalated')::int AS escalated FROM bot_conversations WHERE seller_id = $1`, [req.user.sellerId]),
+      db.query(`SELECT COUNT(*) FILTER (WHERE role = 'user')::int AS customer_messages, COUNT(*) FILTER (WHERE role = 'assistant')::int AS bot_messages FROM bot_messages m JOIN bot_conversations c ON c.id = m.conversation_id WHERE c.seller_id = $1`, [req.user.sellerId]),
+      db.query(`SELECT COUNT(*) FILTER (WHERE status = 'unresolved')::int AS unresolved, COALESCE(SUM(frequency), 0)::int AS repeated_questions FROM bot_knowledge_gaps WHERE seller_id = $1`, [req.user.sellerId])
+    ]);
+    res.json({ conversations: conversationStats.rows[0], messages: messageStats.rows[0], knowledgeGaps: gapStats.rows[0] });
+  } catch (err) {
+    res.status(500).json({ message: 'Unable to load bot analytics' });
+  }
+});
+
 // Create a new bot
 app.post('/api/bots', authenticateToken, async (req, res) => {
   const { name, type } = req.body;
   try {
     if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can create bots' });
     
+    if (!['support-pro', 'sales-genie', 'tech-guru'].includes(type)) return res.status(400).json({ message: 'Invalid bot category' });
+    const existing = await db.query('SELECT id FROM bots WHERE seller_id = $1 AND type = $2 AND status = \'active\'', [req.user.sellerId, type]);
+    if (existing.rows.length > 0) {
+      const existingBot = await db.query('SELECT * FROM bots WHERE id = $1', [existing.rows[0].id]);
+      return res.status(200).json({ ...toCamel(existingBot.rows[0]), alreadyActive: true });
+    }
     const botRes = await db.query(
-      'INSERT INTO bots (seller_id, name, type) VALUES ($1, $2, $3) RETURNING *',
+      'INSERT INTO bots (seller_id, name, type, status) VALUES ($1, $2, $3, \'inactive\') RETURNING *',
       [req.user.sellerId, name, type]
     );
     res.status(201).json(toCamel(botRes.rows[0]));
@@ -4437,11 +6165,37 @@ app.post('/api/bots', authenticateToken, async (req, res) => {
   }
 });
 
+app.post('/api/bots/:id/activate', authenticateToken, async (req, res) => {
+  try {
+    if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can activate bots' });
+    const bot = await db.query('SELECT id, type FROM bots WHERE id = $1 AND seller_id = $2', [req.params.id, req.user.sellerId]);
+    if (bot.rows.length === 0) return res.status(404).json({ message: 'Bot not found' });
+    const conflict = await db.query('SELECT id FROM bots WHERE seller_id = $1 AND type = $2 AND status = \'active\' AND id <> $3', [req.user.sellerId, bot.rows[0].type, req.params.id]);
+    if (conflict.rows.length > 0) return res.status(409).json({ message: 'Activate only one bot per category. Deactivate the current bot first.' });
+    const updated = await db.query('UPDATE bots SET status = \'active\', deployments = deployments + 1 WHERE id = $1 AND seller_id = $2 RETURNING *', [req.params.id, req.user.sellerId]);
+    res.json(toCamel(updated.rows[0]));
+  } catch (err) {
+    res.status(500).json({ message: 'Could not activate bot' });
+  }
+});
+
+app.post('/api/bots/:id/deactivate', authenticateToken, async (req, res) => {
+  try {
+    const updated = await db.query('UPDATE bots SET status = \'inactive\' WHERE id = $1 AND seller_id = $2 RETURNING *', [req.params.id, req.user.sellerId]);
+    if (updated.rows.length === 0) return res.status(404).json({ message: 'Bot not found' });
+    res.json(toCamel(updated.rows[0]));
+  } catch (err) {
+    res.status(500).json({ message: 'Could not deactivate bot' });
+  }
+});
+
 // Train a bot
 app.post('/api/bots/:id/train', authenticateToken, async (req, res) => {
   const { trainingData } = req.body;
   try {
     if (!req.user.sellerId) return res.status(403).json({ message: 'Unauthorized' });
+    const plan = await getSellerBotPlan(req.user.sellerId);
+    if (!plan.advanced) return res.status(402).json({ message: 'Advanced training requires the Studio or Scale bot plan.' });
     
     const botRes = await db.query(
       'UPDATE bots SET training_data = $1, last_trained = CURRENT_TIMESTAMP WHERE id = $2 AND seller_id = $3 RETURNING *',
@@ -4455,42 +6209,252 @@ app.post('/api/bots/:id/train', authenticateToken, async (req, res) => {
   }
 });
 
-// Auto-train from store data
+// Currency symbol mapping
+const getCurrencySymbol = (currency) => {
+  const symbols = {
+    'USD': '$', 'EUR': '€', 'GBP': '£', 'KES': 'KSh', 'NGN': '₦', 'GHS': 'GH₵', 
+    'JPY': '¥', 'CAD': 'CA$', 'AUD': 'A$', 'INR': '₹', 'CNY': '¥', 'ZAR': 'R', 
+    'MXN': '$', 'BRL': 'R$', 'RUB': '₽', 'TRY': '₺', 'ILS': '₪', 'AED': 'د.إ',
+    'SAR': '﷼', 'EGP': '£', 'PKR': '₨', 'BDT': '৳', 'SGD': 'S$'
+  };
+  return symbols[currency?.toUpperCase()] || '$';
+};
+
+// Auto-train from store data - Fully enhanced with all seller data
 app.post('/api/bots/:id/auto-train', authenticateToken, async (req, res) => {
   try {
     if (!req.user.sellerId) return res.status(403).json({ message: 'Unauthorized' });
-    
-    // Fetch products and store info
+    // Fetch ALL seller data including currency, delivery methods, payment terms, social links, contact info
     const sellerRes = await db.query(`
-      SELECT s.store_name, s.description, s.shop_type, s.shipping_policy, s.return_policy, u.name as owner_name 
+      SELECT s.store_name, s.description, s.shop_type, s.shipping_policy, s.return_policy, 
+             s.privacy_policy, s.terms_of_service, s.delivery_locations, s.payment_terms, 
+             s.social_links, s.contact_info, s.currency, u.name as owner_name, u.email as owner_email,
+             s.social_links, s.contact_info, s.delivery_locations, s.payment_terms
       FROM sellers s
       JOIN users u ON s.user_id = u.id
       WHERE s.id = $1
     `, [req.user.sellerId]);
-    const productsRes = await db.query('SELECT name, description, category, price, stock, status, images FROM products WHERE seller_id = $1 AND status = \'active\'', [req.user.sellerId]);
+    
+    // Fetch ALL product data individually
+    const productsRes = await db.query(`
+      SELECT name, description, category, price, stock, status, images, videos, urls, type
+      FROM products 
+      WHERE seller_id = $1 AND status = 'active'
+      ORDER BY created_at DESC
+    `, [req.user.sellerId]);
     
     const seller = sellerRes.rows[0];
     const products = productsRes.rows;
+    const currency = seller.currency || 'USD';
+    const currencySymbol = getCurrencySymbol(currency);
     
-    let autoData = `Store Name: ${seller.store_name}\n`;
+    // Get categories for training
+    const categoriesRes = await db.query(`
+      SELECT name FROM categories WHERE seller_id = $1
+    `, [req.user.sellerId]);
+    const categories = categoriesRes.rows.map(r => r.name);
+    
+    // Build comprehensive training data
+    let autoData = `# ${seller.store_name} - Complete Business Training Data\n\n`;
+    
+    autoData += `## Store Information\n`;
+    autoData += `Store Name: ${seller.store_name}\n`;
+    autoData += `Store Currency: ${currency} (${currencySymbol})\n`;
     autoData += `Store Owner: ${seller.owner_name}\n`;
-    autoData += `Business Type: ${seller.shop_type}\n`;
-    autoData += `Description: ${seller.description}\n`;
-    autoData += `Shipping Policy: ${seller.shipping_policy || 'Standard shipping applies.'}\n`;
-    autoData += `Return Policy: ${seller.return_policy || 'Contact support for returns.'}\n\n`;
-    autoData += `Products & Services:\n`;
+    autoData += `Owner Email: ${seller.owner_email}\n`;
+    autoData += `Business Type: ${seller.shop_type === 'service' ? 'Service-Based Business' : 'Product Store'}\n`;
+    autoData += `Description: ${seller.description || 'No description provided.'}\n\n`;
     
-    products.forEach(p => {
-      autoData += `• Product: ${p.name}\n`;
-      autoData += `  Category: ${p.category}\n`;
-      autoData += `  Description: ${p.description}\n`;
-      autoData += `  Price: $${p.price}\n`;
-      autoData += `  Availability: ${p.stock > 0 ? 'In Stock' : 'Out of Stock'}\n`;
-      if (p.images && p.images.length > 0) {
-        autoData += `  Image: ${p.images[0]}\n`;
+    autoData += `## Company Policies\n`;
+    autoData += `Shipping Policy:\n${seller.shipping_policy || 'Standard shipping applies to all orders.'}\n\n`;
+    autoData += `Return Policy:\n${seller.return_policy || 'Contact our support team for any return or refund requests.'}\n\n`;
+    autoData += `Privacy Policy:\n${seller.privacy_policy || 'We respect your privacy and protect your personal data.'}\n\n`;
+    autoData += `Terms of Service:\n${seller.terms_of_service || 'By using our services, you agree to our terms and conditions.'}\n\n`;
+    
+    autoData += `## Delivery Methods & Locations\n`;
+    const deliveryLocations = seller.delivery_locations || [];
+    if (deliveryLocations.length > 0) {
+      deliveryLocations.forEach((loc, idx) => {
+        autoData += `${idx + 1}. ${loc.name || 'Location'}: ${loc.fee ? loc.fee + ' ' + currency + ' fee' : 'Free delivery'}, ${loc.days ? loc.days + ' business days' : 'Standard timeframe'}\n`;
+      });
+    } else {
+      autoData += `Standard delivery available for all locations.\n`;
+    }
+    autoData += `\n`;
+    
+    autoData += `## Payment Methods & Terms\n`;
+    const paymentTerms = seller.payment_terms || {};
+    const paymentMethods = paymentTerms.methods || ['site'];
+    const paymentMethodLabels = {
+      site: 'IyonicPay Platform',
+      bank: 'Bank Transfer',
+      card: 'Credit/Debit Card',
+      mobile: 'Mobile Money',
+      cash: 'Cash on Delivery'
+    };
+    autoData += `Available Methods: ${paymentMethods.map(m => paymentMethodLabels[m] || m).join(', ')}\n`;
+    autoData += `Currency Accepted: ${currency}\n`;
+    autoData += `Deposit Required: ${paymentTerms.depositPercentage || 50}%\n`;
+    autoData += `Payment Rules: ${paymentTerms.rules || 'All methods accepted'}\n\n`;
+    
+    autoData += `## Contact Information\n`;
+    const contactInfo = seller.contact_info || {};
+    autoData += `Email: ${contactInfo.email || seller.owner_email || 'Contact via store'}\n`;
+    autoData += `Phone: ${contactInfo.phone || 'Not specified'}\n`;
+    autoData += `Address: ${contactInfo.address || 'Not specified'}\n`;
+    autoData += `WhatsApp: ${contactInfo.whatsapp || 'Not specified'}\n\n`;
+    
+    autoData += `## Social Media Links\n`;
+    const socialLinks = seller.social_links || {};
+    const socialPlatforms = ['facebook', 'instagram', 'twitter', 'linkedin', 'youtube', 'tiktok'];
+    socialPlatforms.forEach(platform => {
+      if (socialLinks[platform]) {
+        autoData += `${platform.charAt(0).toUpperCase() + platform.slice(1)}: ${socialLinks[platform]}\n`;
       }
-      autoData += `\n`;
     });
+    autoData += `\n`;
+    
+    autoData += `## Product Categories (${categories.length} categories)\n`;
+    if (categories.length > 0) {
+      autoData += categories.join(', ') + '\n';
+    }
+    autoData += `\n`;
+    
+    autoData += `## All Products & Services (${products.length} items)\n\n`;
+    
+    // Include EACH product with FULL details individually
+    products.forEach((p, idx) => {
+      autoData += `### Product ${idx + 1}: ${p.name}\n`;
+      autoData += `Category: ${p.category || 'Uncategorized'}\n`;
+      autoData += `Product Type: ${p.type || 'product'}\n`;
+      autoData += `Full Description: ${p.description || 'No description available.'}\n`;
+      autoData += `Current Price: ${currencySymbol}${p.price}\n`;
+      autoData += `Stock Level: ${p.stock > 0 ? `${p.stock} units available` : 'Currently out of stock'}\n`;
+      autoData += `Availability Status: ${p.status}\n`;
+      if (p.images && p.images.length > 0) {
+        autoData += `Product Images: ${p.images.join(', ')}\n`;
+      }
+      if (p.videos && p.videos.length > 0) {
+        autoData += `Product Videos: ${p.videos.join(', ')}\n`;
+      }
+      if (p.urls && p.urls.length > 0) {
+        autoData += `Product URLs: ${p.urls.join(', ')}\n`;
+      }
+      // Add detailed Q&A examples for this product
+      autoData += `Product Q&A: What is ${p.name}? ${p.description || 'High quality product'}. How much is ${p.name}? ${currencySymbol}${p.price}. Is ${p.name} in stock? ${p.stock > 0 ? 'Yes, we have ' + p.stock : 'Currently out of stock'}.\n\n`;
+    });
+    
+    // Add conversation examples for continuous dialogue about the store
+    autoData += `## Conversation Examples & FAQs\n\n`;
+    
+    // Business Hours
+    autoData += `### Business Hours\n`;
+    autoData += `User: What are your business hours?\n`;
+    autoData += `Bot: We're available 24/7 online! You can place orders anytime. Our team is here to help whenever you need.\n\n`;
+    
+    // Warranty & Guarantee
+    autoData += `### Warranty & Guarantee Conversations\n`;
+    autoData += `User: Do you offer warranties?\n`;
+    autoData += `Bot: We stand behind our products with quality guarantees. For specific warranty terms, please check individual product descriptions or contact our support team.\n\n`;
+    
+    // Comparison Conversations
+    autoData += `### Product Comparison Conversations\n`;
+    if (products.length >= 2) {
+      autoData += `User: Compare ${products[0].name} and ${products[1].name}\n`;
+      autoData += `Bot: Great comparison question! ${products[0].name} costs ${currencySymbol}${products[0].price} while ${products[1].name} costs ${currencySymbol}${products[1].price}. Each has unique features - would you like me to highlight the specific differences?\n\n`;
+    }
+    
+    // Thank You & Goodbye
+    autoData += `### Appreciation & Goodbye Conversations\n`;
+    autoData += `User: Thank you!\n`;
+    autoData += `Bot: You're welcome! Anything else I can help with?\n\n`;
+    autoData += `User: Goodbye\n`;
+    autoData += `Bot: Goodbye! Come back anytime you need help.\n\n`;
+    
+    // Help Intent
+    autoData += `### Help Intent Conversation\n`;
+    autoData += `User: I need help\n`;
+    autoData += `Bot: I can help you with: Product information and prices, Order status and shipping, Return and refund policies, Payment methods, Store location and contact, Categories and recommendations! Just ask.\n\n`;
+    
+    autoData += `### General Store Conversations\n`;
+    autoData += `User: What currencies do you accept?\n`;
+    autoData += `Bot: We accept ${currency} (${currencySymbol}) as our primary currency. All our prices are displayed in ${currency}.\n\n`;
+    
+    autoData += `User: Where is your store located?\n`;
+    autoData += `Bot: ${seller.store_name} is located at ${contactInfo.address || 'multiple locations'}. You can contact us via ${contactInfo.phone || contactInfo.whatsapp || 'our contact page'}.\n\n`;
+    
+    autoData += `User: Tell me about your store\n`;
+    autoData += `Bot: ${seller.store_name} is ${seller.description || 'a premium online store'}. We specialize in ${categories.length > 0 ? categories.join(', ') : 'quality products'}. Our store owner is ${seller.owner_name}.\n\n`;
+    
+    autoData += `User: Who owns this store?\n`;
+    autoData += `Bot: This store is owned by ${seller.owner_name}. You can reach us at ${contactInfo.email || seller.owner_email}.\n\n`;
+    
+    autoData += `### Product Conversations (${products.length} products available)\n`;
+    products.slice(0, 5).forEach(p => {
+      autoData += `User: Tell me about ${p.name}\n`;
+      autoData += `Bot: ${p.name} is a ${p.type || 'product'} in our ${p.category} category. ${p.description || 'It is a high-quality item'}. Price: ${currencySymbol}${p.price}. ${p.stock > 0 ? 'Currently in stock!' : 'Temporarily out of stock'}.\n\n`;
+      
+      autoData += `User: How much does ${p.name} cost?\n`;
+      autoData += `Bot: ${p.name} costs ${currencySymbol}${p.price} in ${currency}.\n\n`;
+      
+      autoData += `User: Is ${p.name} available?\n`;
+      autoData += `Bot: ${p.stock > 0 ? `Yes, we have ${p.stock} units of ${p.name} in stock.` : `Sorry, ${p.name} is currently out of stock. We're restocking soon!`}\n\n`;
+    });
+    
+    if (products.length > 5) {
+      autoData += `User: What other products do you have?\n`;
+      autoData += `Bot: We have ${products.length} products in total. Some other popular items include: ${products.slice(5, 10).map(p => p.name).join(', ')}. Would you like specific details about any of these?\n\n`;
+    }
+    
+    autoData += `### Category-Based Conversations\n`;
+    if (categories.length > 0) {
+      categories.forEach(cat => {
+        const catProducts = products.filter(p => p.category === cat);
+        autoData += `User: What ${cat} products do you have?\n`;
+        autoData += `Bot: In our ${cat} category, we have ${catProducts.length} product${catProducts.length !== 1 ? 's' : ''}: ${catProducts.map(p => p.name + ' (' + currencySymbol + p.price + ')').join(', ')}.\n\n`;
+      });
+    }
+    
+    autoData += `### Shipping Conversations\n`;
+    autoData += `User: How long does shipping take?\n`;
+    autoData += `Bot: ${seller.shipping_policy || 'Shipping typically takes 3-7 business days.'} ${deliveryLocations.length > 0 ? 'Delivery options: ' + deliveryLocations.map(l => l.name).join(', ') + '.' : ''}\n\n`;
+    
+    autoData += `User: Do you ship internationally?\n`;
+    autoData += `Bot: ${deliveryLocations.length > 0 ? 'Yes, we have delivery options: ' + deliveryLocations.map(l => `${l.name} (${l.days ? l.days + ' days' : 'varies'})`).join(', ') + '.' : 'Please check our shipping page for delivery options.'}\n\n`;
+    
+    autoData += `### Payment Conversations\n`;
+    autoData += `User: How can I pay?\n`;
+    autoData += `Bot: We accept: ${paymentMethods.map(m => paymentMethodLabels[m] || m).join(', ')}. A ${paymentTerms.depositPercentage || 50}% deposit is required to place your order. All transactions are in ${currency}.\n\n`;
+    
+    autoData += `User: What payment methods are available?\n`;
+    autoData += `Bot: Available payment methods are: ${paymentMethods.map(m => paymentMethodLabels[m] || m).join(', ')}. All prices are in ${currency}.\n\n`;
+    
+    autoData += `### Return & Refund Conversations\n`;
+    autoData += `User: What is your return policy?\n`;
+    autoData += `Bot: ${seller.return_policy || 'Our return policy varies by product. Please contact our support team for any refund or exchange requests.'}\n\n`;
+    
+    autoData += `### Price & Deal Conversations\n`;
+    autoData += `User: What's the cheapest item?\n`;
+    autoData += `Bot: Let me show you our most affordable options. Our prices range from ${currencySymbol}${products.length > 0 ? Math.min(...products.map(p => parseFloat(p.price))) : '0'} to ${currencySymbol}${products.length > 0 ? Math.max(...products.map(p => parseFloat(p.price))) : '0'}.\n\n`;
+    
+    autoData += `User: Do you have any discounts?\n`;
+    autoData += `Bot: Check out our products for the best prices! We regularly update our inventory with competitive pricing.\n\n`;
+    
+    // Smart Recommendation Questions
+    autoData += `### Smart Recommendation Questions\n`;
+    autoData += `User: What do you recommend?\n`;
+    autoData += `Bot: Based on our best-sellers, I'd recommend our ${products.length > 0 ? products.slice(0, 3).map(p => p.name).join(', ') : 'featured products'}. What type of product are you interested in?\n\n`;
+    autoData += `User: What's popular?\n`;
+    autoData += `Bot: Our customers love ${products.length > 0 ? products[0]?.name + ' and ' + products[1]?.name : 'our products'}. These are our top picks!\n\n`;
+    
+    autoData += `## Bot Personality Configuration\n`;
+    autoData += `Tone: ${seller.shop_type === 'service' ? 'Professional and consultative' : 'Friendly and engaging'}\n`;
+    autoData += `Style: Sales-focused with product expertise\n`;
+    autoData += `Response: Quick and helpful, always aiming to assist customers.\n`;
+    autoData += `Currency: ${currency} (${currencySymbol})\n`;
+    autoData += `Store Owner: ${seller.owner_name}\n`;
+    autoData += `Total Products: ${products.length}\n`;
+    autoData += `Total Categories: ${categories.length}\n`;
     
     const botRes = await db.query(
       'UPDATE bots SET training_data = $1, last_trained = CURRENT_TIMESTAMP WHERE id = $2 AND seller_id = $3 RETURNING *',
@@ -4498,7 +6462,7 @@ app.post('/api/bots/:id/auto-train', authenticateToken, async (req, res) => {
     );
     
     if (botRes.rows.length === 0) return res.status(404).json({ message: 'Bot not found' });
-    res.json(toCamel(botRes.rows[0]));
+    res.json({ ...toCamel(botRes.rows[0]), productCount: products.length, categoryCount: categories.length });
   } catch (err) {
     console.error('Bot Auto-train Error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -4524,6 +6488,75 @@ app.patch('/api/bots/:id/widget-config', authenticateToken, async (req, res) => 
   }
 });
 
+// Update bot custom responses
+app.patch('/api/bots/:id/custom-responses', authenticateToken, async (req, res) => {
+  const { customResponses } = req.body;
+  try {
+    if (!req.user.sellerId) return res.status(403).json({ message: 'Unauthorized' });
+    
+    const botRes = await db.query(
+      'UPDATE bots SET custom_responses = $1 WHERE id = $2 AND seller_id = $3 RETURNING *',
+      [JSON.stringify(customResponses), req.params.id, req.user.sellerId]
+    );
+    
+    if (botRes.rows.length === 0) return res.status(404).json({ message: 'Bot not found' });
+    res.json(toCamel(botRes.rows[0]));
+  } catch (err) {
+    console.error('Bot Custom Responses Error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+// Update bot personality
+app.patch('/api/bots/:id/personality', authenticateToken, async (req, res) => {
+  const { personality } = req.body;
+  try {
+    if (!req.user.sellerId) return res.status(403).json({ message: 'Unauthorized' });
+    
+    const botRes = await db.query(
+      'UPDATE bots SET personality = $1 WHERE id = $2 AND seller_id = $3 RETURNING *',
+      [JSON.stringify(personality), req.params.id, req.user.sellerId]
+    );
+    
+    if (botRes.rows.length === 0) return res.status(404).json({ message: 'Bot not found' });
+    res.json(toCamel(botRes.rows[0]));
+  } catch (err) {
+    console.error('Bot Personality Error:', err);
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
+app.get('/api/bots/:id/configuration', authenticateToken, async (req, res) => {
+  try {
+    if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can view bot configuration' });
+    const result = await db.query('SELECT configuration FROM bots WHERE id = $1 AND seller_id = $2', [req.params.id, req.user.sellerId]);
+    if (result.rows.length === 0) return res.status(404).json({ message: 'Bot not found' });
+    res.json(toCamel(result.rows[0].configuration || {}));
+  } catch (err) {
+    res.status(500).json({ message: 'Unable to load bot configuration' });
+  }
+});
+
+app.patch('/api/bots/:id/configuration', authenticateToken, async (req, res) => {
+  const allowedLengths = ['short', 'balanced', 'detailed'];
+  const configuration = req.body.configuration || {};
+  if (configuration.responseLength && !allowedLengths.includes(configuration.responseLength)) {
+    return res.status(400).json({ message: 'Invalid response length' });
+  }
+  try {
+    if (!req.user.sellerId) return res.status(403).json({ message: 'Only sellers can edit bot configuration' });
+    const result = await db.query(
+      'UPDATE bots SET configuration = COALESCE(configuration, \'{}\'::jsonb) || $1::jsonb, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND seller_id = $3 RETURNING configuration',
+      [JSON.stringify(configuration), req.params.id, req.user.sellerId]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ message: 'Bot not found' });
+    res.json(toCamel(result.rows[0].configuration || {}));
+  } catch (err) {
+    console.error('Bot configuration error:', err);
+    res.status(500).json({ message: 'Unable to save bot configuration' });
+  }
+});
+
 // Delete a bot
 app.delete('/api/bots/:id', authenticateToken, async (req, res) => {
   try {
@@ -4543,9 +6576,9 @@ app.delete('/api/bots/:id', authenticateToken, async (req, res) => {
 
 // --- Public IyonicBots Routes ---
 
-// Public endpoint for storefronts to fetch active bots
-app.get('/api/public/bots/:tenantId', async (req, res) => {
-  console.log('GET /api/public/bots/:tenantId hit', { tenantId: req.params.tenantId });
+// Public endpoint for storefronts to fetch active bots by tenant
+app.get('/api/public/bots/tenant/:tenantId', async (req, res) => {
+  console.log('GET /api/public/bots/tenant/:tenantId hit', { tenantId: req.params.tenantId });
   try {
     const sellerRes = await db.query(
       'SELECT id FROM sellers WHERE store_name = $1 OR subdomain = $1', 
@@ -4558,7 +6591,7 @@ app.get('/api/public/bots/:tenantId', async (req, res) => {
     console.log('Fetching bots for sellerId:', sellerId);
     
     const botsRes = await db.query(
-      'SELECT id, name, type, widget_config FROM bots WHERE seller_id = $1 ORDER BY last_trained DESC LIMIT 1',
+      'SELECT id, name, type, widget_config, custom_responses, personality FROM bots WHERE seller_id = $1 AND status = \'active\' ORDER BY last_trained DESC',
       [sellerId]
     );
     console.log('Bots query result length:', botsRes.rows.length);
@@ -4575,45 +6608,125 @@ app.get('/api/public/bots/:tenantId', async (req, res) => {
   }
 });
 
-// Bot Chat API
-app.post('/api/public/bots/:id/chat', async (req, res) => {
-  const { message } = req.body;
+// Public endpoint to fetch bot by ID (for widget)
+app.get('/api/public/bots/:id', async (req, res) => {
   try {
-    const botRes = await db.query('SELECT seller_id, name, type, training_data FROM bots WHERE id = $1', [req.params.id]);
+    const botsRes = await db.query(
+      'SELECT id, name, type, widget_config, custom_responses, personality FROM bots WHERE id = $1 AND status = \'active\'',
+      [req.params.id]
+    );
+    if (botsRes.rows.length === 0) return res.status(404).json({ message: 'Bot not found' });
+    res.json(toCamel(botsRes.rows[0]));
+  } catch (err) {
+    console.error('Error fetching bot:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Bot Chat API - Enhanced with currency support and continuous conversations
+app.post('/api/public/bots/:id/chat', async (req, res) => {
+  const { message, conversationId, sessionId } = req.body;
+  try {
+    if (!message?.trim()) return res.status(400).json({ message: 'A message is required' });
+    // Fetch bot with training data and seller currency in ONE query
+    const botRes = await db.query(`
+      SELECT b.seller_id, b.name, b.type, b.training_data, b.custom_responses, b.personality, b.widget_config,
+             s.currency, s.store_name, s.description, s.contact_info
+      FROM bots b
+      JOIN sellers s ON b.seller_id = s.id
+      WHERE b.id = $1 AND b.status = 'active'
+    `, [req.params.id]);
     if (botRes.rows.length === 0) return res.status(404).json({ message: 'Bot not found' });
     
     const bot = botRes.rows[0];
     const sellerId = bot.seller_id;
     const trainingData = bot.training_data || '';
+    const customResponses = bot.custom_responses || {};
+    const personality = bot.personality || { tone: 'professional', style: 'helpful' };
+    const widgetConfig = bot.widget_config || { primaryColor: '#3b82f6', greeting: 'Hello! How can I help you today?', bubbleIcon: 'MessageSquare' };
+    const currency = bot.currency || 'USD';
+    const currencySymbol = getCurrencySymbol(currency);
 
+    let conversation;
+    if (conversationId) {
+      const existingConversation = await db.query('SELECT id FROM bot_conversations WHERE id = $1 AND seller_id = $2 AND bot_id = $3', [conversationId, sellerId, req.params.id]);
+      conversation = existingConversation.rows[0];
+    }
+    if (!conversation) {
+      const conversationResult = await db.query(
+        'INSERT INTO bot_conversations (seller_id, bot_id, session_id) VALUES ($1, $2, $3) RETURNING id',
+        [sellerId, req.params.id, sessionId || null]
+      );
+      conversation = conversationResult.rows[0];
+    }
+    await db.query('INSERT INTO bot_messages (conversation_id, role, content) VALUES ($1, \'user\', $2)', [conversation.id, message.trim()]);
+
+    const searchPhrase = message.trim().slice(0, 180);
+    const knowledgeResult = await db.query(
+      `SELECT title, source, content FROM bot_knowledge_documents WHERE seller_id = $1 AND status = 'active' AND content ILIKE $2
+       UNION ALL
+       SELECT 'FAQ: ' || question AS title, source, answer AS content FROM bot_faqs WHERE seller_id = $1 AND status = 'active' AND (question ILIKE $2 OR answer ILIKE $2)
+       LIMIT 5`,
+      [sellerId, `%${searchPhrase}%`]
+    );
+    const knowledgeSources = knowledgeResult.rows.map(row => ({ title: row.title, source: row.source }));
+    
     // Increment interaction count
     await db.query('UPDATE bots SET interactions = interactions + 1 WHERE id = $1', [req.params.id]);
     
     let response = "";
     const lowerMessage = message.toLowerCase().trim();
     
-    // Advanced Detection Patterns
+// Enhanced Detection Patterns for continuous conversations
     const patterns = {
       greeting: /\b(hello|hi|hey|greetings|good (morning|afternoon|evening))\b/i,
-      cheapest: /\b(cheapest|lowest price|best deal|affordable|price low to high|budget)\b/i,
+      cheapest: /\b(cheapest|lowest price|best deal|affordable|price low to high|budget|cheap)\b/i,
       recommendation: /\b(recommend|suggest|best for|good for|top rated|popular|looking for)\b/i,
-      catalog: /\b(sell|catalog|products|items|inventory|available|stock|options)\b/i,
+      catalog: /\b(sell|catalog|products|items|inventory|available|stock|options|what do you sell)\b/i,
       identity: /\b(who are you|your name|what do you do|help me with)\b/i,
-      priceQuery: /\b(how much|price of|cost of)\b/i,
-      shipping: /\b(shipping|delivery|deliver|ship to|how long to ship)\b/i,
-      returns: /\b(return|refund|exchange|back my money)\b/i
+      priceQuery: /\b(how much|price of|cost of|what is the price)\b/i,
+      shipping: /\b(shipping|delivery|deliver|ship to|how long to ship|how long)\b/i,
+      returns: /\b(return|refund|exchange|back my money)\b/i,
+      currency: /\b(currency|money|dollars|euros|coins|exchange rate|accept)\b/i,
+      location: /\b(where|location|address|based|located|find you)\b/i,
+      storeInfo: /\b(store|business|company|about|who owns|owner|tell me about)\b/i,
+      contact: /\b(contact|email|phone|whatsapp|call|reach|talk to)\b/i,
+      social: /\b(social|facebook|instagram|twitter|linkedin|youtube|tiktok|follow)\b/i,
+      categories: /\b(categories|category|types of products|product types)\b/i,
+      stock: /\b(in stock|available|have|out of stock|do you have|available)\b/i,
+      description: /\b(describe|details|tell me about|what is|what's|whats)\b/i,
+      compare: /\b(compare|versus|vs|better|difference|vs\.?|versus)\b/i,
+      warranty: /\b(warranty|guarantee|warranties|warrant)\b/i,
+      hours: /\b(hours|open|close|business hours|operating hours|when are you|time)\b/i,
+      thank: /\b(thanks|thank you|appreciate)\b/i,
+      bye: /\b(bye|goodbye|see ya|later|see you)\b/i,
+      help: /\b(help|assist|support)\b/i
     };
+    
+    const pickResponse = (responses) => responses[Math.floor(Math.random() * responses.length)];
+    const botPrefix = customResponses.responsePrefix || pickResponse({
+      'support-pro': ['I can help with that. ', 'Let me look into that for you. ', 'Absolutely, let\'s sort that out. '],
+      'sales-genie': ['Let\'s find the right fit. ', 'I have a couple of strong options for you. ', 'Good question. Let\'s make sure you get the best value. '],
+      'tech-guru': ['Let\'s narrow this down. ', 'Here\'s the clearest way to approach it. ', 'I\'ll help you troubleshoot that step by step. ']
+    }[bot.type] || ['I can help with that. ']);
 
-    // Bot type specific personality
-    const botPrefix = {
-      'support-pro': "As your support specialist, ",
-      'sales-genie': "Listen, I've got the best deals for you! ",
-      'tech-guru': "Analyzing technical specifications... "
-    }[bot.type] || "";
-
+    // Each bot has a different job before it reaches the shared store knowledge base.
+    if (bot.type === 'tech-guru' && /\b(error|bug|debug|api|code|integration|endpoint|database|stack trace)\b/i.test(lowerMessage)) {
+      response = `${botPrefix}What are you seeing exactly: the error message, the request or command that caused it, and what you expected to happen? With those three details I can isolate the likely cause instead of guessing.`;
+    }
+    else if (bot.type === 'support-pro' && /\b(order status|where is my order|late|missing|damaged|cancel)\b/i.test(lowerMessage)) {
+      response = `${botPrefix}I\'m sorry this has been frustrating. Share your order number and I\'ll help you work through the next step. If you\'re asking about a return or refund, I can also walk you through the store policy.`;
+    }
+    else if (bot.type === 'sales-genie' && /\b(buy|purchase|deal|discount|offer|gift|recommend)\b/i.test(lowerMessage)) {
+      response = `${botPrefix}Tell me what matters most to you: lowest price, fastest delivery, or the best overall option. I\'ll keep the shortlist focused and explain why each pick makes sense.`;
+    }
+    const roleResponse = response;
+    
     // 1. Identity / Who are you
-    if (patterns.identity.test(lowerMessage)) {
-      if (bot.type === 'sales-genie') {
+    if (!response && patterns.identity.test(lowerMessage)) {
+      if (customResponses.identity) {
+        response = customResponses.identity.replace('{botName}', bot.name);
+      } else if (bot.type === 'sales-genie') {
         response = "I'm SalesGenie, and my only mission is to find you the absolute best products at prices you won't believe! What can I sell you today?";
       } else if (bot.type === 'tech-guru') {
         response = "I am TechGuru. I specialize in technical analysis, specifications, and ensuring you get the most efficient solution for your requirements.";
@@ -4622,30 +6735,52 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
       }
     }
     // 2. Greeting
-    else if (patterns.greeting.test(lowerMessage)) {
-      response = `${botPrefix}Hello! I am ${bot.name}, your AI assistant. How can I help you find what you're looking for today?`;
+    else if (!response && patterns.greeting.test(lowerMessage)) {
+      const greetingResponse = customResponses.greetingResponse || customResponses.greeting || "Hello! I am {botName}, your AI assistant. How can I help you find what you're looking for today?";
+      response = greetingResponse.replace('{botName}', bot.name);
     } 
     // 3. Shipping Info
-    else if (patterns.shipping.test(lowerMessage)) {
-      const sellerRes = await db.query('SELECT shipping_policy FROM sellers WHERE id = $1', [sellerId]);
-      response = `${botPrefix}` + (sellerRes.rows[0]?.shipping_policy || "We offer standard shipping on all orders. Please proceed to checkout for specific rates and timelines.");
+    else if (!response && patterns.shipping.test(lowerMessage)) {
+      const sellerRes = await db.query('SELECT shipping_policy, delivery_locations FROM sellers WHERE id = $1', [sellerId]);
+      const seller = sellerRes.rows[0];
+      
+      if (customResponses.shipping) {
+        response = customResponses.shipping;
+      } else if (seller.delivery_locations && seller.delivery_locations.length > 0) {
+        const deliveryInfo = seller.delivery_locations.map(loc => 
+          `${loc.name || 'Location'}: ${loc.fee ? loc.fee + ' ' + currency + ' fee' : 'Free'}, ${loc.days ? loc.days + ' days' : ''}`
+        ).join(' | ');
+        response = seller.shipping_policy || `Delivery options: ${deliveryInfo}`;
+      } else {
+        response = seller.shipping_policy || "We offer standard shipping on all orders. Please proceed to checkout for specific rates and timelines.";
+      }
+      response = botPrefix + response;
     }
     // 4. Return Info
-    else if (patterns.returns.test(lowerMessage)) {
+    else if (!response && patterns.returns.test(lowerMessage)) {
       const sellerRes = await db.query('SELECT return_policy FROM sellers WHERE id = $1', [sellerId]);
-      response = `${botPrefix}` + (sellerRes.rows[0]?.return_policy || "Our return policy varies by product. Please contact our support team for any refund or exchange requests.");
+      if (customResponses.returns) {
+        response = botPrefix + customResponses.returns;
+      } else {
+        response = botPrefix + (sellerRes.rows[0]?.return_policy || "Our return policy varies by product. Please contact our support team for any refund or exchange requests.");
+      }
     }
-    // 5. Price Query for specific product
+    // 5. Currency Info
+    else if (!response && patterns.currency.test(lowerMessage) && /\b(currency|accept)\b/i.test(lowerMessage)) {
+      const sellerRes = await db.query('SELECT currency FROM sellers WHERE id = $1', [sellerId]);
+      response = botPrefix + `We accept ${currency} (${currencySymbol}) as our primary currency. All our prices are displayed in ${currency}.`;
+    }
+    // 6. Currency in price responses
     else if (patterns.priceQuery.test(lowerMessage)) {
       const productName = lowerMessage.replace(patterns.priceQuery, '').replace(/\?|\.|!/g, '').trim();
       if (productName.length > 2) {
         const productRes = await db.query(
-          "SELECT name, price, stock, images FROM products WHERE seller_id = $1 AND name ILIKE $2 AND status = 'active' LIMIT 1",
+          "SELECT name, price, stock, images, description FROM products WHERE seller_id = $1 AND name ILIKE $2 AND status = 'active' LIMIT 1",
           [sellerId, `%${productName}%`]
         );
         if (productRes.rows.length > 0) {
           const p = productRes.rows[0];
-          response = `${botPrefix}The ${p.name} costs $${p.price}. ${p.stock > 0 ? 'It is currently in stock!' : 'It is currently out of stock.'}`;
+          response = `${botPrefix}The ${p.name} costs ${currencySymbol}${p.price}. ${p.stock > 0 ? 'It is currently in stock!' : 'It is currently out of stock.'}`;
           if (p.images && p.images.length > 0) {
             response += `\nIMAGE: ${p.images[0]}`;
           }
@@ -4653,10 +6788,34 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
           response = `${botPrefix}I couldn't find the price for "${productName}". Let me show you our cheapest items instead?`;
         }
       } else {
-        response = `${botPrefix}Which product's price would you like to know?`;
+        response = `${botPrefix}Which product's price would you like to know? All prices are in ${currency} (${currencySymbol}).`;
       }
     }
-    // 6. Intent: Cheapest Product
+    // 7. Delivery Options
+    else if (/\b(delivery options|delivery methods|shipping methods|ways to get)\b/i.test(lowerMessage)) {
+      const sellerRes = await db.query('SELECT delivery_locations FROM sellers WHERE id = $1', [sellerId]);
+      const seller = sellerRes.rows[0];
+      if (seller.delivery_locations && seller.delivery_locations.length > 0) {
+        response = botPrefix + "Available delivery methods:\n" + seller.delivery_locations.map((loc, idx) => 
+          `${idx + 1}. ${loc.name}: ${loc.fee ? 'Fee: ' + currencySymbol + loc.fee : 'Free'} - ${loc.days ? loc.days + ' days' : 'Standard delivery time'}`
+        ).join('\n');
+      } else {
+        response = botPrefix + "Standard delivery is available for all orders.";
+      }
+    }
+    // 8. Payment Methods
+    else if (/\b(payment|pay|methods|how to pay|checkout)\b/i.test(lowerMessage)) {
+      const sellerRes = await db.query('SELECT payment_terms FROM sellers WHERE id = $1', [sellerId]);
+      const paymentTerms = sellerRes.rows[0]?.payment_terms || {};
+      const methodLabels = { site: 'IyonicPay', bank: 'Bank Transfer', card: 'Credit/Debit Card', mobile: 'Mobile Money', cash: 'Cash on Delivery' };
+      const methods = paymentTerms.methods || ['site'];
+      if (customResponses.payments) {
+        response = botPrefix + customResponses.payments;
+      } else {
+        response = botPrefix + "Payment methods available: " + methods.map(m => methodLabels[m] || m).join(', ') + ". Deposit: " + (paymentTerms.depositPercentage || 50) + "% required to place order. All transactions in " + currency + ".";
+      }
+    }
+    // 9. Intent: Cheapest Product
     else if (patterns.cheapest.test(lowerMessage)) {
       const cheapestRes = await db.query(
         'SELECT name, price, images FROM products WHERE seller_id = $1 AND status = \'active\' AND stock > 0 ORDER BY price ASC LIMIT 3',
@@ -4665,7 +6824,7 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
       if (cheapestRes.rows.length > 0) {
         response = `${botPrefix}I found these budget-friendly options for you:\n` + 
           cheapestRes.rows.map(p => {
-            let line = `• ${p.name}: $${p.price}`;
+            let line = `• ${p.name}: ${currencySymbol}${p.price}`;
             if (p.images && p.images.length > 0) line += ` (IMAGE: ${p.images[0]})`;
             return line;
           }).join('\n');
@@ -4673,7 +6832,7 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
         response = `${botPrefix}I'm sorry, I couldn't find any items in stock right now.`;
       }
     }
-    // 7. Intent: Recommendations / "Best for"
+    // 10. Intent: Recommendations / "Best for"
     else if (patterns.recommendation.test(lowerMessage)) {
       let searchTerms = lowerMessage.replace(patterns.recommendation, '').replace(/\?|\.|!/g, '').trim();
       if (searchTerms.startsWith('for ')) searchTerms = searchTerms.substring(4);
@@ -4686,7 +6845,7 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
       if (recommendRes.rows.length > 0) {
         response = `${botPrefix}Here are my top recommendations for ${searchTerms || 'you'}:\n` + 
           recommendRes.rows.map(p => {
-            let line = `• ${p.name} ($${p.price}) - ${p.description.substring(0, 100)}...`;
+            let line = `• ${p.name} (${currencySymbol}${p.price}) - ${p.description ? p.description.substring(0, 100) + '...' : 'Premium quality'}`;
             if (p.images && p.images.length > 0) line += `\nIMAGE: ${p.images[0]}`;
             return line;
           }).join('\n');
@@ -4694,13 +6853,13 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
         const popularRes = await db.query('SELECT name, price, images FROM products WHERE seller_id = $1 AND status = \'active\' AND stock > 0 LIMIT 3', [sellerId]);
         response = `${botPrefix}I couldn't find something specifically for "${searchTerms}", but check out our most popular items:\n` + 
           popularRes.rows.map(p => {
-            let line = `• ${p.name} ($${p.price})`;
+            let line = `• ${p.name} (${currencySymbol}${p.price})`;
             if (p.images && p.images.length > 0) line += ` (IMAGE: ${p.images[0]})`;
             return line;
           }).join('\n');
       }
     }
-    // 8. Intent: Catalog / "What do you sell"
+    // 11. Intent: Catalog / "What do you sell"
     else if (patterns.catalog.test(lowerMessage)) {
       const productsRes = await db.query(
         'SELECT DISTINCT category FROM products WHERE seller_id = $1 AND status = \'active\'',
@@ -4708,32 +6867,167 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
       );
       if (productsRes.rows.length > 0) {
         const categories = productsRes.rows.map(r => r.category).join(', ');
-        response = `${botPrefix}We have a great selection! We specialize in: ${categories}. Is there a specific category you're interested in?`;
+        response = `${botPrefix}We have a great selection! We specialize in: ${categories}. All items are priced in ${currency} (${currencySymbol}). Is there a specific category you're interested in?`;
       } else {
         response = `${botPrefix}We have many exciting products! What are you looking for today?`;
       }
     }
-    // 9. Fallback to Training Data Keyword Matching (More granular)
-    else if (trainingData) {
-      const sentences = trainingData.split(/[.!\n]/).filter(s => s.trim().length > 10);
-      const userWords = lowerMessage.split(/\s+/).filter(w => w.length > 3);
+    // 12. Store Information / Location
+    else if (patterns.location.test(lowerMessage) || patterns.storeInfo.test(lowerMessage)) {
+      const sellerRes = await db.query('SELECT store_name, description, contact_info FROM sellers WHERE id = $1', [sellerId]);
+      const seller = sellerRes.rows[0];
+      const contact = seller.contact_info || {};
+      response = `${botPrefix}${seller.store_name} is ${seller.description || 'your trusted online store'}. ${contact.address ? 'Located at: ' + contact.address + '.' : ''} ${contact.phone ? 'Phone: ' + contact.phone + '.' : ''} All prices in ${currency} (${currencySymbol}).`;
+    }
+    // 13. Contact Information
+    else if (patterns.contact.test(lowerMessage)) {
+      const contact = bot.contact_info || {};
+      response = `${botPrefix}You can reach us via: ${contact.email ? 'Email: ' + contact.email : ''} ${contact.phone ? '| Phone: ' + contact.phone : ''} ${contact.whatsapp ? '| WhatsApp: ' + contact.whatsapp : ''}. All inquiries welcome!`;
+    }
+    // 14. Social Media
+    else if (patterns.social.test(lowerMessage)) {
+      const socialLinks = bot.social_links || {};
+      const socialPlatforms = ['facebook', 'instagram', 'twitter', 'linkedin', 'youtube', 'tiktok'];
+      const availableSocials = socialPlatforms.filter(p => socialLinks[p]).map(p => `${p.charAt(0).toUpperCase() + p.slice(1)}: ${socialLinks[p]}`).join('\n');
+      response = availableSocials ? `${botPrefix}Find us on social media:\n${availableSocials}` : `${botPrefix}We're working on expanding our social presence. Stay tuned!`;
+    }
+    // 15. Product Comparison
+    else if (patterns.compare.test(lowerMessage)) {
+      const productNames = lowerMessage.replace(patterns.compare, '').replace(/\?|\.|!/g, '').trim();
+      const names = productNames.split(/,|vs|versus|and|&/i).map(n => n.trim()).filter(n => n.length > 2);
       
-      // Rank sentences by word matches
+      if (names.length >= 2) {
+        const productsRes = await db.query(
+          `SELECT name, price, description, images FROM products WHERE seller_id = $1 AND status = 'active' AND (${names.map((_, i) => `name ILIKE $${i + 2}`).join(' OR ')})`,
+          [sellerId, ...names.map(n => `%${n}%`)]
+        );
+        
+        if (productsRes.rows.length >= 2) {
+          response = `${botPrefix}Here's a comparison of our products:\n` +
+            productsRes.rows.map(p => {
+              let line = `• ${p.name}: ${currencySymbol}${p.price}`;
+              if (p.description && p.description.length > 50) {
+                line += `\n  ${p.description.substring(0, 80)}...`;
+              }
+              return line;
+            }).join('\n') +
+            `\n\nNeed more details about any of these? Just ask!`;
+        } else {
+          response = `${botPrefix}I found some products but not all for comparison. Let me show you what I found: ${productsRes.rows.map(p => p.name).join(', ') || 'Nothing found'}.`;
+        }
+      } else {
+        const allProductsRes = await db.query(
+          'SELECT name, price FROM products WHERE seller_id = $1 AND status = \'active\' ORDER BY price DESC LIMIT 4',
+          [sellerId]
+        );
+        response = `${botPrefix}To compare products, tell me which ones! For example: "Compare Product A and Product B". Here are some popular options:\n` +
+          allProductsRes.rows.map(p => `• ${p.name} (${currencySymbol}${p.price})`).join('\n');
+      }
+    }
+    // 16. Warranty Information
+    else if (patterns.warranty.test(lowerMessage)) {
+      const sellerRes = await db.query('SELECT warranty_info FROM sellers WHERE id = $1', [sellerId]);
+      const warrantyInfo = sellerRes.rows[0]?.warranty_info;
+      if (customResponses.warranty) {
+        response = botPrefix + customResponses.warranty;
+      } else if (warrantyInfo) {
+        response = botPrefix + warrantyInfo;
+      } else {
+        response = botPrefix + "We stand behind our products with quality guarantees. For specific warranty terms, please check individual product descriptions or contact our support team.";
+      }
+    }
+    // 17. Business Hours
+    else if (patterns.hours.test(lowerMessage)) {
+      const sellerRes = await db.query('SELECT business_hours FROM sellers WHERE id = $1', [sellerId]);
+      const hours = sellerRes.rows[0]?.business_hours;
+      if (hours) {
+        const hoursText = typeof hours === 'string' ? hours : 
+          Object.entries(hours).map(([day, time]) => `${day}: ${time}`).join('\n');
+        response = `${botPrefix}Our business hours:\n${hoursText}`;
+      } else {
+        response = botPrefix + "We're available 24/7 online! You can place orders anytime. For immediate assistance, our AI bot is always here to help.";
+      }
+    }
+    // 18. Thank You Response
+    else if (patterns.thank.test(lowerMessage)) {
+      const thankResponses = [
+        "You're welcome! Anything else I can help with?",
+        "Happy to help! Need anything else?",
+        "My pleasure! What else can I assist you with?",
+        "Anytime! Ready to help with more questions."
+      ];
+      response = botPrefix + thankResponses[Math.floor(Math.random() * thankResponses.length)];
+    }
+    // 19. Goodbye Response
+    else if (patterns.bye.test(lowerMessage)) {
+      const byeResponses = [
+        "Goodbye! Come back anytime you need help.",
+        "See you later! Have a great day!",
+        "Take care! We're here when you need us.",
+        "Bye! Don't hesitate to reach out again."
+      ];
+      response = botPrefix + byeResponses[Math.floor(Math.random() * byeResponses.length)];
+    }
+    // 20. Help Intent
+    else if (patterns.help.test(lowerMessage)) {
+      response = botPrefix + "I can help you with:\n• Product information and prices\n• Order status and shipping\n• Return and refund policies\n• Payment methods\n• Store location and contact\n• Categories and recommendations\n• And much more! Just ask.";
+    }
+    // 15. Fallback to Training Data with enhanced matching for continuous conversations
+    else if (knowledgeResult.rows.length > 0) {
+      response = botPrefix + knowledgeResult.rows.map(row => row.content).join('\n\n');
+    }
+    // Fallback to bot-specific training data only after tenant knowledge has been checked.
+    else if (trainingData) {
+      const sentences = trainingData.split(/[.!\n]/).filter(s => s.trim().length > 15);
+      const userWords = lowerMessage.split(/\s+/).filter(w => w.length > 2);
+      
+      // Enhanced scoring: exact matches get higher scores, partial matches get partial scores
       const rankedSentences = sentences.map(s => {
-        const score = userWords.reduce((acc, word) => acc + (s.toLowerCase().includes(word) ? 1 : 0), 0);
+        const sLower = s.toLowerCase();
+        let score = 0;
+        userWords.forEach(word => {
+          if (sLower.includes(word)) {
+            // Exact phrase match gets more points
+            const wordRegex = new RegExp(`\\b${word}\\b`, 'i');
+            const matches = sLower.match(wordRegex);
+            score += matches ? 2 : 1;
+          }
+        });
         return { sentence: s.trim(), score };
       }).filter(s => s.score > 0).sort((a, b) => b.score - a.score);
       
       if (rankedSentences.length > 0) {
         response = `${botPrefix}` + rankedSentences.slice(0, 2).map(s => s.sentence).join('. ') + '.';
       } else {
-        response = `${botPrefix}I'm here to help! I can answer questions about our products, prices, and categories. What would you like to know?`;
+        // Creative fallback: try to generate a helpful response from training data
+        const creativeFallbacks = [
+          "I have information about that in my knowledge base! Let me find the right details for you.",
+          "Great question! I can tell you about our products and services.",
+          "I can definitely help with that - let me look up the specifics.",
+          `I can tell you all about our offerings in ${currency}! What specifically interests you?`
+        ];
+        response = botPrefix + (customResponses.fallback || creativeFallbacks[Math.floor(Math.random() * creativeFallbacks.length)]);
       }
     } else {
-      response = `${botPrefix}I'm currently being trained to better assist you. Please ask about our products, categories, or the best deals!`;
+      response = botPrefix + "I'm currently being trained to better assist you. Please ask about our products, categories, or the best deals!";
     }
     
-    res.json({ response });
+    const cleanResponse = (roleResponse || response)
+      .replace(/#/g, '')
+      .replace(/\bFAQS?\b/gi, 'frequently asked questions')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    await db.query('INSERT INTO bot_messages (conversation_id, role, content, sources) VALUES ($1, \'assistant\', $2, $3)', [conversation.id, cleanResponse, JSON.stringify(knowledgeSources)]);
+    await db.query('UPDATE bot_conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = $1 AND seller_id = $2', [conversation.id, sellerId]);
+    if (!knowledgeResult.rows.length && (cleanResponse.toLowerCase().includes('cannot') || cleanResponse.toLowerCase().includes('currently being trained'))) {
+      await db.query(
+        `INSERT INTO bot_knowledge_gaps (seller_id, bot_id, question, frequency, sample_response)
+         VALUES ($1, $2, $3, 1, $4)
+         ON CONFLICT (seller_id, question) DO UPDATE SET frequency = bot_knowledge_gaps.frequency + 1, last_asked_at = CURRENT_TIMESTAMP, sample_response = EXCLUDED.sample_response, updated_at = CURRENT_TIMESTAMP`,
+        [sellerId, req.params.id, message.trim().slice(0, 500), cleanResponse]
+      );
+    }
+    res.json({ response: cleanResponse, conversationId: conversation.id, sources: knowledgeSources });
   } catch (err) {
     console.error('Bot Chat Error:', err);
     res.status(500).json({ message: 'Server error', error: err.message });
@@ -4742,30 +7036,160 @@ app.post('/api/public/bots/:id/chat', async (req, res) => {
 
 // --- Admin Routes ---
 
+app.post('/api/admin/seller-managers/invite', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'manager_admin') return res.status(403).json({ message: 'Unauthorized' });
+  const { firstName, lastName, email, commissionRate } = req.body;
+  if (!firstName?.trim() || !lastName?.trim() || !email?.trim()) return res.status(400).json({ message: 'First name, last name, and email are required' });
+
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const existing = await client.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email.trim()]);
+    if (existing.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ message: 'A user with this email already exists' });
+    }
+    const pendingInvite = await client.query(`SELECT id FROM manager_invitations WHERE LOWER(email) = LOWER($1) AND status = 'pending' AND expires_at > NOW()`, [email.trim()]);
+    if (pendingInvite.rows.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ message: 'A pending invitation already exists for this email' });
+    }
+
+    const invitationToken = nanoid(48);
+    await client.query(
+      `INSERT INTO manager_invitations (first_name, last_name, email, commission_rate, invitation_token, expires_at) VALUES ($1, $2, $3, $4, $5, NOW() + INTERVAL '7 days')`,
+      [firstName.trim(), lastName.trim(), email.trim().toLowerCase(), commissionRate ? Number(commissionRate) / 100 : 0.05, invitationToken]
+    );
+    await client.query('COMMIT');
+
+    const inviteUrl = `${(process.env.FRONTEND_URL || 'http://localhost:4000').replace(/\/$/, '')}/#/accept-manager-invitation?token=${invitationToken}`;
+    const emailResult = await mailer.sendEmail({
+      to: email.trim(),
+      subject: 'You are invited to manage sellers on IyoniCorp',
+      text: `Hello ${firstName.trim()} ${lastName.trim()}, you have been invited to IyoniCorp as a seller manager. Accept your invitation here: ${inviteUrl}`,
+      html: `<p>Hello ${firstName.trim()} ${lastName.trim()},</p><p>You have been invited to manage sellers on IyoniCorp.</p><p><a href="${inviteUrl}">Accept invitation and set your account details</a></p><p>This invitation expires in 7 days.</p>`
+    });
+    if (!emailResult) return res.status(502).json({ message: 'Invitation created, but the email could not be sent' });
+    res.status(201).json({ message: 'Invitation sent successfully' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Manager invitation error:', err);
+    res.status(500).json({ message: 'Server error sending manager invitation' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/auth/accept-manager-invitation', async (req, res) => {
+  const { token, firstName, lastName, phoneNumber, password } = req.body;
+  if (!token || !firstName?.trim() || !lastName?.trim() || !password || password.length < 6) return res.status(400).json({ message: 'First name, last name, token, and a password of at least 6 characters are required' });
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const invitationResult = await client.query(`SELECT * FROM manager_invitations WHERE invitation_token = $1 AND status = 'pending' AND expires_at > NOW() FOR UPDATE`, [token]);
+    if (invitationResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'This invitation is invalid or has expired' });
+    }
+    const invitation = invitationResult.rows[0];
+    const name = `${firstName.trim()} ${lastName.trim()}`;
+    const passwordHash = await bcrypt.hash(password, 10);
+    const userResult = await client.query(
+      `INSERT INTO users (name, email, password_hash, role, first_name, last_name, phone_number) VALUES ($1, $2, $3, 'seller_manager', $4, $5, $6) RETURNING id, name, email, role`,
+      [name, invitation.email, passwordHash, firstName.trim(), lastName.trim(), phoneNumber?.trim() || null]
+    );
+    await client.query(
+      `INSERT INTO seller_managers (user_id, display_name, commission_rate) VALUES ($1, $2, $3)`,
+      [userResult.rows[0].id, name, invitation.commission_rate]
+    );
+    await client.query(`UPDATE manager_invitations SET status = 'accepted', accepted_at = CURRENT_TIMESTAMP WHERE id = $1`, [invitation.id]);
+    await client.query('COMMIT');
+    res.json({ message: 'Invitation accepted. You can now sign in.', user: toCamel(userResult.rows[0]) });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Accept manager invitation error:', err);
+    res.status(500).json({ message: 'Server error accepting invitation' });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/auth/manager-invitation/:token', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT first_name, last_name, email
+      FROM manager_invitations
+      WHERE invitation_token = $1 AND status = 'pending' AND expires_at > NOW()
+    `, [req.params.token]);
+    if (!result.rows.length) return res.status(404).json({ message: 'This invitation is invalid or has expired' });
+    res.json(toCamel(result.rows[0]));
+  } catch (err) {
+    res.status(500).json({ message: 'Server error loading invitation' });
+  }
+});
+
+app.get('/api/admin/seller-manager-invitations', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'manager_admin') return res.status(403).json({ message: 'Unauthorized' });
+  try {
+    const result = await db.query(`
+      SELECT id, first_name, last_name, email, commission_rate, status, expires_at, created_at
+      FROM manager_invitations
+      WHERE status = 'pending'
+      ORDER BY created_at DESC
+    `);
+    res.json(toCamel(result.rows));
+  } catch (err) {
+    res.status(500).json({ message: 'Server error loading invitations' });
+  }
+});
+
+app.patch('/api/admin/sellers/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'manager_admin') return res.status(403).json({ message: 'Unauthorized' });
+  const { storeName, isLive, subscription } = req.body;
+  try {
+    const result = await db.query(`UPDATE sellers SET store_name = COALESCE($1, store_name), is_live = COALESCE($2, is_live), subscription = COALESCE($3, subscription), updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *`, [storeName || null, isLive, subscription ? JSON.stringify(subscription) : null, req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Seller not found' });
+    res.json(toCamel(result.rows[0]));
+  } catch (err) { res.status(500).json({ message: 'Server error updating seller' }); }
+});
+
+app.delete('/api/admin/sellers/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'manager_admin') return res.status(403).json({ message: 'Unauthorized' });
+  try {
+    const result = await db.query('DELETE FROM sellers WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Seller not found' });
+    res.json({ message: 'Seller deleted successfully' });
+  } catch (err) { res.status(500).json({ message: 'Server error deleting seller' }); }
+});
+
 app.get('/api/admin/stats', authenticateToken, async (req, res) => {
   if (req.user.role !== 'manager_admin') return res.status(403).json({ message: 'Unauthorized' });
   try {
-    const statsRes = await db.query(`
-      SELECT 
-        (SELECT COUNT(*) FROM users) as total_users,
-        (SELECT COUNT(*) FROM sellers) as total_sellers,
-        (SELECT COUNT(*) FROM seller_managers) as total_managers,
-        (SELECT COALESCE(SUM(total), 0) FROM orders) as total_platform_revenue,
-        (SELECT COUNT(*) FROM orders) as total_orders,
-        (SELECT COUNT(*) FROM products) as total_products,
-        (SELECT COUNT(*) FROM customers) as total_customers
+    // Currency conversion rates to USD
+    const ratesToUSD = { 'USD': 1, 'KES': 125, 'EUR': 0.92, 'GBP': 0.79, 'NGN': 1500, 'GHS': 13 };
+    const convertToUSD = (amount, currency) => (parseFloat(amount || 0) / (ratesToUSD[(currency || 'USD').toUpperCase()] || 1));
+    
+    // Get all sellers with their currencies and revenue for USD conversion
+    const sellersRes = await db.query(`
+      SELECT s.id, s.currency, COALESCE((s.stats->>'totalRevenue')::numeric, 0) as revenue
+      FROM sellers s
     `);
     
-    const stats = statsRes.rows[0] || {};
+    // Convert all revenues to USD
+    let totalUSDRevenue = 0;
+    sellersRes.rows.forEach(seller => {
+      totalUSDRevenue += convertToUSD(seller.revenue, seller.currency);
+    });
     
     const responseData = {
-      total_platform_revenue: parseFloat(stats.total_platform_revenue || 0),
-      total_users: parseInt(stats.total_users || 0),
-      total_sellers: parseInt(stats.total_sellers || 0),
-      total_managers: parseInt(stats.total_managers || 0),
-      total_orders: parseInt(stats.total_orders || 0),
-      total_products: parseInt(stats.total_products || 0),
-      total_customers: parseInt(stats.total_customers || 0),
+      total_platform_revenue_usd: totalUSDRevenue,
+      total_platform_revenue: await db.query('SELECT COALESCE(SUM(total), 0) as total FROM orders').then(r => parseFloat(r.rows[0].total)),
+      total_users: await db.query('SELECT COUNT(*) as count FROM users').then(r => parseInt(r.rows[0].count)),
+      total_sellers: await db.query('SELECT COUNT(*) as count FROM sellers').then(r => parseInt(r.rows[0].count)),
+      total_managers: await db.query('SELECT COUNT(*) as count FROM seller_managers').then(r => parseInt(r.rows[0].count)),
+      total_orders: await db.query('SELECT COUNT(*) as count FROM orders').then(r => parseInt(r.rows[0].count)),
+      total_products: await db.query('SELECT COUNT(*) as count FROM products').then(r => parseInt(r.rows[0].count)),
+      total_customers: await db.query('SELECT COUNT(*) as count FROM customers').then(r => parseInt(r.rows[0].count)),
       system_health: 99.9,
       cpu_usage: 45,
       memory_usage: 62,
@@ -4783,16 +7207,47 @@ app.get('/api/admin/stats', authenticateToken, async (req, res) => {
 app.get('/api/admin/iyonicpay/stats', authenticateToken, async (req, res) => {
   if (req.user.role !== 'manager_admin') return res.status(403).json({ message: 'Unauthorized' });
   try {
+    // Currency conversion rates to USD
+    const ratesToUSD = { 'USD': 1, 'KES': 125, 'EUR': 0.92, 'GBP': 0.79, 'NGN': 1500, 'GHS': 13 };
+    const convertToUSD = (amount, currency) => (parseFloat(amount || 0) / (ratesToUSD[(currency || 'USD').toUpperCase()] || 1));
+    
     const statsRes = await db.query(`
       SELECT 
-        (SELECT COALESCE(SUM(balance), 0) FROM wallets) as total_wallet_balances,
         (SELECT COUNT(*) FROM wallets) as total_wallets,
         (SELECT COUNT(*) FROM transactions) as total_transactions,
-        (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE status = 'completed') as total_volume,
         (SELECT COUNT(*) FROM withdrawals WHERE status = 'pending') as pending_withdrawals
     `);
+    const walletBalancesRes = await db.query('SELECT balance, currency FROM wallets');
+    const transactionVolumeRes = await db.query(`SELECT t.amount, COALESCE(t.currency, w.currency, 'USD') as currency FROM transactions t LEFT JOIN wallets w ON w.id = t.sender_wallet_id WHERE t.status = 'completed'`);
+    const totalWalletBalancesUSD = walletBalancesRes.rows.reduce((sum, wallet) => sum + convertToUSD(wallet.balance, wallet.currency), 0);
+    const totalVolumeUSD = transactionVolumeRes.rows.reduce((sum, transaction) => sum + convertToUSD(transaction.amount, transaction.currency), 0);
     
-    res.json(toCamel(statsRes.rows[0]));
+    // Get all sellers with their currencies and revenue
+    const sellersRes = await db.query(`
+      SELECT s.id, s.store_name, s.currency, COALESCE((s.stats->>'totalRevenue')::numeric, 0) as revenue, COALESCE((s.stats->>'totalOrders')::integer, 0) as orders
+      FROM sellers s
+    `);
+    
+    // Convert all revenues to USD for aggregation
+    let totalUSDRevenue = 0;
+    const sellersWithUSDRevenue = sellersRes.rows.map(seller => {
+      const usdRevenue = convertToUSD(seller.revenue, seller.currency);
+      totalUSDRevenue += usdRevenue;
+      return {
+        ...seller,
+        revenue_usd: usdRevenue,
+        revenue_original: seller.revenue,
+        currency: seller.currency || 'USD'
+      };
+    });
+    
+    res.json(toCamel({
+      ...statsRes.rows[0],
+      total_wallet_balances: totalWalletBalancesUSD,
+      total_volume: totalVolumeUSD,
+      total_platform_revenue_usd: totalUSDRevenue,
+      sellers: sellersWithUSDRevenue
+    }));
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -4801,10 +7256,12 @@ app.get('/api/admin/iyonicpay/stats', authenticateToken, async (req, res) => {
 app.get('/api/admin/iyonicpay/transactions', authenticateToken, async (req, res) => {
   if (req.user.role !== 'manager_admin') return res.status(403).json({ message: 'Unauthorized' });
   try {
+    const ratesToUSD = { USD: 1, KES: 125, EUR: 0.92, GBP: 0.79, NGN: 1500, GHS: 13 };
     const transRes = await db.query(`
       SELECT t.*, 
              su.email as sender_email, 
-             ru.email as receiver_email
+             ru.email as receiver_email,
+             COALESCE(t.currency, sw.currency, rw.currency, 'USD') as transaction_currency
       FROM transactions t
       LEFT JOIN wallets sw ON t.sender_wallet_id = sw.id
       LEFT JOIN wallets rw ON t.receiver_wallet_id = rw.id
@@ -4813,9 +7270,34 @@ app.get('/api/admin/iyonicpay/transactions', authenticateToken, async (req, res)
       ORDER BY t.created_at DESC
       LIMIT 100
     `);
-    res.json(toCamel(transRes.rows));
+    res.json(toCamel(transRes.rows.map(transaction => ({
+      ...transaction,
+      amount: Number(transaction.amount || 0) / (ratesToUSD[String(transaction.transaction_currency || 'USD').toUpperCase()] || 1),
+      currency: 'USD'
+    }))));
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+app.get('/api/admin/iyonicpay/wallets', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'manager_admin') return res.status(403).json({ message: 'Unauthorized' });
+  try {
+    const ratesToUSD = { USD: 1, KES: 125, EUR: 0.92, GBP: 0.79, NGN: 1500, GHS: 13 };
+    const result = await db.query(`
+      SELECT w.id, w.balance, w.currency, w.created_at, w.updated_at,
+             u.name as user_name, u.email as user_email, u.role as user_role
+      FROM wallets w
+      JOIN users u ON u.id = w.user_id
+      ORDER BY w.updated_at DESC
+    `);
+    res.json(toCamel(result.rows.map(wallet => ({
+      ...wallet,
+      native_balance: Number(wallet.balance || 0),
+      usd_balance: Number(wallet.balance || 0) / (ratesToUSD[String(wallet.currency || 'USD').toUpperCase()] || 1)
+    }))));
+  } catch (err) {
+    res.status(500).json({ message: 'Server error loading wallets' });
   }
 });
 
@@ -4828,7 +7310,14 @@ app.get('/api/admin/iyonicpay/withdrawals', authenticateToken, async (req, res) 
       JOIN users u ON w.user_id = u.id
       ORDER BY w.created_at DESC
     `);
-    res.json(toCamel(withRes.rows));
+    const ratesToUSD = { USD: 1, KES: 125, EUR: 0.92, GBP: 0.79, NGN: 1500, GHS: 13 };
+    const rows = withRes.rows.map(w => {
+      const camelCase = toCamel(w);
+      const walletCurrency = (camelCase.bankDetails?.walletCurrency || 'USD').toUpperCase();
+      const usdAmount = parseFloat(camelCase.amount || 0) / (ratesToUSD[walletCurrency] || 1);
+      return { ...camelCase, usdAmount: Number(usdAmount.toFixed(2)) };
+    });
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -4843,10 +7332,11 @@ app.patch('/api/admin/iyonicpay/withdrawals/:id', authenticateToken, async (req,
     await db.query('UPDATE withdrawals SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [status, id]);
     
     // Also update the associated transaction if it exists
-    const withRes = await db.query('SELECT user_id, amount FROM withdrawals WHERE id = $1', [id]);
+    const withRes = await db.query('SELECT id, user_id, amount, bank_details, status FROM withdrawals WHERE id = $1', [id]);
     if (withRes.rows.length > 0) {
-      const { user_id, amount } = withRes.rows[0];
-      const walletRes = await db.query('SELECT id FROM wallets WHERE user_id = $1', [user_id]);
+      const withdrawal = withRes.rows[0];
+      const { user_id, amount } = withdrawal;
+      const walletRes = await db.query('SELECT id, currency FROM wallets WHERE user_id = $1', [user_id]);
       if (walletRes.rows.length > 0) {
         const walletId = walletRes.rows[0].id;
         await db.query(
@@ -4854,13 +7344,133 @@ app.patch('/api/admin/iyonicpay/withdrawals/:id', authenticateToken, async (req,
           [status === 'completed' ? 'completed' : 'failed', walletId, amount]
         );
       }
-    }
+
+      // Send status update email to user
+      const userRes = await db.query('SELECT name, email FROM users WHERE id = $1', [user_id]);
+      if (userRes.rows.length > 0) {
+        const userCurrency = walletRes.rows[0]?.currency || 'USD';
+        const withdrawalWithDetails = {
+          id: withdrawal.id,
+          amount: withdrawal.amount,
+          bank_details: typeof withdrawal.bank_details === 'string' ? JSON.parse(withdrawal.bank_details) : withdrawal.bank_details,
+          status: status
+        };
+        mailer.sendWithdrawalStatusUpdateEmail(withdrawalWithDetails, userRes.rows[0], status, userCurrency).catch(err => {
+          console.error('Failed to send withdrawal status email:', err.message || err);
+        });
+      }
+     }
+
+     // Log activity
+    const adminUserId = req.user.id === 'admin-id' ? null : req.user.id;
+    const adminName = req.user.name || 'Admin';
+    const adminEmail = req.user.email || 'admin@iyonicorp.com';
+    await db.query(
+      'INSERT INTO admin_activities (action, description, entity_type, entity_id, user_id, user_name, user_email, severity) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+      ['withdrawal_status_updated', `Withdrawal #${id.substring(0, 8)} marked as ${status}`, 'withdrawal', id, adminUserId, adminName, adminEmail, 'info']
+    );
 
     res.json({ message: 'Withdrawal status updated' });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+// Get admin activities
+app.get('/api/admin/activities', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'manager_admin') return res.status(403).json({ message: 'Unauthorized' });
+  try {
+    const activitiesRes = await db.query(`
+      SELECT * FROM admin_activities 
+      ORDER BY created_at DESC 
+      LIMIT 20
+    `);
+    res.json(toCamel(activitiesRes.rows));
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get system stats for admin
+app.get('/api/admin/system/stats', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'manager_admin') return res.status(403).json({ message: 'Unauthorized' });
+  try {
+    const systemStats = await db.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM users) as total_users,
+        (SELECT COUNT(*) FROM sellers) as total_sellers,
+        (SELECT COUNT(*) FROM orders) as total_orders,
+        (SELECT COUNT(*) FROM products) as total_products,
+        (SELECT COUNT(*) FROM wallets) as total_wallets,
+        (SELECT COUNT(*) FROM api_keys WHERE is_active = TRUE) as active_api_keys,
+        (SELECT COALESCE(SUM(balance), 0) FROM wallets) as total_wallet_balance,
+        (SELECT COUNT(*) FROM social_media_accounts WHERE is_connected = TRUE) as connected_social_accounts,
+        (SELECT COUNT(*) FROM bots WHERE status = 'active') as active_bots,
+        (SELECT COUNT(*) FROM email_campaigns WHERE status = 'sending') as sending_campaigns
+    `);
+    
+    const serverStatus = await db.query(`
+      SELECT s.id, s.store_name, s.subdomain, s.is_live,
+             (SELECT COUNT(*) FROM products p WHERE p.seller_id = s.id) as total_products,
+             (SELECT COUNT(*) FROM orders o WHERE o.seller_id = s.id) as total_orders,
+             (s.subscription->>'status') as subscription_status
+      FROM sellers s
+      ORDER BY s.created_at DESC
+      LIMIT 5
+    `);
+    
+    const databaseSize = await db.query('SELECT pg_database_size(current_database()) as bytes');
+    const getDirectorySize = (directory) => {
+      if (!fs.existsSync(directory)) return 0;
+      return fs.readdirSync(directory, { withFileTypes: true }).reduce((total, entry) => {
+        const entryPath = path.join(directory, entry.name);
+        return total + (entry.isDirectory() ? getDirectorySize(entryPath) : fs.statSync(entryPath).size);
+      }, 0);
+    };
+    const uploadedStorageBytes = getDirectorySize(path.join(__dirname, 'public'));
+    const databaseStorageBytes = Number(databaseSize.rows[0]?.bytes || 0);
+    
+    res.json(toCamel({
+      ...systemStats.rows[0],
+      platform_storage_bytes: uploadedStorageBytes + databaseStorageBytes,
+      database_storage_bytes: databaseStorageBytes,
+      uploaded_storage_bytes: uploadedStorageBytes,
+      recent_sellers: serverStatus.rows
+    }));
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get security events
+app.get('/api/admin/security/events', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'manager_admin') return res.status(403).json({ message: 'Unauthorized' });
+  try {
+    const securityRes = await db.query(`
+      SELECT * FROM admin_activities 
+      WHERE action IN ('login', 'login_failed', 'password_reset', 'suspension', 'api_key_created')
+         OR severity IN ('warning', 'error')
+      ORDER BY created_at DESC 
+      LIMIT 20
+    `);
+    res.json(toCamel(securityRes.rows));
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Log activity helper (internal)
+const logActivity = async (action, description, entityType, entityId, userId, userName, userEmail, severity = 'info') => {
+  try {
+    const validUserId = userId === 'admin-id' ? null : userId;
+    await db.query(
+      'INSERT INTO admin_activities (action, description, entity_type, entity_id, user_id, user_name, user_email, severity) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+      [action, description, entityType, entityId, validUserId, userName, userEmail, severity]
+    );
+  } catch (err) {
+    console.error('Failed to log activity:', err);
+  }
+};
 
 // ✅ NEW: Test DB route
 app.get('/test-db', async (req, res) => {
@@ -5349,27 +7959,101 @@ app.patch('/api/email-marketing/settings/:id', authenticateToken, async (req, re
   }
 });
 
-// Send test email (Mock)
+// Send test email
 app.post('/api/email-marketing/test', authenticateToken, async (req, res) => {
   try {
-    const { to, subject, html } = req.body;
-    console.log(`Mock sending test email to ${to}:`, { subject });
-    res.json({ success: true, message: 'Test email sent successfully' });
+    const { to, subject, html, settingsId } = req.body;
+    if (!to || !subject) {
+      return res.status(400).json({ success: false, message: 'Recipient and subject are required' });
+    }
+
+    let transporter;
+    let fromEmail = process.env.SMTP_USER;
+    let fromName = 'ShopRight';
+
+    if (settingsId) {
+      const { settings, transporter: builtTransporter } = await buildTransporterFromSettingsId(settingsId);
+      if (settings) {
+        transporter = builtTransporter;
+        fromEmail = settings.from_email || fromEmail;
+        fromName = settings.from_name || fromName;
+      } else {
+        return res.status(404).json({ success: false, message: 'Email settings not found or inactive' });
+      }
+    } else {
+      const { sendEmail } = await import('./mailer.js');
+      transporter = { sendMail: sendEmail };
+    }
+
+    if (!transporter || !transporter.sendMail) {
+      return res.status(400).json({ success: false, message: 'No email transporter configured. Set SMTP_USER and SMTP_PASS in .env or configure email settings.' });
+    }
+
+    const info = await transporter.sendMail({
+      from: `"${fromName}" <${fromEmail}>`,
+      to,
+      subject,
+      html
+    });
+
+    res.json({ success: true, message: 'Test email sent successfully', messageId: info.messageId || info });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error sending test email' });
+    console.error('Test email error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Server error sending test email' });
   }
 });
 
-// Verify email settings (Mock)
+// Verify email settings
 app.post('/api/email-marketing/settings/:id/verify', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const result = await db.query(
+      'SELECT * FROM email_marketing_settings WHERE id = $1',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ verified: false, message: 'Email settings not found' });
+    }
+
+    const settings = result.rows[0];
+    const transporter = createTransporterFromSettings(settings);
+
+    if (!transporter) {
+      // Fall back to system mailer
+      const { sendEmail } = await import('./mailer.js');
+      const verifyResult = await sendEmail({ to: settings.from_email, subject: 'Verify', text: 'Verify' });
+      if (verifyResult) {
+        await db.query('UPDATE email_marketing_settings SET is_verified = TRUE WHERE id = $1', [id]);
+        return res.json({ verified: true, message: 'Settings verified successfully (system mailer)' });
+      }
+      return res.status(400).json({ verified: false, message: 'SMTP authentication failed. Check your credentials.' });
+    }
+
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('SMTP connection timed out after 15 seconds'));
+      }, 15000);
+
+      transporter.verify((err, _success) => {
+        clearTimeout(timeout);
+        if (err) {
+          reject(err);
+        } else {
+          resolve(true);
+        }
+      });
+    });
+
     await db.query('UPDATE email_marketing_settings SET is_verified = TRUE WHERE id = $1', [id]);
     res.json({ verified: true, message: 'Settings verified successfully' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error verifying settings' });
+    console.error('Email settings verification error:', err);
+    const isAuthError = err.code === 'EAUTH' || err.responseCode === 535 || err.code === 'EACCES';
+    const message = isAuthError
+      ? 'SMTP authentication failed. For Gmail, ensure 2FA is enabled and SMTP_PASS is a valid 16-character app password.'
+      : err.message || 'Server error verifying settings';
+    res.status(400).json({ verified: false, message });
   }
 });
 
@@ -5736,61 +8420,9 @@ const processCampaignEmails = async (campaignId) => {
       fromEmail = settings.from_email;
       fromName = settings.from_name || fromName;
       
-      // Create transporter based on provider
-      if (settings.provider === 'smtp') {
-        transporter = nodemailer.createTransport({
-          host: settings.smtp_host,
-          port: settings.smtp_port || 587,
-          secure: settings.smtp_port === 465,
-          auth: {
-            user: settings.smtp_user,
-            pass: settings.smtp_password
-          }
-        });
-      } else if (settings.provider === 'sendgrid') {
-        transporter = nodemailer.createTransport({
-          service: 'SendGrid',
-          auth: {
-            apiKey: settings.api_key
-          }
-        });
-      } else if (settings.provider === 'mailgun') {
-        transporter = nodemailer.createTransport({
-          service: 'Mailgun',
-          auth: {
-            apiKey: settings.api_key,
-            domain: settings.domain || 'mg.yourdomain.com'
-          }
-        });
-      } else if (settings.provider === 'aws-ses') {
-        transporter = nodemailer.createTransport({
-          host: `email.${settings.region}.amazonaws.com`,
-          port: 587,
-          secure: false,
-          auth: {
-            user: settings.access_key_id,
-            pass: settings.secret_access_key
-          }
-        });
-      } else if (settings.provider === 'brevo' || settings.provider === 'sendinblue') {
-        transporter = nodemailer.createTransport({
-          host: 'smtp-relay.brevo.com',
-          port: 587,
-          auth: {
-            user: settings.api_key,
-            pass: ''
-          }
-        });
-      } else if (settings.provider === 'postmark') {
-        transporter = nodemailer.createTransport({
-          host: 'smtp.postmarkapp.com',
-          port: 587,
-          auth: {
-            user: settings.api_key,
-            pass: settings.api_key
-          }
-        });
-      } else {
+      // Create transporter using shared helper
+      transporter = createTransporterFromSettings(settings);
+      if (!transporter) {
         // Default to the system mailer
         const { sendEmail } = await import('./mailer.js');
         transporter = { sendMail: sendEmail };
@@ -5993,6 +8625,127 @@ const startBackgroundJobs = () => {
           client.release();
         }
       }
+
+      // 4. Subscription renewal reminders (3 days before expiration) and auto-renewal
+      const reminderDate = new Date();
+      reminderDate.setDate(reminderDate.getDate() + 3);
+      const reminderDateStr = reminderDate.toISOString().split('T')[0];
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      // Check IyonicShop subscriptions for renewal reminders
+      const shopRenewalSellers = await db.query(
+        `SELECT s.user_id, s.subscription, s.auto_renew, u.email, u.name
+         FROM sellers s
+         JOIN users u ON s.user_id = u.id
+         WHERE s.subscription ->> 'endDate' IS NOT NULL
+         AND (s.subscription ->> 'endDate')::date <= $1
+         AND (s.subscription ->> 'endDate')::date > $2
+         AND s.subscription ->> 'status' = 'active'`,
+        [reminderDateStr, todayStr]
+      );
+
+      for (const seller of shopRenewalSellers.rows) {
+        const plan = seller.subscription.plan;
+        const planConfig = SELLER_PLANS[plan];
+        if (planConfig && planConfig.price > 0) {
+          await mailer.sendSubscriptionReminderEmail({
+            user: { email: seller.email, name: seller.name },
+            platform: 'IyonicShop',
+            planName: planConfig.name,
+            price: planConfig.price,
+            renewalDate: seller.subscription.endDate
+          });
+          console.log(`[BACKGROUND] Sent IyonicShop renewal reminder to ${seller.email}`);
+        }
+      }
+
+      // Auto-renew IyonicShop subscriptions that expired today
+      const expiredShopSellers = await db.query(
+        `SELECT s.id, s.user_id, s.subscription, s.auto_renew, u.email, u.name, w.id as wallet_id, w.balance, w.currency
+         FROM sellers s
+         JOIN users u ON s.user_id = u.id
+         JOIN wallets w ON u.id = w.user_id
+         WHERE (s.subscription ->> 'endDate')::date <= $1
+         AND s.subscription ->> 'status' = 'active'
+         AND s.auto_renew->'iyonicshop'->>'enabled' = 'true'`,
+        [todayStr]
+      );
+
+      for (const seller of expiredShopSellers.rows) {
+        const autoRenew = seller.auto_renew || {};
+        const shopAuto = autoRenew.iyonicshop || {};
+        const planId = shopAuto.plan || seller.subscription.plan;
+        const planConfig = SELLER_PLANS[planId];
+        if (!planConfig || planConfig.price <= 0) continue;
+        if (Number(seller.balance) < planConfig.price) continue;
+
+        const client2 = await db.pool.connect();
+        try {
+          await client2.query('BEGIN');
+          const nextMonth = new Date();
+          nextMonth.setDate(nextMonth.getDate() + 30);
+          await client2.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [planConfig.price, seller.wallet_id]);
+          await client2.query(
+            `INSERT INTO transactions (sender_wallet_id, amount, currency, type, status, description)
+             VALUES ($1, $2, $3, 'invoice_payment', 'completed', $4)`,
+            [seller.wallet_id, planConfig.price, seller.currency || 'USD', `IyonicShop ${planConfig.name} plan - auto-renewal`]
+          );
+          const nextSubscription = { ...seller.subscription, plan: planId, startDate: new Date().toISOString(), endDate: nextMonth.toISOString() };
+          await client2.query(
+            'UPDATE sellers SET subscription = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+            [JSON.stringify(nextSubscription), seller.id]
+          );
+          await client2.query('COMMIT');
+          console.log(`[BACKGROUND] Auto-renewed IyonicShop plan for seller ${seller.id}`);
+        } catch (err) {
+          await client2.query('ROLLBACK');
+          console.error(`Auto-renewal error for seller ${seller.id}:`, err);
+        } finally {
+          client2.release();
+        }
+      }
+
+      // Auto-renew IyonicBots subscriptions that expired today
+      const expiredBotSellers = await db.query(
+        `SELECT s.id, s.user_id, s.subscription, s.auto_renew, u.email, u.name, w.id as wallet_id, w.balance, w.currency
+         FROM sellers s
+         JOIN users u ON s.user_id = u.id
+         JOIN wallets w ON u.id = w.user_id
+         WHERE s.subscription->>'botPlanStartedAt' IS NOT NULL
+         AND s.auto_renew->'iyonicbots'->>'enabled' = 'true'`,
+      );
+
+      for (const seller of expiredBotSellers.rows) {
+        const autoRenew = seller.auto_renew || {};
+        const botAuto = autoRenew.iyonicbots || {};
+        const planId = botAuto.plan;
+        const planConfig = IYONIC_BOT_PLANS[planId];
+        if (!planConfig || planConfig.price <= 0) continue;
+        if (Number(seller.balance) < planConfig.price) continue;
+
+        const client3 = await db.pool.connect();
+        try {
+          await client3.query('BEGIN');
+          await client3.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [planConfig.price, seller.wallet_id]);
+          await client3.query(
+            `INSERT INTO transactions (sender_wallet_id, amount, currency, type, status, description)
+             VALUES ($1, $2, $3, 'invoice_payment', 'completed', $4)`,
+            [seller.wallet_id, planConfig.price, seller.currency || 'USD', `IyonicBots ${planConfig.name} plan - auto-renewal`]
+          );
+          const nextSubscription = { ...seller.subscription, botPlan: planId, botPlanStartedAt: new Date().toISOString() };
+          await client3.query(
+            'UPDATE sellers SET subscription = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+            [JSON.stringify(nextSubscription), seller.id]
+          );
+          await client3.query('COMMIT');
+          console.log(`[BACKGROUND] Auto-renewed IyonicBots plan for seller ${seller.id}`);
+        } catch (err) {
+          await client3.query('ROLLBACK');
+          console.error(`Bot auto-renewal error for seller ${seller.id}:`, err);
+        } finally {
+          client3.release();
+        }
+      }
     } catch (err) {
       console.error('Background Job Error:', err);
     }
@@ -6002,7 +8755,27 @@ const startBackgroundJobs = () => {
 // Start background jobs
 startBackgroundJobs();
 
+// === Apex POS WebSocket + Routes ===
+import http from 'http';
+const httpServer = http.createServer(app);
+import { Server as SocketIOServer } from 'socket.io';
+const io = new SocketIOServer(httpServer, {
+  cors: { origin: '*' },
+});
+
+io.on('connection', (socket) => {
+  socket.on('subscribe:seller', (sellerId) => {
+    if (sellerId) socket.join(`seller:${sellerId}`);
+  });
+  socket.on('unsubscribe:seller', (sellerId) => {
+    if (sellerId) socket.leave(`seller:${sellerId}`);
+  });
+  console.log(`[WS] Client connected: ${socket.id}`);
+});
+
+mountPosRoutes(app, authenticateToken, io);
+
 // ✅ IMPORTANT: bind to 0.0.0.0 for Coolify
-app.listen(PORT, "0.0.0.0", () => {
+httpServer.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });

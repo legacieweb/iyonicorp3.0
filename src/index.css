@@ -2,6 +2,61 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --app-bg: #060b15;
+  --app-surface: #0f172a;
+  --app-surface-2: #111827;
+  --app-text: #e5eefc;
+  --app-muted: #9aa9bf;
+  --app-border: rgba(148, 163, 184, 0.2);
+  --app-accent: #fbbf24;
+  --app-accent-strong: #f59e0b;
+  --app-shadow: rgba(2, 6, 23, 0.34);
+}
+
+html {
+  background: var(--app-bg);
+  color: var(--app-text);
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(251, 191, 36, 0.14), transparent 18%),
+    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.16), transparent 18%),
+    var(--app-bg);
+  color: var(--app-text);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.8);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(251, 191, 36, 0.5);
+}
+
 @layer utilities {
   @keyframes shimmer {
     from {

@@ -1,6 +1,12 @@
 # TODO
 - [x] Remove homepage animations started in `src/pages/Homepage.tsx` (converted AnimatedCounter to static, removed useScroll/useTransform, fixed initial JSX errors).
 - [x] Remove remaining `framer-motion` usage on homepage (`motion.*` and `AnimatePresence`) and remove remaining `animate-pulse`.
-- [ ] Re-run `npm run build` to confirm.
+- [x] Re-run `npm run build` to confirm.
 - [x] Redesign checkout section with proper header in LuxuryBoutique theme.
+- [x] Redesign restaurant theme (`src/platforms/services/restaurant/*`) — clean, responsive, elegant: refined palette, removed duplicate button CSS, fixed `minmax:` syntax bug, added responsive mobile nav with smooth transition, converted all inline styles to reusable CSS classes across Site/Service/Admin/Client.
+- [x] Wire up the Tamira Salon platform: register `/salon/tamira-salon/{admin,client,service/:id}` routes in `App.tsx`, add `/salon/` to the platform-route guard, fix broken `./assets/*` image references in `tamira-salon.css` (switched to remote images), and add preferred-stylist selection to the booking flow.
+- [x] Build the Pulse Fit fitness platform kickoff (mirroring the tamira-salon pattern): created `pulseFitTypes.ts`, `pulse-fit.css`, `PulseFitSite.tsx` (class browse + request-based booking), `PulseFitAdmin.tsx` (owner studio desk), `PulseFitClient.tsx` (member session portal), and `PulseFitServicePage.tsx` (class detail + booking). Wired routes `/fit/pulse-fit/{admin,client,class/:serviceId}` in `App.tsx`, added `/fit/` to the platform-route guard, registered the `pulse-fit` dashboard/client routes in `src/utils/themeDashboard.ts`, added the `pulse-fit` theme to `Storefront.tsx` (lazy + mock classes), `src/pages/Themes.tsx`, `src/pages/seller/SellerDashboard.tsx` (SERVICE_THEMES + SERVICE_THEME_DASHBOARDS), and added `pulse-fit` to `VIP_THEME_IDS`. Verified `tsc --noEmit` clean and `vite build` succeeds with the pulse-fit platform code-split (pulse-fit-DRr3CWUK.css, PulseFitSite/Client/Admin/ServicePage chunks).
+- [x] Fix checkout deposit amount display: order `total` now stores the full order amount instead of the deposit amount; `amountPaid` tracks the actual deposit charged.
+- [x] Auto-fill checkout form: both ModernEcommerce and LuxuryBoutique themes now call `useAutoFillAddress` to populate the logged-in user's name, email, phone, and saved address.
+- [x] Fix email SMTP 535 EAUTH error: replaced mocked verify/test endpoints with real SMTP verification and sending; extracted shared `createTransporterFromSettings` helper; added `.env.example` with Gmail app password instructions.
 

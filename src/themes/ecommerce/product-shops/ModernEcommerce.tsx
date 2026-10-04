@@ -12,6 +12,7 @@ import { useToast } from '../../../context/ToastContext';
 import { Popup } from '../../../components/ui/Popup';
 import { useAutoFillAddress } from '../../../hooks/useAutoFillAddress';
 import { useNavigate, useLocation } from 'react-router-dom';
+import ThemeMedia from '../../../components/ThemeMedia';
 
 declare const PaystackPop: any;
 
@@ -19,11 +20,13 @@ interface ThemeProps {
   seller: Seller;
   products: Product[];
   editMode?: boolean;
+  hideInlineEditor?: boolean;
   sellerData?: Seller;
   onUpdateData?: (fieldPath: string, value: any) => void;
   onUpdateThemeCustomization?: (section: string, field: string, value: any) => void;
   onUpdateFeatureItem?: (index: number, field: 'title' | 'description', value: string) => void;
   onUpdateThemeColor?: (type: 'primary' | 'secondary', value: string) => void;
+  onSelectSection?: (section: string) => void;
   onImageUpload?: (file: File, target: 'logo' | 'hero' | 'story') => void;
 }
 
@@ -160,12 +163,14 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
   seller: initialSeller,
   products,
   editMode = false,
+  hideInlineEditor = false,
   sellerData,
   onUpdateData,
   onUpdateThemeCustomization,
   onUpdateFeatureItem,
   onUpdateThemeColor,
-  onImageUpload
+  onImageUpload,
+  onSelectSection
 }) => {
   const seller = editMode && sellerData ? sellerData : initialSeller;
   const { user, logout } = useAuth();
@@ -201,6 +206,7 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
   ];
 
   const [view, setView] = useState<View>('home');
+  const [confirmationAmounts, setConfirmationAmounts] = useState({ paid: 0, remaining: 0 });
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [reviewProduct, setReviewProduct] = useState<Product | null>(null);
   const [cart, setCart] = useState<{ product: Product; quantity: number }[]>(() => {
@@ -229,6 +235,17 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
       setView('checkout');
     }
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (view !== 'checkout') params.delete('checkout');
+    if (view !== 'product-detail') params.delete('product');
+    const nextSearch = params.toString();
+    const currentSearch = location.search.replace(/^\?/, '');
+    if (nextSearch !== currentSearch) {
+      navigate(`${location.pathname}${nextSearch ? `?${nextSearch}` : ''}`, { replace: true });
+    }
+  }, [location.pathname, location.search, navigate, view]);
 
   const [wishlist, setWishlist] = useState<Product[]>(() => {
     try {
@@ -501,7 +518,8 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
         customerEmail: checkoutData.email,
         customerPhone: checkoutData.phone,
         items: orderItems,
-        total: finalTotal,
+        total: cartTotal - discountAmount + deliveryFee,
+        amountPaid: finalTotal,
         subtotal: cartTotal,
         originalTotal: cartTotal,
         discount: appliedDiscount ? {
@@ -528,6 +546,8 @@ const ModernEcommerce: React.FC<ThemeProps> = ({
       } as any;
 
       const response = await ordersAPI.create(orderData);
+
+      setConfirmationAmounts({ paid: paymentAmount, remaining: remainingBalance });
 
       if (checkoutData.paymentMethod === 'pod') {
       setCart([]);
@@ -575,6 +595,7 @@ if (response.paymentLink && response.reference) {
             ordersAPI.verifyPayment(paystackResponse.reference, response.id)
               .then(res => {
                 if (res.success) {
+                  setConfirmationAmounts({ paid: paymentAmount, remaining: remainingBalance });
                   setCart([]);
                   setAppliedDiscount(null);
                   localStorage.removeItem(`cart_${seller.id}`);
@@ -703,7 +724,7 @@ if (response.paymentLink && response.reference) {
 
               <div className="relative">
                 <div className="relative z-10 rounded-[60px] overflow-hidden shadow-2xl rotate-2 transition-transform duration-700 hover:rotate-0">
-                  <img 
+                  <ThemeMedia 
                     src={customizations.heroImage ?? 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80'} 
                     alt="Hero" 
                     className="w-full aspect-[4/5] object-cover"
@@ -730,11 +751,11 @@ if (response.paymentLink && response.reference) {
 
       {/* Brand Story Section */}
       {!customizations.hideStory && (
-        <section className="max-w-screen-2xl mx-auto px-6 lg:px-12">
+        <section id="newsletter" onClick={() => editMode && onSelectSection?.('newsletter')} className="max-w-screen-2xl mx-auto px-6 lg:px-12">
           <div className="grid lg:grid-cols-2 gap-24 items-center">
             <div className="relative group">
               <div className="relative rounded-[60px] overflow-hidden shadow-2xl transition-transform duration-700 hover:scale-[1.02]">
-                <img 
+                <ThemeMedia
                   src={customizations.storyImage ?? 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=80'} 
                   alt="Our Story" 
                   className="w-full aspect-square object-cover"
@@ -980,7 +1001,7 @@ if (response.paymentLink && response.reference) {
                   className="px-10 py-5 bg-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
                   style={{ color: customizations.newsletterBgColor || '#4f46e5' }}
                 >
-                  Subscribe
+                  {customizations.newsletterButtonLabel || 'Subscribe'}
                 </button>
               </form>
             </div>
@@ -1361,11 +1382,20 @@ if (response.paymentLink && response.reference) {
   const renderCheckout = () => {
     return (
       <div className="py-32 min-h-screen" style={{ backgroundColor: mainBgColor }}>
+        <div className="fixed inset-x-0 top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-6 py-4 lg:px-12">
+            <button onClick={() => setView('home')} className="flex items-center gap-3 text-left">
+              {seller.logo ? <img src={seller.logo} alt={seller.storeName} className="h-10 w-10 rounded-xl object-cover" /> : <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 text-sm font-black text-white">{seller.storeName?.charAt(0) || 'S'}</div>}
+              <span className="font-black text-gray-900">{seller.storeName}</span>
+            </button>
+            <button onClick={() => setView('cart')} className="text-xs font-black uppercase tracking-widest text-gray-500 transition hover:text-indigo-600">Back to bag</button>
+          </div>
+        </div>
         <div className="max-w-screen-2xl mx-auto px-6 lg:px-12">
           <div className="flex items-end justify-between mb-20">
             <div className="space-y-4">
-              <h2 className="text-5xl font-black tracking-tighter text-gray-900">Secure Checkout.</h2>
-              <p className="text-gray-500 font-medium">Finalize your order and choose your preferences</p>
+              <h2 className="text-5xl font-black tracking-tighter text-gray-900">{customizations.checkoutTitle || 'Secure Checkout.'}</h2>
+              <p className="text-gray-500 font-medium">{customizations.checkoutSubtitle || 'Finalize your order and choose your preferences'}</p>
             </div>
           </div>
 
@@ -1519,7 +1549,7 @@ if (response.paymentLink && response.reference) {
                   type="submit"
                   className="w-full py-7 bg-gray-900 text-white rounded-[30px] font-black text-sm uppercase tracking-[0.3em] hover:bg-indigo-600 hover:shadow-2xl transition-all shadow-xl active:scale-95"
                 >
-                  Confirm & Place Order • {formatPrice(finalTotal, seller.currency)}
+                  {customizations.checkoutSubmitLabel || 'Confirm & Place Order'} • {formatPrice(finalTotal, seller.currency)}
                 </button>
               </form>
             </div>
@@ -1569,33 +1599,39 @@ if (response.paymentLink && response.reference) {
 <div className="h-px bg-gray-100 my-8"></div>
                    
                    {checkoutData.paymentMethod === 'deposit' && (
-                     <div className="space-y-4">
-                       <div className="h-px bg-gray-200"></div>
-                       <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-emerald-500">
-                         <span>Pay Now ({paymentTerms.depositPercentage}%)</span>
-                         <span>{formatPrice(paymentAmount, seller.currency)}</span>
-                       </div>
-                       <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-gray-400">
-                         <span>Remaining Balance</span>
-                         <span>{formatPrice(remainingBalance, seller.currency)}</span>
-                       </div>
-                       <div className="h-px bg-gray-200"></div>
-                     </div>
-                   )}
+                      <div className="space-y-4">
+                        <div className="h-px bg-gray-200"></div>
+                        <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-emerald-500">
+                          <span>Pay Now ({paymentTerms.depositPercentage}%)</span>
+                          <span>{formatPrice(paymentAmount, seller.currency)}</span>
+                        </div>
+                        <div className="flex justify-between text-[11px] font-black uppercase tracking-widest text-gray-400">
+                          <span>Remaining Balance</span>
+                          <span>{formatPrice(remainingBalance, seller.currency)}</span>
+                        </div>
+                        <div className="h-px bg-gray-200"></div>
+                      </div>
+                    )}
 
-                   <div className="flex justify-between items-end">
-                     {checkoutData.paymentMethod === 'pod' ? (
-                       <>
-                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Pay on Delivery</span>
-                         <span className="text-4xl font-black text-gray-900 tracking-tighter">{formatPrice(cartTotal - discountAmount + deliveryFee, seller.currency)}</span>
-                       </>
-                     ) : (
-                       <>
-                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Total Due</span>
-                         <span className="text-4xl font-black text-gray-900 tracking-tighter">{formatPrice(finalTotal, seller.currency)}</span>
-                       </>
-                     )}
-                   </div>
+                    <div className="flex justify-between items-end">
+                      {checkoutData.paymentMethod === 'pod' ? (
+                        <>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Pay on Delivery</span>
+                          <span className="text-4xl font-black text-gray-900 tracking-tighter">{formatPrice(cartTotal - discountAmount + deliveryFee, seller.currency)}</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex flex-col items-end">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Total</span>
+                            <span className="text-4xl font-black text-gray-900 tracking-tighter">{formatPrice(cartTotal - discountAmount + deliveryFee, seller.currency)}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Amount Due</span>
+                            <span className="text-4xl font-black text-emerald-600 tracking-tighter">{formatPrice(finalTotal, seller.currency)}</span>
+                          </div>
+                        </>
+                      )}
+                    </div>
                 </div>
               </div>
 
@@ -1620,6 +1656,15 @@ if (response.paymentLink && response.reference) {
   const renderSuccess = () => {
     return (
       <div className="py-40 min-h-screen flex items-center justify-center text-center px-6" style={{ backgroundColor: mainBgColor }}>
+        <div className="fixed inset-x-0 top-0 z-40 border-b border-gray-100 bg-white/90 backdrop-blur-xl">
+          <div className="mx-auto flex max-w-screen-2xl items-center justify-between px-6 py-4 lg:px-12">
+            <button onClick={() => setView('home')} className="flex items-center gap-3 text-left">
+              {seller.logo ? <img src={seller.logo} alt={seller.storeName} className="h-10 w-10 rounded-xl object-cover" /> : <div className="grid h-10 w-10 place-items-center rounded-xl bg-indigo-600 text-sm font-black text-white">{seller.storeName?.charAt(0) || 'S'}</div>}
+              <span className="font-black text-gray-900">{seller.storeName}</span>
+            </button>
+            <span className="text-xs font-black uppercase tracking-widest text-green-600">Order complete</span>
+          </div>
+        </div>
         <div className="max-w-xl space-y-12">
           <div className="relative inline-block">
             <div className="w-32 h-32 bg-green-50 rounded-[40px] flex items-center justify-center mx-auto animate-bounce-slow">
@@ -1631,10 +1676,10 @@ if (response.paymentLink && response.reference) {
           </div>
           
           <div className="space-y-6">
-            <h2 className="text-6xl font-black tracking-tighter text-gray-900 leading-none">Order Confirmed.</h2>
+            <h2 className="text-6xl font-black tracking-tighter text-gray-900 leading-none">{customizations.confirmationTitle || 'Order Confirmed.'}</h2>
             {checkoutData.paymentMethod === 'deposit' && (
               <p className="text-lg text-emerald-600 font-medium leading-relaxed">
-                You paid {formatPrice(paymentAmount, seller.currency)}. Remaining balance of {formatPrice(remainingBalance, seller.currency)} due on delivery.
+                You paid {formatPrice(confirmationAmounts.paid, seller.currency)}. Remaining balance of {formatPrice(confirmationAmounts.remaining, seller.currency)} due on delivery.
               </p>
             )}
             {checkoutData.paymentMethod === 'pod' && (
@@ -1644,7 +1689,7 @@ if (response.paymentLink && response.reference) {
             )}
             {checkoutData.paymentMethod !== 'deposit' && checkoutData.paymentMethod !== 'pod' && (
               <p className="text-lg text-gray-500 font-medium leading-relaxed">
-                Thank you for choosing us. Your order has been successfully placed and a confirmation email is on its way.
+                {customizations.confirmationMessage || 'Thank you for choosing us. Your order has been successfully placed and a confirmation email is on its way.'}
               </p>
             )}
           </div>
@@ -1654,13 +1699,13 @@ if (response.paymentLink && response.reference) {
               onClick={() => setView('home')}
               className="px-12 py-5 bg-gray-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-indigo-600 transition-all shadow-xl active:scale-95"
             >
-              Back to Home
+              {customizations.confirmationHomeLabel || 'Back to Home'}
             </button>
             <button
-              onClick={() => navigate('/customer/dashboard')}
+              onClick={() => navigate(`/login?shop=${seller.id}&subdomain=${seller.subdomain}&redirect=${encodeURIComponent(location.pathname)}`)}
               className="px-12 py-5 border-2 border-gray-100 text-gray-900 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-gray-50 transition-all"
             >
-              Track Order
+              {customizations.confirmationTrackLabel || 'Track Order'}
             </button>
           </div>
         </div>
@@ -1957,13 +2002,25 @@ if (response.paymentLink && response.reference) {
   }, []);
 
   const [checkoutData, setCheckoutData] = useState({
-    name: '',
-    email: '',
-    phone: '',
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phoneNumber || '',
     address: '',
     deliveryLocationId: '',
     paymentMethod: 'site' as 'site' | 'pod' | 'deposit'
-   });
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    setCheckoutData(current => ({
+      ...current,
+      name: current.name || user.name || '',
+      email: current.email || user.email || '',
+      phone: current.phone || user.phoneNumber || ''
+    }));
+  }, [user]);
+
+  useAutoFillAddress(setCheckoutData);
 
   const enabledDeliveryLocations = useMemo(() => {
     return (seller.deliveryLocations || []).filter((loc: DeliveryLocation) => loc.enabled);
@@ -1976,20 +2033,22 @@ if (response.paymentLink && response.reference) {
   const deliveryFee = selectedDeliveryLocation?.fee || 0;
 
   const paymentTerms = seller.paymentTerms || { methods: ['site'], depositPercentage: 50, rules: 'all' };
+  const orderTotal = Math.max(0, cartTotal - discountAmount + deliveryFee);
+  const depositPercentage = Math.min(99, Math.max(1, Number(paymentTerms.depositPercentage) || 50));
   
   const paymentAmount = useMemo(() => {
     if (checkoutData.paymentMethod === 'deposit') {
-      return (cartTotal - discountAmount + deliveryFee) * (paymentTerms.depositPercentage / 100);
+      return Math.round(orderTotal * (depositPercentage / 100) * 100) / 100;
     }
-    return cartTotal - discountAmount + deliveryFee;
-  }, [cartTotal, discountAmount, deliveryFee, checkoutData.paymentMethod, paymentTerms.depositPercentage]);
+    return orderTotal;
+  }, [orderTotal, checkoutData.paymentMethod, depositPercentage]);
 
   const remainingBalance = useMemo(() => {
     if (checkoutData.paymentMethod === 'deposit') {
-      return (cartTotal - discountAmount + deliveryFee) * ((100 - paymentTerms.depositPercentage) / 100);
+      return Math.max(0, Math.round((orderTotal - paymentAmount) * 100) / 100);
     }
     return 0;
-  }, [cartTotal, discountAmount, deliveryFee, checkoutData.paymentMethod, paymentTerms.depositPercentage]);
+  }, [orderTotal, paymentAmount, checkoutData.paymentMethod]);
 
   const finalTotal = useMemo(() => {
     if (checkoutData.paymentMethod === 'pod') {
@@ -2001,7 +2060,7 @@ if (response.paymentLink && response.reference) {
   return (
     <div className="min-h-screen font-sans selection:bg-indigo-100 selection:text-indigo-900" style={{ backgroundColor: mainBgColor }}>
       {/* Modern Live Editor */}
-      {editMode && (
+      {editMode && !hideInlineEditor && (
         <div className="fixed top-0 left-0 right-0 z-[100] bg-white/90 backdrop-blur-xl border-b border-gray-200 px-6 py-3 shadow-lg overflow-x-auto scrollbar-hide">
           <div className="max-w-screen-2xl mx-auto flex items-center justify-between gap-8 whitespace-nowrap text-gray-900">
             <div className="flex items-center gap-3 shrink-0">

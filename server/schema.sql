@@ -29,6 +29,23 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Pending manager invitations are separate from users until accepted.
+CREATE TABLE IF NOT EXISTS manager_invitations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    first_name VARCHAR(255) NOT NULL,
+    last_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    commission_rate DECIMAL(5, 2) DEFAULT 0.05,
+    invitation_token VARCHAR(100) UNIQUE NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'expired', 'revoked')),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    accepted_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_manager_invitations_email ON manager_invitations(email);
+CREATE INDEX IF NOT EXISTS idx_manager_invitations_status ON manager_invitations(status);
+
 -- Sellers table
 CREATE TABLE IF NOT EXISTS sellers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -46,6 +63,7 @@ CREATE TABLE IF NOT EXISTS sellers (
     is_live BOOLEAN DEFAULT FALSE,
     additional_pages JSONB DEFAULT '[]'::JSONB,
     theme JSONB DEFAULT '{"primaryColor": "#3b82f6", "secondaryColor": "#1e40af", "fontFamily": "Inter"}'::JSONB,
+    acquired_themes JSONB NOT NULL DEFAULT '[]'::JSONB,
     social_links JSONB DEFAULT '{"facebook": "", "instagram": "", "twitter": "", "linkedin": "", "youtube": "", "tiktok": ""}'::JSONB,
     contact_info JSONB DEFAULT '{"email": "", "phone": "", "address": "", "whatsapp": ""}'::JSONB,
     payment_gateways JSONB DEFAULT '[]'::JSONB,
@@ -53,10 +71,31 @@ CREATE TABLE IF NOT EXISTS sellers (
     delivery_locations JSONB DEFAULT '[]'::JSONB,
     payment_terms JSONB DEFAULT '{"methods": ["site"], "depositPercentage": 50, "rules": "all"}'::JSONB,
     subscription JSONB DEFAULT '{"plan": "starter", "status": "active", "startDate": null, "endDate": null}'::JSONB,
+    auto_renew JSONB DEFAULT '{"iyonicshop": {"enabled": false, "plan": null}, "iyonicbots": {"enabled": false, "plan": null}}'::JSONB,
     stats JSONB DEFAULT '{"totalProducts": 0, "totalOrders": 0, "totalRevenue": 0, "totalCustomers": 0}'::JSONB,
     manager_id UUID REFERENCES seller_managers(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS vip_theme_purchases (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+    theme_id VARCHAR(100) NOT NULL,
+    reference VARCHAR(255) NOT NULL UNIQUE,
+    amount DECIMAL(12, 2) NOT NULL,
+    currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+    paid_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS vip_theme_offers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+    theme_id VARCHAR(100) NOT NULL,
+    amount DECIMAL(12, 2) NOT NULL CHECK (amount > 0),
+    message TEXT NOT NULL DEFAULT '',
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Seller Managers table
@@ -137,8 +176,11 @@ CREATE TABLE IF NOT EXISTS orders (
     status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'shipped', 'delivered', 'cancelled', 'refund_requested', 'refunded')),
     refund_reason TEXT,
     shipping_address JSONB NOT NULL,
-    delivery_fee DECIMAL(15, 2) DEFAULT 0,
-    delivery_location TEXT,
+     delivery_fee DECIMAL(15, 2) DEFAULT 0,
+     delivery_location TEXT,
+     amount_paid DECIMAL(15, 2) DEFAULT 0,
+     remaining_balance DECIMAL(15, 2) DEFAULT 0,
+     payment_type VARCHAR(50) DEFAULT 'site',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -282,6 +324,9 @@ CREATE TABLE IF NOT EXISTS bots (
     type VARCHAR(50) NOT NULL CHECK (type IN ('support-pro', 'sales-genie', 'tech-guru')),
     status VARCHAR(50) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
     training_data TEXT,
+    custom_responses JSONB DEFAULT '{}'::JSONB,
+    personality JSONB DEFAULT '{"tone": "professional", "style": "helpful"}'::JSONB,
+    configuration JSONB DEFAULT '{"description": "", "responseLength": "balanced", "language": "English", "instructions": "", "allowedKnowledge": ["business", "products", "policies", "faqs", "documents"], "permissions": {}, "enabledActions": [], "escalation": {"enabled": true, "afterRepeatedFailures": 2}, "welcomeMessage": "", "suggestedQuestions": []}'::JSONB,
     deployments INTEGER DEFAULT 0,
     interactions INTEGER DEFAULT 0,
     last_trained TIMESTAMP WITH TIME ZONE,
@@ -292,6 +337,91 @@ CREATE TABLE IF NOT EXISTS bots (
 
 DROP TRIGGER IF EXISTS update_bots_updated_at ON bots;
 CREATE TRIGGER update_bots_updated_at BEFORE UPDATE ON bots FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_bots_one_active_per_category
+    ON bots (seller_id, type) WHERE status = 'active';
+
+CREATE TABLE IF NOT EXISTS bot_knowledge_documents (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL,
+        document_type VARCHAR(50) NOT NULL DEFAULT 'text',
+        source VARCHAR(100) NOT NULL DEFAULT 'seller',
+        source_url TEXT,
+        content TEXT NOT NULL,
+        metadata JSONB DEFAULT '{}'::JSONB,
+        status VARCHAR(30) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'processing', 'failed', 'archived')),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_bot_knowledge_documents_seller_created
+    ON bot_knowledge_documents (seller_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS bot_faqs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        category VARCHAR(100),
+        source VARCHAR(100) DEFAULT 'seller',
+        status VARCHAR(30) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'draft', 'archived')),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_bot_faqs_seller_status
+    ON bot_faqs (seller_id, status);
+
+CREATE TABLE IF NOT EXISTS bot_conversations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+        bot_id UUID REFERENCES bots(id) ON DELETE SET NULL,
+        session_id VARCHAR(255),
+        customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+        status VARCHAR(30) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'resolved', 'escalated')),
+        resolution_status VARCHAR(30) DEFAULT 'unresolved',
+        metadata JSONB DEFAULT '{}'::JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_bot_conversations_seller_created
+    ON bot_conversations (seller_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bot_conversations_bot
+    ON bot_conversations (bot_id);
+
+CREATE TABLE IF NOT EXISTS bot_messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        conversation_id UUID NOT NULL REFERENCES bot_conversations(id) ON DELETE CASCADE,
+        role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant', 'system', 'tool')),
+        content TEXT NOT NULL,
+        sources JSONB DEFAULT '[]'::JSONB,
+        tool_calls JSONB DEFAULT '[]'::JSONB,
+        metadata JSONB DEFAULT '{}'::JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_bot_messages_conversation_created
+    ON bot_messages (conversation_id, created_at);
+
+CREATE TABLE IF NOT EXISTS bot_knowledge_gaps (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+        bot_id UUID REFERENCES bots(id) ON DELETE SET NULL,
+        question TEXT NOT NULL,
+        frequency INTEGER NOT NULL DEFAULT 1,
+        last_asked_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        suggested_category VARCHAR(100),
+        sample_response TEXT,
+        status VARCHAR(30) NOT NULL DEFAULT 'unresolved' CHECK (status IN ('unresolved', 'resolved')),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (seller_id, question)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bot_knowledge_gaps_seller_status
+    ON bot_knowledge_gaps (seller_id, status, frequency DESC);
 
 -- Discounts table
 CREATE TABLE IF NOT EXISTS discounts (
@@ -482,3 +612,261 @@ CREATE TABLE IF NOT EXISTS cheques (
 
 DROP TRIGGER IF EXISTS update_cheques_updated_at ON cheques;
 CREATE TRIGGER update_cheques_updated_at BEFORE UPDATE ON cheques FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+-- Admin Activities table
+CREATE TABLE IF NOT EXISTS admin_activities (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    action VARCHAR(100) NOT NULL,
+    description TEXT NOT NULL,
+    entity_type VARCHAR(50),
+    entity_id UUID,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    user_name VARCHAR(255),
+    user_email VARCHAR(255),
+    severity VARCHAR(20) DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'error', 'success')),
+    metadata JSONB DEFAULT '{}'::JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TRIGGER IF EXISTS update_admin_activities_updated_at ON admin_activities;
+CREATE TRIGGER update_admin_activities_updated_at BEFORE UPDATE ON admin_activities FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+CREATE INDEX IF NOT EXISTS idx_admin_activities_created_at ON admin_activities(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_admin_activities_action ON admin_activities(action);
+
+CREATE TABLE IF NOT EXISTS nlm_songs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    artist VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    genre VARCHAR(100) NOT NULL DEFAULT '',
+    tags TEXT[] NOT NULL DEFAULT '{}',
+    lyrics TEXT NOT NULL DEFAULT '',
+    audio_url TEXT NOT NULL,
+    thumbnail_url TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_nlm_songs_active_created ON nlm_songs(is_active, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS ixstream_content (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    type VARCHAR(20) NOT NULL CHECK (type IN ('movie', 'tvshow')),
+    genre VARCHAR(100) NOT NULL DEFAULT '',
+    tags TEXT[] NOT NULL DEFAULT '{}',
+    release_year INTEGER,
+    duration INTEGER,
+    rating DECIMAL(3,1) DEFAULT 0,
+    thumbnail_url TEXT,
+    video_url TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ixstream_content_active_created ON ixstream_content(is_active, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ixstream_content_seller ON ixstream_content(seller_id);
+
+CREATE TABLE IF NOT EXISTS ixstream_seasons (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    content_id UUID NOT NULL REFERENCES ixstream_content(id) ON DELETE CASCADE,
+    season_number INTEGER NOT NULL,
+    title VARCHAR(255),
+    description TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ixstream_seasons_content ON ixstream_seasons(content_id);
+
+CREATE TABLE IF NOT EXISTS ixstream_episodes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    season_id UUID NOT NULL REFERENCES ixstream_seasons(id) ON DELETE CASCADE,
+    episode_number INTEGER NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    duration INTEGER,
+    video_url TEXT NOT NULL,
+    thumbnail_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ixstream_episodes_season ON ixstream_episodes(season_id);
+
+CREATE TABLE IF NOT EXISTS ixstream_subscription_plans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    price_cents INTEGER NOT NULL,
+    currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+    interval_type VARCHAR(20) NOT NULL CHECK (interval_type IN ('day', 'week', 'month', 'year')),
+    interval_count INTEGER NOT NULL DEFAULT 1,
+    features TEXT[] NOT NULL DEFAULT '{}',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ixstream_plans_seller ON ixstream_subscription_plans(seller_id);
+
+CREATE TABLE IF NOT EXISTS ixstream_subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    seller_id UUID REFERENCES sellers(id) ON DELETE SET NULL,
+    plan_id UUID NOT NULL REFERENCES ixstream_subscription_plans(id),
+    status VARCHAR(20) NOT NULL CHECK (status IN ('active', 'past_due', 'canceled', 'incomplete', 'expired')),
+    current_period_start TIMESTAMP WITH TIME ZONE NOT NULL,
+    current_period_end TIMESTAMP WITH TIME ZONE NOT NULL,
+    cancel_at_period_end BOOLEAN DEFAULT FALSE,
+    payment_reference VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ixstream_subscriptions_user ON ixstream_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_ixstream_subscriptions_seller ON ixstream_subscriptions(seller_id);
+
+-- ============================================
+-- Apex POS Tables
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS pos_employees (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL CHECK (role IN ('owner', 'manager', 'admin', 'cashier', 'kitchen', 'server')),
+    pin_hash TEXT,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    hours_this_week INTEGER DEFAULT 0,
+    total_sales DECIMAL(12,2) DEFAULT 0,
+    photo TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_pos_employees_seller ON pos_employees(seller_id);
+
+CREATE TABLE IF NOT EXISTS pos_tables (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+    table_number VARCHAR(50) NOT NULL,
+    seats INTEGER DEFAULT 4,
+    status VARCHAR(20) NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'occupied', 'reserved', 'seated', 'ordering', 'served')),
+    section VARCHAR(100),
+    current_order_id UUID,
+    assigned_employee_id UUID REFERENCES pos_employees(id),
+    customer_count INTEGER,
+    reserved_at TIMESTAMP WITH TIME ZONE,
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_pos_tables_seller ON pos_tables(seller_id);
+CREATE INDEX IF NOT EXISTS idx_pos_tables_status ON pos_tables(status);
+
+CREATE TABLE IF NOT EXISTS pos_shifts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID NOT NULL REFERENCES pos_employees(id),
+    seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    ended_at TIMESTAMP WITH TIME ZONE,
+    opening_float DECIMAL(12,2) NOT NULL DEFAULT 0,
+    closing_amount DECIMAL(12,2),
+    cash_sales DECIMAL(12,2) DEFAULT 0,
+    card_sales DECIMAL(12,2) DEFAULT 0,
+    cash_counted DECIMAL(12,2),
+    variance DECIMAL(12,2),
+    status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_pos_shifts_seller ON pos_shifts(seller_id);
+CREATE INDEX IF NOT EXISTS idx_pos_shifts_employee ON pos_shifts(employee_id);
+CREATE INDEX IF NOT EXISTS idx_pos_shifts_status ON pos_shifts(status);
+
+CREATE TABLE IF NOT EXISTS pos_inventory (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(100),
+    current_stock DECIMAL(12,3) DEFAULT 0,
+    unit VARCHAR(50) DEFAULT 'pcs',
+    low_stock_threshold DECIMAL(12,3) DEFAULT 0,
+    cost DECIMAL(12,2) DEFAULT 0,
+    supplier TEXT,
+    last_restocked TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_pos_inventory_seller ON pos_inventory(seller_id);
+CREATE INDEX IF NOT EXISTS idx_pos_inventory_low_stock ON pos_inventory(seller_id) WHERE current_stock <= low_stock_threshold;
+
+CREATE TABLE IF NOT EXISTS pos_inventory_adjustments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    item_id UUID NOT NULL REFERENCES pos_inventory(id) ON DELETE CASCADE,
+    seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+    type VARCHAR(20) NOT NULL CHECK (type IN ('restock', 'usage', 'adjustment')),
+    quantity DECIMAL(12,3) NOT NULL,
+    reason TEXT,
+    employee_name VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_pos_inventory_adj_item ON pos_inventory_adjustments(item_id);
+CREATE INDEX IF NOT EXISTS idx_pos_inventory_adj_seller ON pos_inventory_adjustments(seller_id);
+
+CREATE TABLE IF NOT EXISTS pos_loyalty (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID,
+    customer_phone VARCHAR(50),
+    seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+    points_balance INTEGER NOT NULL DEFAULT 0,
+    lifetime_points INTEGER NOT NULL DEFAULT 0,
+    tier VARCHAR(20) DEFAULT 'bronze' CHECK (tier IN ('bronze', 'silver', 'gold')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_pos_loyalty_seller ON pos_loyalty(seller_id);
+CREATE INDEX IF NOT EXISTS idx_pos_loyalty_phone ON pos_loyalty(customer_phone);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pos_loyalty_seller_phone ON pos_loyalty(seller_id, customer_phone) WHERE customer_phone IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS pos_loyalty_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    loyalty_id UUID NOT NULL REFERENCES pos_loyalty(id) ON DELETE CASCADE,
+    order_id UUID,
+    points_earned INTEGER NOT NULL DEFAULT 0,
+    points_redeemed INTEGER NOT NULL DEFAULT 0,
+    note TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_pos_loyalty_txns_loyalty ON pos_loyalty_transactions(loyalty_id);
+CREATE INDEX IF NOT EXISTS idx_pos_loyalty_txns_order ON pos_loyalty_transactions(order_id);
+
+CREATE TABLE IF NOT EXISTS pos_event_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+    level VARCHAR(20) NOT NULL CHECK (level IN ('info', 'warning', 'error', 'success')),
+    source VARCHAR(100) NOT NULL,
+    message TEXT NOT NULL,
+    order_id UUID,
+    user_id UUID,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_pos_event_log_seller ON pos_event_log(seller_id);
+CREATE INDEX IF NOT EXISTS idx_pos_event_log_created ON pos_event_log(created_at);

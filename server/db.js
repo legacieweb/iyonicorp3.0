@@ -56,6 +56,9 @@ export const initDb = async () => {
 
       // Ensure new columns exist for existing tables
       await pool.query(`
+        ALTER TABLE nlm_songs ADD COLUMN IF NOT EXISTS seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE;
+        CREATE INDEX IF NOT EXISTS idx_nlm_songs_seller_created ON nlm_songs(seller_id, created_at DESC);
+
         ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(255);
         ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(255);
         ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(50);
@@ -76,6 +79,10 @@ export const initDb = async () => {
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS privacy_policy TEXT;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS terms_of_service TEXT;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS theme JSONB DEFAULT '{"primaryColor": "#3b82f6", "secondaryColor": "#1e40af", "fontFamily": "Inter"}'::JSONB;
+        ALTER TABLE sellers ADD COLUMN IF NOT EXISTS acquired_themes JSONB NOT NULL DEFAULT '[]'::JSONB;
+        UPDATE sellers SET acquired_themes = jsonb_build_array(theme->>'selectedTheme')
+          WHERE theme->>'selectedTheme' IN ('tamira-salon', 'spa-retreat', 'elite-consulting', 'creative-studio', 'modern-wellness', 'nlmsongs', 'utorme', 'homeworker', 'car-rental', 'restaurant', 'instagram-vip', 'ixstream')
+            AND NOT (COALESCE(acquired_themes, '[]'::jsonb) ? (theme->>'selectedTheme'));
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS social_links JSONB DEFAULT '{"facebook": "", "instagram": "", "twitter": "", "linkedin": "", "youtube": "", "tiktok": ""}'::JSONB;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS contact_info JSONB DEFAULT '{"email": "", "phone": "", "address": "", "whatsapp": ""}'::JSONB;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS payment_gateways JSONB DEFAULT '[]'::JSONB;
@@ -85,6 +92,25 @@ export const initDb = async () => {
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS delivery_locations JSONB DEFAULT '[]'::JSONB;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS payment_terms JSONB DEFAULT '{"methods": ["site"], "depositPercentage": 50, "rules": "all"}'::JSONB;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES seller_managers(id) ON DELETE SET NULL;
+
+        CREATE TABLE IF NOT EXISTS vip_theme_purchases (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+          theme_id VARCHAR(100) NOT NULL,
+          reference VARCHAR(255) NOT NULL UNIQUE,
+          amount DECIMAL(12, 2) NOT NULL,
+          currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+          paid_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS vip_theme_offers (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+          theme_id VARCHAR(100) NOT NULL,
+          amount DECIMAL(12, 2) NOT NULL CHECK (amount > 0),
+          message TEXT NOT NULL DEFAULT '',
+          status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
         
         -- Ensure products columns exist
         ALTER TABLE products ADD COLUMN IF NOT EXISTS type VARCHAR(50) DEFAULT 'product' CHECK (type IN ('product', 'service'));
@@ -103,8 +129,11 @@ export const initDb = async () => {
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS subtotal DECIMAL(15, 2);
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS original_total DECIMAL(15, 2);
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount JSONB;
-        ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(15, 2) DEFAULT 0;
+         ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(15, 2) DEFAULT 0;
         ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_location TEXT;
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS amount_paid DECIMAL(15, 2) DEFAULT 0;
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS remaining_balance DECIMAL(15, 2) DEFAULT 0;
+        ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_type VARCHAR(50) DEFAULT 'site';
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;
         ALTER TABLE customers ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES seller_managers(id) ON DELETE SET NULL;
         
@@ -116,12 +145,83 @@ export const initDb = async () => {
             END IF;
         END $$;
 
+        -- Password Reset Tokens table
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            user_id UUID REFERENCES users(id) ON DELETE CASCADE PRIMARY KEY,
+            token VARCHAR(6),
+            reset_token VARCHAR(100),
+            expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Password reset indexes
+        CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_tokens(token);
+        CREATE INDEX IF NOT EXISTS idx_password_reset_reset_token ON password_reset_tokens(reset_token);
+
+        CREATE TABLE IF NOT EXISTS manager_invitations (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          first_name VARCHAR(255) NOT NULL,
+          last_name VARCHAR(255) NOT NULL,
+          email VARCHAR(255) NOT NULL,
+          commission_rate DECIMAL(5, 2) DEFAULT 0.05,
+          invitation_token VARCHAR(100) UNIQUE NOT NULL,
+          status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'expired', 'revoked')),
+          expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+          accepted_at TIMESTAMP WITH TIME ZONE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_manager_invitations_email ON manager_invitations(email);
+        CREATE INDEX IF NOT EXISTS idx_manager_invitations_status ON manager_invitations(status);
+
         -- Ensure bots columns exist
         ALTER TABLE bots ADD COLUMN IF NOT EXISTS last_trained TIMESTAMP WITH TIME ZONE;
         ALTER TABLE bots ADD COLUMN IF NOT EXISTS widget_config JSONB DEFAULT '{"primaryColor": "#3b82f6", "greeting": "Hello! How can I help you today?", "bubbleIcon": "MessageSquare"}'::JSONB;
         ALTER TABLE bots ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active';
         ALTER TABLE bots ADD COLUMN IF NOT EXISTS deployments INTEGER DEFAULT 0;
         ALTER TABLE bots ADD COLUMN IF NOT EXISTS interactions INTEGER DEFAULT 0;
+        ALTER TABLE bots ADD COLUMN IF NOT EXISTS custom_responses JSONB DEFAULT '{}'::JSONB;
+        ALTER TABLE bots ADD COLUMN IF NOT EXISTS personality JSONB DEFAULT '{"tone": "professional", "style": "helpful"}'::JSONB;
+        ALTER TABLE bots ADD COLUMN IF NOT EXISTS configuration JSONB DEFAULT '{"description": "", "responseLength": "balanced", "language": "English", "instructions": "", "allowedKnowledge": ["business", "products", "policies", "faqs", "documents"], "permissions": {}, "enabledActions": [], "escalation": {"enabled": true, "afterRepeatedFailures": 2}, "welcomeMessage": "", "suggestedQuestions": []}'::JSONB;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_bots_one_active_per_category
+          ON bots (seller_id, type) WHERE status = 'active';
+
+        CREATE TABLE IF NOT EXISTS bot_knowledge_documents (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(), seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+          title VARCHAR(255) NOT NULL, document_type VARCHAR(50) NOT NULL DEFAULT 'text', source VARCHAR(100) NOT NULL DEFAULT 'seller',
+          source_url TEXT, content TEXT NOT NULL, metadata JSONB DEFAULT '{}'::JSONB,
+          status VARCHAR(30) NOT NULL DEFAULT 'active', created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_bot_knowledge_documents_seller_created ON bot_knowledge_documents (seller_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS bot_faqs (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(), seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+          question TEXT NOT NULL, answer TEXT NOT NULL, category VARCHAR(100), source VARCHAR(100) DEFAULT 'seller',
+          status VARCHAR(30) NOT NULL DEFAULT 'active', created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_bot_faqs_seller_status ON bot_faqs (seller_id, status);
+        CREATE TABLE IF NOT EXISTS bot_conversations (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(), seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+          bot_id UUID REFERENCES bots(id) ON DELETE SET NULL, session_id VARCHAR(255), customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+          status VARCHAR(30) NOT NULL DEFAULT 'active', resolution_status VARCHAR(30) DEFAULT 'unresolved', metadata JSONB DEFAULT '{}'::JSONB,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_bot_conversations_seller_created ON bot_conversations (seller_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_bot_conversations_bot ON bot_conversations (bot_id);
+        CREATE TABLE IF NOT EXISTS bot_messages (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(), conversation_id UUID NOT NULL REFERENCES bot_conversations(id) ON DELETE CASCADE,
+          role VARCHAR(20) NOT NULL, content TEXT NOT NULL, sources JSONB DEFAULT '[]'::JSONB, tool_calls JSONB DEFAULT '[]'::JSONB,
+          metadata JSONB DEFAULT '{}'::JSONB, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_bot_messages_conversation_created ON bot_messages (conversation_id, created_at);
+        CREATE TABLE IF NOT EXISTS bot_knowledge_gaps (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(), seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+          bot_id UUID REFERENCES bots(id) ON DELETE SET NULL, question TEXT NOT NULL, frequency INTEGER NOT NULL DEFAULT 1,
+          last_asked_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, suggested_category VARCHAR(100), sample_response TEXT,
+          status VARCHAR(30) NOT NULL DEFAULT 'unresolved', created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, UNIQUE (seller_id, question)
+        );
+        CREATE INDEX IF NOT EXISTS idx_bot_knowledge_gaps_seller_status ON bot_knowledge_gaps (seller_id, status, frequency DESC);
 
         -- Cheques table
         CREATE TABLE IF NOT EXISTS cheques (
@@ -182,6 +282,30 @@ export const initDb = async () => {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         );
+
+        -- Admin Activities table
+        CREATE TABLE IF NOT EXISTS admin_activities (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            action VARCHAR(100) NOT NULL,
+            description TEXT NOT NULL,
+            entity_type VARCHAR(50),
+            entity_id UUID,
+            user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+            user_name VARCHAR(255),
+            user_email VARCHAR(255),
+            severity VARCHAR(20) DEFAULT 'info' CHECK (severity IN ('info', 'warning', 'error', 'success')),
+            metadata JSONB DEFAULT '{}'::JSONB,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+
+        ALTER TABLE admin_activities ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+
+        CREATE INDEX IF NOT EXISTS idx_admin_activities_created_at ON admin_activities(created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_admin_activities_action ON admin_activities(action);
+
+        ALTER TABLE sellers ADD COLUMN IF NOT EXISTS auto_renew JSONB DEFAULT '{"iyonicshop": {"enabled": false, "plan": null}, "iyonicbots": {"enabled": false, "plan": null}}'::JSONB;
+        CREATE INDEX IF NOT EXISTS idx_sellers_user_id ON sellers(user_id);
+        CREATE INDEX IF NOT EXISTS idx_sellers_auto_renew ON sellers USING GIN (auto_renew);
 
         -- Social Media Accounts table
         CREATE TABLE IF NOT EXISTS social_media_accounts (
@@ -311,9 +435,169 @@ export const initDb = async () => {
         );
 
         -- Indexes for performance
-        CREATE INDEX IF NOT EXISTS idx_sellers_manager_id ON sellers(manager_id);
+CREATE INDEX IF NOT EXISTS idx_sellers_manager_id ON sellers(manager_id);
         CREATE INDEX IF NOT EXISTS idx_seller_managers_slug ON seller_managers(slug);
         CREATE INDEX IF NOT EXISTS idx_customers_manager_id ON customers(manager_id);
+
+        -- IxStream content tables
+        CREATE TABLE IF NOT EXISTS ixstream_content (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+          title VARCHAR(255) NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          type VARCHAR(20) NOT NULL CHECK (type IN ('movie', 'tvshow')),
+          genre VARCHAR(100) NOT NULL DEFAULT '',
+          tags TEXT[] NOT NULL DEFAULT '{}',
+          release_year INTEGER,
+          duration INTEGER,
+          rating DECIMAL(3,1) DEFAULT 0,
+          thumbnail_url TEXT,
+          video_url TEXT NOT NULL,
+          is_active BOOLEAN NOT NULL DEFAULT TRUE,
+          created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_ixstream_content_active_created ON ixstream_content(is_active, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_ixstream_content_seller ON ixstream_content(seller_id);
+
+        CREATE TABLE IF NOT EXISTS ixstream_seasons (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          content_id UUID NOT NULL REFERENCES ixstream_content(id) ON DELETE CASCADE,
+          season_number INTEGER NOT NULL,
+          title VARCHAR(255),
+          description TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_ixstream_seasons_content ON ixstream_seasons(content_id);
+
+        CREATE TABLE IF NOT EXISTS ixstream_episodes (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          season_id UUID NOT NULL REFERENCES ixstream_seasons(id) ON DELETE CASCADE,
+          episode_number INTEGER NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          duration INTEGER,
+          video_url TEXT NOT NULL,
+          thumbnail_url TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_ixstream_episodes_season ON ixstream_episodes(season_id);
+
+        CREATE TABLE IF NOT EXISTS ixstream_subscription_plans (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+          name VARCHAR(255) NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          price_cents INTEGER NOT NULL,
+          currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+          interval_type VARCHAR(20) NOT NULL CHECK (interval_type IN ('day', 'week', 'month', 'year')),
+          interval_count INTEGER NOT NULL DEFAULT 1,
+          features TEXT[] NOT NULL DEFAULT '{}',
+          is_active BOOLEAN NOT NULL DEFAULT TRUE,
+          sort_order INTEGER DEFAULT 0,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_ixstream_plans_seller ON ixstream_subscription_plans(seller_id);
+
+        CREATE TABLE IF NOT EXISTS ixstream_subscriptions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          seller_id UUID REFERENCES sellers(id) ON DELETE SET NULL,
+          plan_id UUID NOT NULL REFERENCES ixstream_subscription_plans(id),
+          status VARCHAR(20) NOT NULL CHECK (status IN ('active', 'past_due', 'canceled', 'incomplete', 'expired')),
+          current_period_start TIMESTAMP WITH TIME ZONE NOT NULL,
+          current_period_end TIMESTAMP WITH TIME ZONE NOT NULL,
+          cancel_at_period_end BOOLEAN DEFAULT FALSE,
+          payment_reference VARCHAR(255),
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_ixstream_subscriptions_user ON ixstream_subscriptions(user_id);
+        CREATE INDEX IF NOT EXISTS idx_ixstream_subscriptions_seller ON ixstream_subscriptions(seller_id);
+
+        -- IxStream content tables
+        CREATE TABLE IF NOT EXISTS ixstream_content (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+            title VARCHAR(255) NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            type VARCHAR(20) NOT NULL CHECK (type IN ('movie', 'tvshow')),
+            genre VARCHAR(100) NOT NULL DEFAULT '',
+            tags TEXT[] NOT NULL DEFAULT '{}',
+            release_year INTEGER,
+            duration INTEGER,
+            rating DECIMAL(3,1) DEFAULT 0,
+            thumbnail_url TEXT,
+            video_url TEXT NOT NULL,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_ixstream_content_active_created ON ixstream_content(is_active, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_ixstream_content_seller ON ixstream_content(seller_id);
+
+        CREATE TABLE IF NOT EXISTS ixstream_seasons (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            content_id UUID NOT NULL REFERENCES ixstream_content(id) ON DELETE CASCADE,
+            season_number INTEGER NOT NULL,
+            title VARCHAR(255),
+            description TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_ixstream_seasons_content ON ixstream_seasons(content_id);
+
+        CREATE TABLE IF NOT EXISTS ixstream_episodes (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            season_id UUID NOT NULL REFERENCES ixstream_seasons(id) ON DELETE CASCADE,
+            episode_number INTEGER NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            duration INTEGER,
+            video_url TEXT NOT NULL,
+            thumbnail_url TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_ixstream_episodes_season ON ixstream_episodes(season_id);
+
+        CREATE TABLE IF NOT EXISTS ixstream_subscription_plans (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+            name VARCHAR(255) NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            price_cents INTEGER NOT NULL,
+            currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+            interval_type VARCHAR(20) NOT NULL CHECK (interval_type IN ('day', 'week', 'month', 'year')),
+            interval_count INTEGER NOT NULL DEFAULT 1,
+            features TEXT[] NOT NULL DEFAULT '{}',
+            is_active BOOLEAN NOT NULL DEFAULT TRUE,
+            sort_order INTEGER DEFAULT 0,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_ixstream_plans_seller ON ixstream_subscription_plans(seller_id);
+
+        CREATE TABLE IF NOT EXISTS ixstream_subscriptions (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            seller_id UUID REFERENCES sellers(id) ON DELETE SET NULL,
+            plan_id UUID NOT NULL REFERENCES ixstream_subscription_plans(id),
+            status VARCHAR(20) NOT NULL CHECK (status IN ('active', 'past_due', 'canceled', 'incomplete', 'expired')),
+            current_period_start TIMESTAMP WITH TIME ZONE NOT NULL,
+            current_period_end TIMESTAMP WITH TIME ZONE NOT NULL,
+            cancel_at_period_end BOOLEAN DEFAULT FALSE,
+            payment_reference VARCHAR(255),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_ixstream_subscriptions_user ON ixstream_subscriptions(user_id);
+        CREATE INDEX IF NOT EXISTS idx_ixstream_subscriptions_seller ON ixstream_subscriptions(seller_id);
       `);
 
       await pool.query('COMMIT');

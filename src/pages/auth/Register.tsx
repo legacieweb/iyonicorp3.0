@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Input, Card } from '../../components/ui';
 import { Store, Users, Eye, EyeOff, CheckCircle, ArrowLeft, Package, Briefcase, Link as LinkIcon } from 'lucide-react';
+import { getAuthErrorDetails } from '../../utils/authErrors';
+import { managerInvitationAPI } from '../../services/api';
+import { getVipAuthTheme } from '../../utils/vipAuthTheme';
+import './vip-auth.css';
 
 interface RegisterProps {
   onSwitchToLogin: () => void;
@@ -9,6 +14,7 @@ interface RegisterProps {
   preselectedRole?: 'seller' | 'seller_manager' | 'customer' | null;
   managerSlug?: string | null;
   sellerId?: string | null;
+  invitationToken?: string | null;
 }
 
 export const Register: React.FC<RegisterProps> = ({ 
@@ -16,9 +22,17 @@ export const Register: React.FC<RegisterProps> = ({
   onBackToHomepage,
   preselectedRole,
   managerSlug,
-  sellerId: initialSellerId
+  sellerId: initialSellerId,
+  invitationToken
 }) => {
   const { register, linkStore, isLoading } = useAuth();
+  const location = useLocation();
+  const signupParams = new URLSearchParams(location.search);
+  const storeSubdomain = signupParams.get('subdomain');
+  const isUtormeSignup = signupParams.get('platform') === 'utorme';
+  const isUtormeTutorSignup = isUtormeSignup && preselectedRole === 'seller';
+  const isUtormeStudentSignup = isUtormeSignup && preselectedRole === 'customer';
+  const isShopSignup = Boolean(initialSellerId || storeSubdomain);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -26,20 +40,58 @@ export const Register: React.FC<RegisterProps> = ({
     email: '',
     password: '',
     confirmPassword: '',
-    role: (initialSellerId ? 'customer' : (managerSlug ? 'seller' : (preselectedRole || 'seller'))) as 'seller' | 'seller_manager' | 'customer',
+    role: (isShopSignup || isUtormeStudentSignup
+      ? 'customer'
+      : managerSlug
+        ? 'seller'
+        : preselectedRole === 'seller_manager'
+          ? 'seller_manager'
+          : 'seller') as 'seller' | 'seller_manager' | 'customer',
     storeName: '',
     subdomain: '',
-    shopType: 'product' as 'product' | 'service',
+    shopType: isUtormeTutorSignup ? 'service' as const : 'product' as const,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [managerInfo, setManagerInfo] = useState<any>(null);
   const [storeInfo, setStoreInfo] = useState<any>(null);
+  const vipTheme = getVipAuthTheme(location.pathname, location.search, storeInfo?.themeId || storeInfo?.theme?.selectedTheme);
   const [managerLoading, setManagerLoading] = useState(false);
   const [mergeRequired, setMergeRequired] = useState(false);
   const [mergeMessage, setMergeMessage] = useState('');
+  const [invitationLoading, setInvitationLoading] = useState(Boolean(invitationToken));
+  const [invitationError, setInvitationError] = useState('');
+  const isInvitation = Boolean(invitationToken);
 
   useEffect(() => {
+    if (isShopSignup && formData.role !== 'customer') {
+      setFormData((current) => ({ ...current, role: 'customer' }));
+    }
+  }, [formData.role, isShopSignup]);
+
+  useEffect(() => {
+    if (isUtormeStudentSignup && formData.role !== 'customer') {
+      setFormData((current) => ({ ...current, role: 'customer' }));
+    } else if (isUtormeTutorSignup && (formData.role !== 'seller' || formData.shopType !== 'service')) {
+      setFormData((current) => ({ ...current, role: 'seller', shopType: 'service' }));
+    }
+  }, [formData.role, formData.shopType, isUtormeStudentSignup, isUtormeTutorSignup]);
+
+  useEffect(() => {
+    if (invitationToken) {
+      managerInvitationAPI.get(invitationToken).then((invitation) => {
+        setFormData(prev => ({
+          ...prev,
+          firstName: invitation.firstName || invitation.name?.split(' ')[0] || '',
+          lastName: invitation.lastName || invitation.name?.split(' ').slice(1).join(' ') || '',
+          email: invitation.email || '',
+          role: 'seller_manager'
+        }));
+      }).catch((err) => {
+        setInvitationError(err.response?.data?.message || 'This invitation is invalid or has expired.');
+      }).finally(() => setInvitationLoading(false));
+      return;
+    }
     if (managerSlug && formData.role === 'seller') {
       setManagerLoading(true);
       import('../../services/api').then(async ({ sellerManagersAPI }) => {
@@ -65,23 +117,62 @@ export const Register: React.FC<RegisterProps> = ({
         }
       });
     }
-  }, [managerSlug, formData.role, initialSellerId]);
+  }, [managerSlug, formData.role, initialSellerId, invitationToken]);
+
+  const getRegisterErrorMessage = (err: any): string => {
+    const details = getAuthErrorDetails(err, 'Registration failed. Please try again.');
+    return `${details.title}: ${details.message}`;
+  };
+
+  const validateForm = (): string | null => {
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
+      return 'Please enter your first and last name.';
+    }
+    if (!formData.email.trim()) {
+      return 'Please enter your email address.';
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      return 'Please enter a valid email address.';
+    }
+    if (!formData.phoneNumber.trim()) {
+      return 'Please enter your phone number.';
+    }
+    if (formData.password.length < 6) {
+      return 'Password must be at least 6 characters for security.';
+    }
+    if (formData.password !== formData.confirmPassword) {
+      return 'Passwords do not match. Please ensure both passwords are identical.';
+    }
+    if (!isShopSignup && formData.role === 'seller' && !formData.storeName.trim()) {
+      return 'Please enter your store name.';
+    }
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
     try {
+      const accountRole = isShopSignup ? 'customer' : formData.role;
+      if (isInvitation && invitationToken) {
+        await managerInvitationAPI.accept({
+          token: invitationToken,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phoneNumber: formData.phoneNumber,
+          password: formData.password
+        });
+        setError('Invitation accepted. Redirecting to sign in...');
+        setTimeout(onSwitchToLogin, 1000);
+        return;
+      }
       await register({
         name: `${formData.firstName} ${formData.lastName}`,
         firstName: formData.firstName,
@@ -89,9 +180,9 @@ export const Register: React.FC<RegisterProps> = ({
         phoneNumber: formData.phoneNumber,
         email: formData.email,
         password: formData.password,
-        role: formData.role as any,
+        role: accountRole as any,
         sellerId: initialSellerId || undefined,
-        ...(formData.role === 'seller' ? {
+        ...(accountRole === 'seller' ? {
           storeName: formData.storeName,
           subdomain: formData.subdomain,
           shopType: formData.shopType,
@@ -102,10 +193,8 @@ export const Register: React.FC<RegisterProps> = ({
       if (err.response?.status === 409 && err.response?.data?.mergeRequired) {
         setMergeRequired(true);
         setMergeMessage(err.response.data.message);
-      } else if (err.message === 'Network Error') {
-        setError('Connection to backend failed. Make sure the server is running on port 5000.');
       } else {
-        setError(err.response?.data?.message || 'Registration failed. Please try again.');
+        setError(getRegisterErrorMessage(err));
       }
     }
   };
@@ -120,7 +209,8 @@ export const Register: React.FC<RegisterProps> = ({
         sellerId: initialSellerId
       });
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to link account. Please check your password.');
+      const details = getAuthErrorDetails(err, 'Failed to link account. Please check your password.');
+      setError(`${details.title}: ${details.message}`);
     }
   };
 
@@ -179,8 +269,22 @@ export const Register: React.FC<RegisterProps> = ({
     );
   }
 
+  if (invitationLoading) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-600">Loading your invitation...</div>;
+  }
+
+  if (invitationError) {
+    return <div className="min-h-screen flex items-center justify-center p-4 text-red-600">{invitationError}</div>;
+  }
+
   const benefits = {
-    seller: [
+    seller: isUtormeTutorSignup ? [
+      'Create a tutor profile and service page',
+      'Manage tutoring sessions and availability',
+      'Message students in one inbox',
+      'Track your tutoring business',
+      'Set up your own tutoring services',
+    ] : [
       'AI-Powered Shop Management',
       'Instant IyonicPay Integration',
       'Advanced AI Sales Analytics',
@@ -194,7 +298,13 @@ export const Register: React.FC<RegisterProps> = ({
       'Priority 24/7 Manager Support',
       'Automated Commission Payout System',
     ],
-    customer: initialSellerId ? [
+    customer: isUtormeStudentSignup ? [
+      'Discover tutors by subject',
+      'Request sessions that fit your schedule',
+      'Message your tutor directly',
+      'Keep your learning sessions organized',
+      'Choose your tutor before booking',
+    ] : isShopSignup ? [
       'Shop from our store',
       'Track your orders in real-time',
       'Securely pay with IyonicPay',
@@ -210,21 +320,26 @@ export const Register: React.FC<RegisterProps> = ({
   };
 
   const getThemeStyles = () => {
-    if (!storeInfo?.theme?.primaryColor) return {};
+    if (!vipTheme) return {};
     return {
-      '--theme-primary': storeInfo.theme.primaryColor,
-      '--theme-primary-hover': storeInfo.theme.secondaryColor || storeInfo.theme.primaryColor,
+      '--theme-primary': vipTheme.primary,
+      '--theme-primary-hover': vipTheme.secondary,
     } as React.CSSProperties;
   };
 
-  const themePrimary = storeInfo?.theme?.primaryColor || '#4f46e5'; // Default indigo-600
+  const themePrimary = vipTheme?.primary || '#4f46e5';
+  const themeSecondary = vipTheme?.secondary || '#581c87';
+  const getAuthStyles = () => ({
+    ...getThemeStyles(),
+    ...(vipTheme ? { '--vip-surface': vipTheme.surface } : {}),
+  } as React.CSSProperties);
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-white" style={getThemeStyles()}>
+    <div className={`min-h-screen flex flex-col md:flex-row bg-white ${vipTheme ? 'vip-auth-shell' : ''}`} data-vip-theme={vipTheme?.id} style={getAuthStyles()}>
       {/* Left Side - Information & Benefits */}
       <div 
-        className="hidden md:flex md:w-2/5 p-12 text-white flex-col justify-between relative overflow-hidden"
-        style={{ background: `linear-gradient(to bottom right, ${themePrimary}, ${storeInfo?.theme?.secondaryColor || '#581c87'})` }}
+        className="vip-auth-brand-panel hidden md:flex md:w-2/5 p-12 text-white flex-col justify-between relative overflow-hidden"
+        style={{ background: `linear-gradient(145deg, ${themeSecondary}, ${themePrimary})` }}
       >
         <div className="relative z-10">
           <div className="flex items-center space-x-2 mb-12">
@@ -235,15 +350,15 @@ export const Register: React.FC<RegisterProps> = ({
                 <img src="/logo.png" alt="Iyonicorp Logo" className="w-8 h-8 object-contain" />
               </div>
             )}
-            <span className="text-2xl font-bold tracking-tight">{storeInfo?.storeName || 'Iyonicorp'}</span>
+            <span className="text-2xl font-bold tracking-tight">{storeInfo?.storeName || vipTheme?.name || 'Iyonicorp'}</span>
           </div>
           
           <h2 className="text-4xl font-extrabold leading-tight mb-6">
-            {storeInfo ? `Join ${storeInfo.storeName}` : 'Start your journey'} <br />
-            <span className="text-purple-300">with us today.</span>
+            {vipTheme ? vipTheme.headline : storeInfo ? `Join ${storeInfo.storeName}` : 'Start your journey'} <br />
+            {!vipTheme && <span className="text-purple-300">with us today.</span>}
           </h2>
           <p className="text-lg text-purple-100 max-w-md mb-8">
-            {storeInfo 
+            {vipTheme ? vipTheme.description : storeInfo 
               ? `Become a member of ${storeInfo.storeName} and enjoy exclusive benefits, track your orders, and more.`
               : 'Join the fastest growing platform for sellers and managers. Everything you need to succeed in one place.'}
           </p>
@@ -258,9 +373,9 @@ export const Register: React.FC<RegisterProps> = ({
             }`}>
               <h3 className="text-xl font-bold mb-4 flex items-center">
                 {formData.role === 'seller' ? (
-                  <><Store className="w-6 h-6 mr-2 text-blue-300" /> Seller Benefits</>
+                  <><Store className="w-6 h-6 mr-2 text-blue-300" />{isUtormeTutorSignup ? 'Tutor Benefits' : 'Seller Benefits'}</>
                 ) : formData.role === 'customer' ? (
-                  <><Package className="w-6 h-6 mr-2 text-green-300" /> Customer Benefits</>
+                  <><Package className="w-6 h-6 mr-2 text-green-300" />{isUtormeStudentSignup ? 'Student Benefits' : 'Customer Benefits'}</>
                 ) : (
                   <><Users className="w-6 h-6 mr-2 text-purple-300" /> Manager Benefits</>
                 )}
@@ -277,12 +392,12 @@ export const Register: React.FC<RegisterProps> = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/5 p-4 rounded-xl border border-white/10 text-center">
-                <p className="text-2xl font-bold text-white">{initialSellerId ? 'Verified' : '10K+'}</p>
-                <p className="text-xs text-purple-200 uppercase tracking-wider">{initialSellerId ? 'Shop' : 'Active Sellers'}</p>
+                <p className="text-2xl font-bold text-white">{initialSellerId ? 'Verified' : isUtormeSignup ? (isUtormeTutorSignup ? 'Tutor' : 'Learn') : '10K+'}</p>
+                <p className="text-xs text-purple-200 uppercase tracking-wider">{initialSellerId ? 'Shop' : isUtormeSignup ? (isUtormeTutorSignup ? 'Business account' : 'Student account') : 'Active Sellers'}</p>
               </div>
               <div className="bg-white/5 p-4 rounded-xl border border-white/10 text-center">
-                <p className="text-2xl font-bold text-white">24/7</p>
-                <p className="text-xs text-purple-200 uppercase tracking-wider">Expert Support</p>
+                <p className="text-2xl font-bold text-white">{isUtormeSignup ? '1:1' : '24/7'}</p>
+                <p className="text-xs text-purple-200 uppercase tracking-wider">{isUtormeSignup ? 'Tutor sessions' : 'Expert Support'}</p>
               </div>
             </div>
           </div>
@@ -298,7 +413,7 @@ export const Register: React.FC<RegisterProps> = ({
       </div>
 
       {/* Right Side - Registration Form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-gray-50/50 overflow-y-auto">
+      <div className="vip-auth-form-panel flex-1 flex items-center justify-center p-8 bg-gray-50/50 overflow-y-auto">
         <div className="w-full max-w-xl py-12">
           {/* Mobile Logo */}
           <div className="md:hidden flex items-center justify-center space-x-2 mb-8" style={{ color: themePrimary }}>
@@ -309,12 +424,12 @@ export const Register: React.FC<RegisterProps> = ({
                 <img src="/logo.png" alt="Iyonicorp" className="w-8 h-8 object-contain" />
               </div>
             )}
-            <span className="text-2xl font-bold">{storeInfo?.storeName || 'Iyonicorp'}</span>
+            <span className="text-2xl font-bold">{storeInfo?.storeName || vipTheme?.name || 'Iyonicorp'}</span>
           </div>
 
           <div className="mb-8 text-center md:text-left">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Your Account</h1>
-            <p className="text-gray-500">Fill in the details below to get started</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{vipTheme ? `Join ${vipTheme.name}` : isShopSignup ? 'Create Your Account' : 'Build your business with Iyonicorp'}</h1>
+            <p className="text-gray-500">{vipTheme ? vipTheme.description : isShopSignup ? 'Fill in the details below to get started' : 'Create an account for your seller or manager business.'}</p>
           </div>
 
           {managerLoading && (
@@ -346,7 +461,7 @@ export const Register: React.FC<RegisterProps> = ({
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Role Selection Tabs */}
-            {!initialSellerId && !managerSlug && (
+            {!isShopSignup && !managerSlug && !isInvitation && !isUtormeSignup && (
               <div className="bg-gray-100 p-1 rounded-2xl flex max-w-lg mx-auto md:mx-0">
                 <button
                   type="button"
@@ -372,18 +487,6 @@ export const Register: React.FC<RegisterProps> = ({
                   <Briefcase className="w-3.5 h-3.5" />
                   <span>Manager</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'customer' })}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center justify-center space-x-1 ${
-                    formData.role === 'customer'
-                      ? 'bg-white text-indigo-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Users className="w-3.5 h-3.5" />
-                  <span>Customer</span>
-                </button>
               </div>
             )}
 
@@ -393,6 +496,7 @@ export const Register: React.FC<RegisterProps> = ({
                 type="text"
                 placeholder="John"
                 value={formData.firstName}
+                disabled={isInvitation}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                 required
                 className="bg-white border-gray-200 rounded-xl"
@@ -402,6 +506,7 @@ export const Register: React.FC<RegisterProps> = ({
                 type="text"
                 placeholder="Doe"
                 value={formData.lastName}
+                disabled={isInvitation}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 required
                 className="bg-white border-gray-200 rounded-xl"
@@ -414,6 +519,7 @@ export const Register: React.FC<RegisterProps> = ({
                 type="email"
                 placeholder="you@example.com"
                 value={formData.email}
+                disabled={isInvitation}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
                 className="bg-white border-gray-200 rounded-xl"
@@ -431,7 +537,7 @@ export const Register: React.FC<RegisterProps> = ({
 
             {formData.role === 'seller' && (
               <div className="space-y-6">
-                <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                {!isUtormeTutorSignup && <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
                   <p className="text-sm font-semibold text-blue-900 mb-3">Shop Type</p>
                   <div className="grid grid-cols-2 gap-3">
                     <button
@@ -461,13 +567,13 @@ export const Register: React.FC<RegisterProps> = ({
                       <p className="text-xs text-gray-500">Consulting, repairs, help</p>
                     </button>
                   </div>
-                </div>
+                </div>}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
                 <Input
-                  label="Store Name"
+                  label={isUtormeTutorSignup ? 'Tutor or practice name' : 'Store Name'}
                   type="text"
-                  placeholder="My Awesome Store"
+                  placeholder={isUtormeTutorSignup ? 'Your tutoring name' : 'My Awesome Store'}
                   value={formData.storeName}
                   onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
                   required

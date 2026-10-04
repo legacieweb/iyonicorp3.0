@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import SEO from '../components/SEO';
-import { Button, Input, Card, Popup, Textarea } from '../components/ui';
+import { Button, Input, Card, Popup, Textarea, Select, Badge } from '../components/ui';
 import { 
   Bot, 
   Cpu, 
@@ -28,22 +29,32 @@ import {
   Smartphone,
   Sparkles,
   RefreshCw,
-  X
+  X,
+  Send,
+  MessageCircle,
+  Star,
+  Package,
+  Menu,
+  BarChart3
 } from 'lucide-react';
-import { api } from '../services/api';
+import { api, botsAPI } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import ProductFooter from '../components/ProductFooter';
 
 const IyonicBots: React.FC = () => {
   const { user, login, register, setAuthenticatedUser, logout } = useAuth();
+  const { sellers } = useData();
+  const seller = sellers.length > 0 ? sellers[0] : null;
   const [isLoginPopupOpen, setIsLoginPopupOpen] = useState(false);
   const [isRegisterPopupOpen, setIsRegisterPopupOpen] = useState(false);
   const [isContinuePopupOpen, setIsContinuePopupOpen] = useState(false);
   
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'my-bots' | 'training' | 'api'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'my-bots' | 'training' | 'api' | 'billing' | 'knowledge' | 'conversations' | 'analytics' | 'settings' | 'test-lab'>('dashboard');
   const [view, setView] = useState<'landing' | 'dashboard'>('landing');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [errorPlanId, setErrorPlanId] = useState<string | null>(null);
 
   // Bot states
   const [availableBots] = useState([
@@ -106,13 +117,45 @@ const IyonicBots: React.FC = () => {
   });
   const [trainingData, setTrainingData] = useState('');
   const [trainingStatus, setTrainingStatus] = useState<'idle' | 'training' | 'complete'>('idle');
+  const [customResponses, setCustomResponses] = useState<Record<string, string>>({ greeting: '', identity: '', shipping: '', returns: '', payments: '' });
+  const [botPersonality, setBotPersonality] = useState<Record<string, string>>({ tone: 'professional', style: 'helpful' });
+  const [billing, setBilling] = useState<any>({ plan: { id: 'starter', name: 'Starter', price: 0 }, plans: {}, wallet: { balance: 0, currency: 'USD' } });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [productCount, setProductCount] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [knowledge, setKnowledge] = useState<any>({ documents: [], faqs: [], gaps: [] });
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [knowledgeLoading, setKnowledgeLoading] = useState(false);
+  const [knowledgeForm, setKnowledgeForm] = useState({ title: '', content: '', sourceUrl: '' });
+  const [faqForm, setFaqForm] = useState({ question: '', answer: '', category: 'general' });
+  const [botConfiguration, setBotConfiguration] = useState<any>({ responseLength: 'balanced', language: 'English', instructions: '', allowedKnowledge: ['business', 'products', 'policies', 'faqs', 'documents'], permissions: {}, enabledActions: [], escalation: { enabled: true, afterRepeatedFailures: 2 }, welcomeMessage: '', suggestedQuestions: [] });
+  const [testMessage, setTestMessage] = useState('What is your return policy?');
+  const [testResult, setTestResult] = useState<any>(null);
+  const [testLoading, setTestLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    if (user?.role === 'seller') {
       setView('dashboard');
       fetchBots();
+      fetchBilling();
+      fetchKnowledge();
+      fetchConversations();
+      fetchAnalytics();
+    } else {
+      setView('landing');
     }
   }, [user]);
+
+  useEffect(() => {
+    const reference = searchParams.get('reference');
+    const planId = searchParams.get('plan');
+    if (user?.role === 'seller' && reference && planId) {
+      botsAPI.verifyPaystack(reference, planId)
+        .then(result => { setSuccess(result.message || 'Payment confirmed'); fetchBilling(); setSearchParams({}); })
+        .catch(err => setError(err.response?.data?.message || 'Could not verify payment'));
+    }
+  }, [user, searchParams, setSearchParams]);
 
   const fetchBots = async () => {
     try {
@@ -121,10 +164,82 @@ const IyonicBots: React.FC = () => {
       if (response.data.length > 0 && !activeBot) {
         setActiveBot(response.data[0]);
         setTrainingData(response.data[0].trainingData || '');
+        setCustomResponses(response.data[0].customResponses || { greeting: '', identity: '', shipping: '', returns: '', payments: '' });
+        setBotPersonality(response.data[0].personality || { tone: 'professional', style: 'helpful' });
+        setBotConfiguration(response.data[0].configuration || botConfiguration);
+        setWidgetConfig(response.data[0].widgetConfig || { primaryColor: '#3b82f6', greeting: 'Hello! How can I help you today?', bubbleIcon: 'MessageSquare' });
       }
     } catch (err) {
       console.error('Failed to fetch bots:', err);
     }
+  };
+
+  const fetchBilling = async () => {
+    try {
+      setBilling(await botsAPI.getBilling());
+    } catch (err) {
+      console.error('Failed to fetch bot billing:', err);
+    }
+  };
+
+  const fetchKnowledge = async () => {
+    setKnowledgeLoading(true);
+    try {
+      setKnowledge(await botsAPI.getKnowledge());
+    } catch (err) {
+      setError('Unable to load business knowledge');
+    } finally {
+      setKnowledgeLoading(false);
+    }
+  };
+
+  const fetchConversations = async () => {
+    try { setConversations(await botsAPI.getConversations()); } catch (err) { setError('Unable to load conversations'); }
+  };
+
+  const fetchAnalytics = async () => {
+    try { setAnalytics(await botsAPI.getAnalytics()); } catch (err) { setError('Unable to load bot analytics'); }
+  };
+
+  const handleAddKnowledge = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      await botsAPI.addKnowledgeDocument({ ...knowledgeForm, documentType: 'text', source: 'seller' });
+      setKnowledgeForm({ title: '', content: '', sourceUrl: '' });
+      await fetchKnowledge();
+      setSuccess('Business knowledge added');
+    } catch (err: any) { setError(err.response?.data?.message || 'Unable to add business knowledge'); }
+  };
+
+  const handleAddFaq = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      await botsAPI.addFaq(faqForm);
+      setFaqForm({ question: '', answer: '', category: 'general' });
+      await fetchKnowledge();
+      setSuccess('FAQ added');
+    } catch (err: any) { setError(err.response?.data?.message || 'Unable to add FAQ'); }
+  };
+
+  const handleSaveConfiguration = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!activeBot) return;
+    try {
+      const saved = await botsAPI.updateConfiguration(activeBot.id, botConfiguration);
+      setBotConfiguration(saved);
+      notifySuccess('Bot configuration saved');
+    } catch (err: any) { setError(err.response?.data?.message || 'Unable to save bot configuration'); }
+  };
+
+  const handleRunTest = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!activeBot || !testMessage.trim()) return;
+    setTestLoading(true);
+    try {
+      const result = await botsAPI.chat(activeBot.id, testMessage.trim());
+      setTestResult({ ...result, grounded: Boolean(result.sources?.length) });
+    } catch (err: any) { setError(err.response?.data?.message || 'Unable to run bot test'); }
+    finally { setTestLoading(false); }
   };
 
   const onLogin = async (e: React.FormEvent) => {
@@ -143,7 +258,9 @@ const IyonicBots: React.FC = () => {
       await register({
         ...registerForm,
         name: `${registerForm.firstName} ${registerForm.lastName}`,
-        role: 'customer'
+        role: 'seller',
+        storeName: registerForm.username ? `${registerForm.username}'s Store` : undefined,
+        shopType: 'product'
       });
       setIsRegisterPopupOpen(false);
     } catch (err: any) {
@@ -195,11 +312,75 @@ const IyonicBots: React.FC = () => {
       setMyBots([...myBots, newBot]);
       setActiveBot(newBot);
       setIsCreatePopupOpen(false);
-      setSuccess('Bot created successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+      notifySuccess('Bot created successfully!', 3000);
     } catch (err) {
       setError('Failed to create bot');
     }
+  };
+
+  const handleActivateBot = async (bot: any) => {
+    try {
+      const updated = await botsAPI.activate(bot.id);
+      const nextBots = myBots.map(item => item.id === updated.id ? updated : item);
+      setMyBots(nextBots);
+      setActiveBot(updated);
+      notifySuccess(`${updated.name} is now live for ${updated.type}.`, 3000);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Could not activate this bot');
+    }
+  };
+
+  const handleSubscribe = async (planId: string) => {
+    try {
+      const result = await botsAPI.subscribe(planId);
+      notifySuccess(result.message || 'Bot plan activated', 3000);
+      await fetchBilling();
+    } catch (err: any) {
+      if (err.response?.status === 402) {
+        const msg = err.response?.data?.message || 'Insufficient balance in IyonicPay wallet';
+        setError(`Insufficient balance: ${msg}`);
+        setErrorPlanId(planId);
+      } else {
+        setError(err.response?.data?.message || 'Could not activate this plan');
+        setErrorPlanId(planId);
+      }
+    }
+  };
+
+  const handleDirectPayment = async (planId: string) => {
+    if (!user?.email) return;
+    try {
+      const payment = await botsAPI.initializePaystack(planId);
+      const plan = billing.plans?.[planId];
+      const handler = (window as any).PaystackPop.setup({
+        key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
+        email: user.email,
+        amount: Math.round((plan?.price || 0) * 100),
+        currency: 'USD',
+        reference: payment.reference,
+        metadata: { type: 'iyonicbots_plan', planId, sellerId: user?.sellerId },
+        callback: (response: any) => {
+          botsAPI.verifyPaystack(response.reference, planId)
+            .then(result => { setSuccess(result.message || 'Payment confirmed'); fetchBilling(); })
+            .catch(err => setError(err.response?.data?.message || 'Could not verify payment'));
+        },
+        onClose: () => {
+          setError('');
+        }
+      });
+      handler.openIframe();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Could not start card or mobile payment');
+    }
+  };
+
+  const handlePricingAction = (planId?: string) => {
+    if (user?.role !== 'seller') {
+      setIsRegisterPopupOpen(true);
+      return;
+    }
+    setView('dashboard');
+    setActiveTab('billing');
   };
 
   const handleTrainBot = async () => {
@@ -228,6 +409,7 @@ const IyonicBots: React.FC = () => {
       const response = await api.post(`/bots/${activeBot.id}/auto-train`);
       setActiveBot(response.data);
       setTrainingData(response.data.trainingData);
+      setProductCount(response.data.productCount || 0);
       setMyBots(myBots.map(b => b.id === activeBot.id ? response.data : b));
       setTrainingStatus('complete');
       setSuccess('Bot auto-trained from your store data!');
@@ -249,8 +431,7 @@ const IyonicBots: React.FC = () => {
       setActiveBot(response.data);
       setMyBots(myBots.map(b => b.id === activeBot.id ? response.data : b));
       setIsWidgetPopupOpen(false);
-      setSuccess('Widget configuration saved!');
-      setTimeout(() => setSuccess(''), 3000);
+      notifySuccess('Widget configuration saved!', 3000);
     } catch (err) {
       setError('Failed to save widget configuration');
     } finally {
@@ -258,10 +439,20 @@ const IyonicBots: React.FC = () => {
     }
   };
 
+  const refreshBotsAndNotify = async (message: string) => {
+    const updated = await botsAPI.getAll();
+    setMyBots(updated);
+    notifySuccess(message, 2000);
+  };
+
+  const notifySuccess = (message: string, duration = 2000) => {
+    setSuccess(message);
+    setTimeout(() => setSuccess(''), duration);
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    setSuccess('Copied to clipboard!');
-    setTimeout(() => setSuccess(''), 2000);
+    notifySuccess('Copied to clipboard!');
   };
 
   if (view === 'dashboard' && user) {
@@ -270,12 +461,18 @@ const IyonicBots: React.FC = () => {
       { id: 'my-bots', label: 'My Bots', icon: <Bot className="w-5 h-5" /> },
       { id: 'training', label: 'AI Training', icon: <Database className="w-5 h-5" /> },
       { id: 'api', label: 'Deploy & API', icon: <Terminal className="w-5 h-5" /> },
+      { id: 'billing', label: 'Plans & Billing', icon: <Zap className="w-5 h-5" /> },
+      { id: 'knowledge', label: 'Knowledge', icon: <Database className="w-5 h-5" /> },
+      { id: 'conversations', label: 'Conversations', icon: <MessageCircle className="w-5 h-5" /> },
+      { id: 'analytics', label: 'Analytics', icon: <BarChart3 className="w-5 h-5" /> },
+      { id: 'test-lab', label: 'Test Lab', icon: <Search className="w-5 h-5" /> },
+      { id: 'settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
     ];
 
     return (
       <div className="min-h-screen bg-gray-50 flex font-sans">
         {/* Sidebar */}
-        <aside className="w-72 bg-white border-r border-gray-200 hidden lg:flex flex-col h-screen sticky top-0">
+        <aside className={`${isSidebarOpen ? 'flex' : 'hidden'} lg:flex fixed lg:sticky inset-y-0 left-0 z-40 w-72 bg-white border-r border-gray-200 flex-col h-screen`}>
           <div className="p-8">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 flex items-center justify-center">
@@ -289,7 +486,7 @@ const IyonicBots: React.FC = () => {
             {sidebarItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id as any)}
+                onClick={() => { setActiveTab(item.id as any); setIsSidebarOpen(false); }}
                 className={`w-full flex items-center space-x-3 px-4 py-3.5 rounded-2xl transition-all duration-200 group ${
                   activeTab === item.id 
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' 
@@ -336,13 +533,18 @@ const IyonicBots: React.FC = () => {
         {/* Main Content */}
         <main className="flex-1 min-h-screen">
           {/* Header */}
-          <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-30 px-8 py-5">
+          <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-30 px-4 py-4 sm:px-8 sm:py-5">
             <div className="flex justify-between items-center max-w-6xl mx-auto">
-              <div>
+              <div className="flex items-center gap-3">
+                <button className="rounded-xl p-2 text-gray-600 hover:bg-gray-100 lg:hidden" onClick={() => setIsSidebarOpen(!isSidebarOpen)} aria-label="Open dashboard menu">
+                  <Menu className="h-5 w-5" />
+                </button>
+                <div>
                 <h1 className="text-xl font-black text-gray-900 capitalize">
                   {activeTab.replace('-', ' ')}
                 </h1>
                 <p className="text-xs text-gray-500 font-medium">Iyonic AI Engine v2.0</p>
+                </div>
               </div>
               <div className="flex items-center space-x-4">
                 <AnimatePresence>
@@ -436,10 +638,14 @@ const IyonicBots: React.FC = () => {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {availableBots.map(bot => (
+                        (() => {
+                          const deployedBot = myBots.find(item => item.type === bot.id && item.status === 'active');
+                          return (
                         <Card 
                           key={bot.id} 
                           className="hover:shadow-2xl transition-all cursor-pointer group rounded-[2.5rem] border-none shadow-lg overflow-hidden bg-white"
                           onClick={() => {
+                            if (deployedBot) return;
                             setNewBotData({...newBotData, type: bot.id});
                             setIsCreatePopupOpen(true);
                           }}
@@ -458,11 +664,15 @@ const IyonicBots: React.FC = () => {
                             </div>
 
                             <div className="flex items-center justify-between pt-6 border-t border-gray-50">
-                              <span className="text-xs font-black uppercase tracking-widest text-blue-600">{bot.category}</span>
-                              <Button size="sm" variant="ghost" className="rounded-full font-black text-xs">Deploy <ChevronRight className="ml-1 w-4 h-4" /></Button>
+                              <span className="text-xs font-black uppercase tracking-widest text-blue-600">{deployedBot ? 'Active' : bot.category}</span>
+                              <Button size="sm" variant="ghost" className="rounded-full font-black text-xs" disabled={Boolean(deployedBot)}>
+                                {deployedBot ? 'Live' : 'Deploy'} <ChevronRight className="ml-1 w-4 h-4" />
+                              </Button>
                             </div>
                           </div>
                         </Card>
+                          );
+                        })()
                       ))}
                     </div>
                   </div>
@@ -505,7 +715,7 @@ const IyonicBots: React.FC = () => {
                                 <div>
                                   <h4 className="text-xl font-black text-gray-900">{bot.name}</h4>
                                   <div className="flex items-center space-x-3 mt-1">
-                                    <span className="text-xs font-bold text-gray-400 capitalize">{bot.botType}</span>
+                                    <span className="text-xs font-bold text-gray-400 capitalize">{bot.type || bot.botType}</span>
                                     <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                                     <span className="text-xs font-bold text-green-500 uppercase tracking-widest">{bot.status}</span>
                                   </div>
@@ -526,6 +736,11 @@ const IyonicBots: React.FC = () => {
                                   <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Last Trained</p>
                                 </div>
                                 <div className="flex space-x-2">
+                                  {bot.status !== 'active' && (
+                                    <Button variant="primary" size="sm" className="rounded-xl" onClick={() => handleActivateBot(bot)}>
+                                      Activate
+                                    </Button>
+                                  )}
                                   <Button 
                                     variant={activeBot?.id === bot.id ? "secondary" : "outline"} 
                                     size="sm" 
@@ -562,6 +777,167 @@ const IyonicBots: React.FC = () => {
                 </motion.div>
               )}
 
+              {activeTab === 'knowledge' && (
+                <motion.div key="knowledge" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">Business Brain</p>
+                    <h2 className="mt-2 text-3xl font-black text-gray-900">Teach your bots what is true</h2>
+                    <p className="mt-3 max-w-2xl text-gray-500">Add approved business information here. It stays isolated to your store and is checked before general bot knowledge.</p>
+                  </div>
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <Card className="rounded-[2rem] border-none p-7 shadow-xl">
+                      <h3 className="text-xl font-black text-gray-900">Add knowledge article</h3>
+                      <form onSubmit={handleAddKnowledge} className="mt-5 space-y-4">
+                        <input required value={knowledgeForm.title} onChange={event => setKnowledgeForm({ ...knowledgeForm, title: event.target.value })} placeholder="Title, for example: International shipping policy" className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500" />
+                        <textarea required value={knowledgeForm.content} onChange={event => setKnowledgeForm({ ...knowledgeForm, content: event.target.value })} placeholder="Write the approved information your bot may use..." rows={6} className="w-full resize-y rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500" />
+                        <input value={knowledgeForm.sourceUrl} onChange={event => setKnowledgeForm({ ...knowledgeForm, sourceUrl: event.target.value })} placeholder="Source URL (optional)" className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500" />
+                        <Button type="submit" className="rounded-xl bg-gray-900">Save approved knowledge</Button>
+                      </form>
+                    </Card>
+                    <Card className="rounded-[2rem] border-none p-7 shadow-xl">
+                      <h3 className="text-xl font-black text-gray-900">Add FAQ</h3>
+                      <form onSubmit={handleAddFaq} className="mt-5 space-y-4">
+                        <input required value={faqForm.question} onChange={event => setFaqForm({ ...faqForm, question: event.target.value })} placeholder="Customer question" className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500" />
+                        <textarea required value={faqForm.answer} onChange={event => setFaqForm({ ...faqForm, answer: event.target.value })} placeholder="Approved answer" rows={6} className="w-full resize-y rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500" />
+                        <input value={faqForm.category} onChange={event => setFaqForm({ ...faqForm, category: event.target.value })} placeholder="Category" className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-blue-500" />
+                        <Button type="submit" className="rounded-xl bg-blue-600">Save FAQ</Button>
+                      </form>
+                    </Card>
+                  </div>
+                  {knowledgeLoading ? <Card className="rounded-[2rem] p-8 text-gray-500">Loading your business knowledge...</Card> : (
+                    <div className="grid gap-6 lg:grid-cols-2">
+                      <Card className="rounded-[2rem] border-none p-7 shadow-xl">
+                        <div className="flex items-center justify-between"><h3 className="text-xl font-black">Knowledge articles</h3><span className="text-sm font-bold text-gray-400">{knowledge.documents.length}</span></div>
+                        <div className="mt-5 space-y-3">{knowledge.documents.length === 0 ? <p className="rounded-xl bg-gray-50 p-5 text-sm text-gray-500">Your bot does not have business knowledge yet.</p> : knowledge.documents.map((document: any) => <div key={document.id} className="rounded-xl border border-gray-100 p-4"><p className="font-bold text-gray-900">{document.title}</p><p className="mt-1 text-xs font-semibold uppercase tracking-wider text-gray-400">{document.source} · {document.status}</p></div>)}</div>
+                      </Card>
+                      <Card className="rounded-[2rem] border-none p-7 shadow-xl">
+                        <div className="flex items-center justify-between"><h3 className="text-xl font-black">Knowledge gaps</h3><span className="text-sm font-bold text-gray-400">{knowledge.gaps.length}</span></div>
+                        <div className="mt-5 space-y-3">{knowledge.gaps.length === 0 ? <p className="rounded-xl bg-gray-50 p-5 text-sm text-gray-500">Unanswered questions will appear here as your bot learns.</p> : knowledge.gaps.map((gap: any) => <div key={gap.id} className="rounded-xl border border-gray-100 p-4"><p className="font-bold text-gray-900">{gap.question}</p><p className="mt-1 text-xs font-semibold text-gray-400">Asked {gap.frequency} times · {gap.status}</p></div>)}</div>
+                      </Card>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {activeTab === 'conversations' && (
+                <motion.div key="conversations" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                  <div><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">Customer conversations</p><h2 className="mt-2 text-3xl font-black text-gray-900">See what your agents are handling</h2></div>
+                  {conversations.length === 0 ? <Card className="rounded-[2rem] p-10 text-center"><MessageCircle className="mx-auto h-12 w-12 text-gray-200" /><p className="mt-4 font-bold text-gray-500">Conversations will appear here when your bot starts interacting with customers.</p></Card> : <div className="space-y-3">{conversations.map(conversation => <Card key={conversation.id} className="rounded-2xl border-none p-5 shadow-lg"><div className="flex flex-col justify-between gap-3 sm:flex-row"><div><p className="font-bold text-gray-900">{conversation.lastMessage || 'Conversation started'}</p><p className="mt-1 text-xs font-semibold uppercase tracking-wider text-gray-400">{conversation.messageCount} messages · {conversation.status}</p></div><span className="text-xs text-gray-400">{new Date(conversation.updatedAt).toLocaleString()}</span></div></Card>)}</div>}
+                </motion.div>
+              )}
+
+              {activeTab === 'analytics' && (
+                <motion.div key="analytics" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                  <div><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">Agent analytics</p><h2 className="mt-2 text-3xl font-black text-gray-900">Measure useful work, not vanity metrics</h2></div>
+                  {!analytics ? <Card className="rounded-[2rem] p-8 text-gray-500">Loading analytics...</Card> : <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{[{ label: 'Total conversations', value: analytics.conversations?.total || 0 }, { label: 'Active', value: analytics.conversations?.active || 0 }, { label: 'Resolved', value: analytics.conversations?.resolved || 0 }, { label: 'Knowledge gaps', value: analytics.knowledgeGaps?.unresolved || 0 }].map(stat => <Card key={stat.label} className="rounded-2xl border-none p-6 shadow-lg"><p className="text-xs font-black uppercase tracking-wider text-gray-400">{stat.label}</p><p className="mt-3 text-4xl font-black text-gray-900">{stat.value}</p></Card>)}</div>}
+                </motion.div>
+              )}
+
+              {activeTab === 'settings' && (
+                <motion.div key="settings" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                  <div><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">Agent configuration</p><h2 className="mt-2 text-3xl font-black text-gray-900">Configure {activeBot?.name || 'your agent'}</h2><p className="mt-3 max-w-2xl text-gray-500">These settings guide the agent. Business data and approved knowledge remain the source of truth.</p></div>
+                  {!activeBot ? <Card className="rounded-[2rem] p-8 text-gray-500">Select a bot from My Bots before configuring it.</Card> : <Card className="rounded-[2rem] border-none p-7 shadow-xl"><form onSubmit={handleSaveConfiguration} className="space-y-6">
+                    <div className="grid gap-5 md:grid-cols-2">
+                      <label className="text-sm font-bold text-gray-700">Response length<select value={botConfiguration.responseLength || 'balanced'} onChange={event => setBotConfiguration({ ...botConfiguration, responseLength: event.target.value })} className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal"><option value="short">Short</option><option value="balanced">Balanced</option><option value="detailed">Detailed</option></select></label>
+                      <label className="text-sm font-bold text-gray-700">Language<input value={botConfiguration.language || 'English'} onChange={event => setBotConfiguration({ ...botConfiguration, language: event.target.value })} className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal" /></label>
+                    </div>
+                    <label className="block text-sm font-bold text-gray-700">Agent instructions<textarea value={botConfiguration.instructions || ''} onChange={event => setBotConfiguration({ ...botConfiguration, instructions: event.target.value })} placeholder="Describe how this agent should work for your business..." rows={5} className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal" /></label>
+                    <label className="block text-sm font-bold text-gray-700">Welcome message<textarea value={botConfiguration.welcomeMessage || ''} onChange={event => setBotConfiguration({ ...botConfiguration, welcomeMessage: event.target.value })} placeholder="Optional first message shown to customers" rows={3} className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal" /></label>
+                    <label className="block text-sm font-bold text-gray-700">Suggested questions<input value={(botConfiguration.suggestedQuestions || []).join(', ')} onChange={event => setBotConfiguration({ ...botConfiguration, suggestedQuestions: event.target.value.split(',').map((item: string) => item.trim()).filter(Boolean) })} placeholder="What is your return policy?, Where do you deliver?" className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal" /></label>
+                    <div className="flex items-center justify-between rounded-xl bg-gray-50 p-4"><div><p className="font-bold text-gray-900">Human escalation</p><p className="text-sm text-gray-500">Allow the agent to flag uncertain or sensitive conversations.</p></div><input type="checkbox" checked={botConfiguration.escalation?.enabled !== false} onChange={event => setBotConfiguration({ ...botConfiguration, escalation: { ...(botConfiguration.escalation || {}), enabled: event.target.checked } })} className="h-5 w-5 accent-blue-600" /></div>
+                    <Button type="submit" className="rounded-xl bg-blue-600">Save agent settings</Button>
+                  </form></Card>}
+                </motion.div>
+              )}
+
+              {activeTab === 'test-lab' && (
+                <motion.div key="test-lab" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                  <div><p className="text-xs font-black uppercase tracking-[0.2em] text-blue-600">Test Lab</p><h2 className="mt-2 text-3xl font-black text-gray-900">Test what your agent can verify</h2><p className="mt-3 max-w-2xl text-gray-500">Tests use the same tenant-scoped chat path as your storefront widget.</p></div>
+                  <Card className="rounded-[2rem] border-none p-7 shadow-xl"><form onSubmit={handleRunTest} className="space-y-4"><label className="block text-sm font-bold text-gray-700">Bot<select value={activeBot?.id || ''} onChange={event => setActiveBot(myBots.find(bot => bot.id === event.target.value) || null)} className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal">{myBots.map(bot => <option key={bot.id} value={bot.id}>{bot.name} · {bot.type}</option>)}</select></label><label className="block text-sm font-bold text-gray-700">Test message<textarea value={testMessage} onChange={event => setTestMessage(event.target.value)} rows={4} className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 font-normal" /></label><Button type="submit" disabled={!activeBot || testLoading} className="rounded-xl bg-gray-900">{testLoading ? 'Running test...' : 'Run test'}</Button></form></Card>
+                  {testResult && <Card className="rounded-[2rem] border-none p-7 shadow-xl"><p className="text-xs font-black uppercase tracking-widest text-blue-600">Response</p><p className="mt-3 whitespace-pre-wrap text-gray-800">{testResult.response}</p><div className="mt-6 grid gap-4 sm:grid-cols-2"><div className="rounded-xl bg-gray-50 p-4"><p className="text-xs font-black uppercase tracking-wider text-gray-400">Grounded</p><p className="mt-1 font-bold text-gray-900">{testResult.grounded ? 'Yes' : 'No verified source found'}</p></div><div className="rounded-xl bg-gray-50 p-4"><p className="text-xs font-black uppercase tracking-wider text-gray-400">Sources used</p><p className="mt-1 font-bold text-gray-900">{testResult.sources?.length || 0}</p></div></div>{testResult.sources?.length > 0 && <ul className="mt-4 space-y-2">{testResult.sources.map((source: any, index: number) => <li key={`${source.title}-${index}`} className="rounded-lg border border-gray-100 p-3 text-sm text-gray-600">{source.title} · {source.source}</li>)}</ul>}</Card>}
+                </motion.div>
+              )}
+
+              {activeTab === 'billing' && (
+                <motion.div
+                  key="billing"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-8"
+                >
+                {error && (
+                  <div className={`rounded-2xl p-4 text-center font-bold ${error.includes('Insufficient') || error.includes('402') || error.includes('need') ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-red-50 text-red-600'}`}>
+                    {error}
+                  </div>
+                )}
+              <div className="rounded-[2.5rem] bg-gray-900 p-8 text-white shadow-2xl md:p-10">
+                     <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
+                      <div className="flex-1">
+                        <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-300">Current bot plan</p>
+                        <h2 className="mt-3 text-4xl font-black">{billing.plan.name}</h2>
+                        <p className="mt-3 max-w-xl text-gray-400">{billing.plan.description || 'Basic role-based bots are free for sellers. Upgrade when you want advanced training, personality controls, and live deployment tools.'}</p>
+                      </div>
+                     </div>
+                   </div>
+                   <div className="grid gap-6 md:grid-cols-3">
+                     {Object.entries(billing.plans || {}).map(([planId, plan]: [string, any]) => {
+                       const isActive = billing.plan.id === planId;
+                       const isFree = plan.price === 0;
+                       const features = planId === 'starter' ? ['One role-based bot', 'Store-ready defaults'] : planId === 'basic' ? ['SupportPro', 'SalesGenie', 'TechGuru'] : planId === 'pro' ? ['Advanced training', 'Custom personality', 'Live deployment'] : ['Everything in Pro', 'Priority retraining', 'Advanced automation'];
+                       const walletBalance = Number(billing.wallet?.balance || 0);
+                       const canAffordWallet = !isFree && walletBalance >= plan.price;
+                       return (
+                       <Card key={planId} className={`rounded-[2rem] border-none p-7 shadow-xl ${isActive ? 'ring-2 ring-blue-600' : ''}`}>
+                         <p className="text-xs font-black uppercase tracking-widest text-blue-600">{isActive ? 'Active' : 'Available'}</p>
+                         <h3 className="mt-3 text-2xl font-black text-gray-900">{plan.name}</h3>
+                         <p className="mt-2 text-3xl font-black text-gray-900">{isFree ? 'Free' : `$${plan.price.toFixed(2)}`}</p>
+                         <p className="mt-3 text-sm font-medium text-gray-500">{plan.description}</p>
+                         <ul className="mt-6 space-y-3 text-sm font-semibold text-gray-600">
+                           {features.map(feature => <li key={feature} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-green-500" />{feature}</li>)}
+                         </ul>
+                          {!isActive && (
+                            <div className="mt-8 space-y-2">
+                              {isFree && (
+                                <Button className="w-full rounded-xl bg-blue-600" onClick={() => handleSubscribe(planId)}>
+                                  Activate Free Plan
+                                </Button>
+                              )}
+                              {!isFree && canAffordWallet && (
+                                <Button className="w-full rounded-xl bg-blue-600" onClick={() => handleSubscribe(planId)}>
+                                  Pay ${plan.price.toFixed(2)} with IyonicPay
+                                </Button>
+                              )}
+                              {!isFree && !canAffordWallet && (
+                                <Button className="w-full rounded-xl bg-blue-600" onClick={() => handleSubscribe(planId)} variant="outline">
+                                  Pay ${plan.price.toFixed(2)} with IyonicPay
+                                </Button>
+                              )}
+                              {!isFree && (
+                                <Button className="w-full rounded-xl" variant={canAffordWallet ? 'outline' : 'secondary'} onClick={() => handleDirectPayment(planId)}>
+                                  Pay ${plan.price.toFixed(2)} with Card & Mobile Wallet
+                                </Button>
+                              )}
+                              {errorPlanId === planId && error && (
+                                <p className="rounded-xl bg-red-50 p-3 text-center text-xs font-bold text-red-600 border border-red-100">{error}</p>
+                              )}
+                            </div>
+                          )}
+                         {isActive && (
+                           <div className="mt-8">
+                             <Button variant="outline" className="w-full rounded-xl" onClick={() => fetchBilling()}>
+                               Refresh Plan
+                             </Button>
+                           </div>
+                         )}
+                       </Card>
+                       );
+                     })}
+                   </div>
+                   <p className="text-sm font-medium text-gray-500">Paid plans charge your IyonicPay wallet. Add funds in IyonicPay, or pay directly with Paystack (card or mobile money).</p>
+                </motion.div>
+              )}
+
               {activeTab === 'training' && (
                 <motion.div
                   key="training"
@@ -570,6 +946,50 @@ const IyonicBots: React.FC = () => {
                   exit={{ opacity: 0, x: -20 }}
                   className="space-y-8"
                 >
+                  {/* Auto-Train Bot Section */}
+                  {activeBot && (
+                    <Card className="border-none shadow-xl shadow-slate-200/50">
+                      <div className="p-8">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600">
+                            <Zap className="w-5 h-5" />
+                          </div>
+                          <h3 className="text-2xl font-black text-slate-900 uppercase tracking-wider text-sm">Auto-Train Bot</h3>
+                        </div>
+
+                        <p className="text-slate-600 mb-4">Automatically train your bot using your store's data including products, policies, delivery methods, and payment terms.</p>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <p className="text-xs font-bold text-slate-400 uppercase">Products</p>
+                            <p className="text-lg font-black text-slate-900">{productCount || seller?.stats?.totalProducts || 0}</p>
+                          </div>
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <p className="text-xs font-bold text-slate-400 uppercase">Delivery Methods</p>
+                            <p className="text-lg font-black text-slate-900">{seller?.deliveryLocations?.length || 0}</p>
+                          </div>
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <p className="text-xs font-bold text-slate-400 uppercase">Policies</p>
+                            <p className="text-lg font-black text-slate-900">3</p>
+                          </div>
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <p className="text-xs font-bold text-slate-400 uppercase">Currency</p>
+                            <p className="text-lg font-black text-slate-900">{seller?.currency || 'USD'}</p>
+                          </div>
+                        </div>
+
+                        <Button 
+                          variant="primary"
+                          leftIcon={<RefreshCw className="w-4 h-4" />}
+                          loading={trainingStatus === 'training'}
+                          onClick={handleAutoTrain}
+                        >
+                          {trainingStatus === 'complete' ? 'Trained Successfully!' : 'Auto-Train Bot'}
+                        </Button>
+                      </div>
+                    </Card>
+                  )}
+
                   <Card className="rounded-[3rem] border-none shadow-xl bg-gradient-to-br from-white to-gray-50">
                     <div className="p-4">
                       <div className="flex items-center justify-between mb-8">
@@ -584,17 +1004,6 @@ const IyonicBots: React.FC = () => {
                             </p>
                           </div>
                         </div>
-                        {activeBot && (
-                          <Button 
-                            variant="outline" 
-                            className="rounded-2xl border-blue-200 text-blue-600 hover:bg-blue-50"
-                            onClick={handleAutoTrain}
-                            disabled={trainingStatus === 'training'}
-                          >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${trainingStatus === 'training' ? 'animate-spin' : ''}`} />
-                            Auto-train from Store
-                          </Button>
-                        )}
                       </div>
 
                       <div className="space-y-6">
@@ -626,6 +1035,191 @@ const IyonicBots: React.FC = () => {
                       </div>
                     </div>
                   </Card>
+
+                  {/* Custom Responses Section */}
+                  {activeBot && (
+                    <Card className="border-none shadow-xl shadow-slate-200/50">
+                      <div className="p-8">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600">
+                            <MessageCircle className="w-5 h-5" />
+                          </div>
+                          <h3 className="text-2xl font-black text-slate-900 uppercase tracking-wider text-sm">Custom Responses</h3>
+                        </div>
+
+                        <p className="text-slate-600 mb-4">Customize how your bot responds in different scenarios.</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Textarea
+                            label="Greeting Response"
+                            placeholder="Hello! Welcome to our store..."
+                            rows={2}
+                            value={customResponses?.greeting || ''}
+                            onChange={(e) => setCustomResponses({ ...(customResponses || {}), greeting: e.target.value })}
+                          />
+                          <Textarea
+                            label="Identity Response"
+                            placeholder="We are a premium electronics store..."
+                            rows={2}
+                            value={customResponses?.identity || ''}
+                            onChange={(e) => setCustomResponses({ ...(customResponses || {}), identity: e.target.value })}
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                          <Textarea
+                            label="Shipping Response"
+                            placeholder="We offer fast shipping with tracking..."
+                            rows={2}
+                            value={customResponses?.shipping || ''}
+                            onChange={(e) => setCustomResponses({ ...(customResponses || {}), shipping: e.target.value })}
+                          />
+                          <Textarea
+                            label="Returns Response"
+                            placeholder="Free returns within 30 days..."
+                            rows={2}
+                            value={customResponses?.returns || ''}
+                            onChange={(e) => setCustomResponses({ ...(customResponses || {}), returns: e.target.value })}
+                          />
+                          <Textarea
+                            label="Payments Response"
+                            placeholder="We accept all major payment methods..."
+                            rows={2}
+                            value={customResponses?.payments || ''}
+                            onChange={(e) => setCustomResponses({ ...(customResponses || {}), payments: e.target.value })}
+                          />
+                        </div>
+                        
+                        <div className="flex justify-end mt-4">
+                          <Button 
+                            variant="primary"
+                            onClick={async () => {
+                              if (!activeBot?.id) return;
+                              try {
+                                await botsAPI.updateCustomResponses(activeBot.id, customResponses);
+                                await refreshBotsAndNotify('Custom responses saved!');
+                              } catch (err) {
+                                setError('Failed to save custom responses');
+                              }
+                            }}
+                          >
+                            Save Custom Responses
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Bot Personality Section */}
+                  {activeBot && (
+                    <Card className="border-none shadow-xl shadow-slate-200/50">
+                      <div className="p-8">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-10 h-10 rounded-xl bg-pink-100 flex items-center justify-center text-pink-600">
+                            <Star className="w-5 h-5" />
+                          </div>
+                          <h3 className="text-2xl font-black text-slate-900 uppercase tracking-wider text-sm">Bot Personality</h3>
+                        </div>
+
+                        <p className="text-slate-600 mb-4">Define the tone and style of your bot's responses.</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Select
+                            label="Tone"
+                            options={[
+                              { value: 'professional', label: 'Professional' },
+                              { value: 'friendly', label: 'Friendly' },
+                              { value: 'casual', label: 'Casual' },
+                              { value: 'formal', label: 'Formal' },
+                            ]}
+                            value={botPersonality?.tone || 'professional'}
+                            onChange={(e) => setBotPersonality({ ...(botPersonality || {}), tone: e.target.value })}
+                          />
+                          <Select
+                            label="Style"
+                            options={[
+                              { value: 'helpful', label: 'Helpful' },
+                              { value: 'assertive', label: 'Assertive' },
+                              { value: 'consultative', label: 'Consultative' },
+                              { value: 'enthusiastic', label: 'Enthusiastic' },
+                            ]}
+                            value={botPersonality?.style || 'helpful'}
+                            onChange={(e) => setBotPersonality({ ...(botPersonality || {}), style: e.target.value })}
+                          />
+                        </div>
+                        
+                        <div className="flex justify-end mt-4">
+                          <Button 
+                            variant="primary"
+                            onClick={async () => {
+                              if (!activeBot?.id) return;
+                              try {
+                                await botsAPI.updatePersonality(activeBot.id, botPersonality);
+                                await refreshBotsAndNotify('Personality saved!');
+                              } catch (err) {
+                                setError('Failed to save personality');
+                              }
+                            }}
+                          >
+                            Save Personality
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Widget Configuration Section */}
+                  {activeBot && (
+                    <Card className="border-none shadow-xl shadow-slate-200/50">
+                      <div className="p-8">
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+                            <Globe className="w-5 h-5" />
+                          </div>
+                          <h3 className="text-2xl font-black text-slate-900 uppercase tracking-wider text-sm">Widget Configuration</h3>
+                        </div>
+
+                        <p className="text-slate-600 mb-4">Customize your bot's appearance on your storefront.</p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <Input
+                            label="Primary Color"
+                            type="color"
+                            value={widgetConfig?.primaryColor || '#3b82f6'}
+                            onChange={(e) => setWidgetConfig({ ...(widgetConfig || {}), primaryColor: e.target.value })}
+                          />
+                          <Input
+                            label="Greeting Message"
+                            value={widgetConfig?.greeting || ''}
+                            onChange={(e) => setWidgetConfig({ ...(widgetConfig || {}), greeting: e.target.value })}
+                            placeholder="Hello! How can I help you today?"
+                          />
+                          <Select
+                            label="Bubble Icon"
+                            options={[
+                              { value: 'MessageSquare', label: 'Message' },
+                              { value: 'Bot', label: 'Bot' },
+                              { value: 'MessageCircle', label: 'Chat' },
+                              { value: 'HelpCircle', label: 'Help' },
+                            ]}
+                            value={widgetConfig?.bubbleIcon || 'MessageSquare'}
+                            onChange={(e) => setWidgetConfig({ ...(widgetConfig || {}), bubbleIcon: e.target.value })}
+                          />
+                        </div>
+                        
+                        <div className="flex justify-end mt-4">
+                          <Button 
+                            variant="primary"
+                            onClick={handleSaveWidgetConfig}
+                            disabled={loading}
+                            isLoading={loading}
+                          >
+                            Save Widget Settings
+                          </Button>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
                 </motion.div>
               )}
 
@@ -1445,7 +2039,48 @@ agent.chat('How do I process a refund?', (chunk) => {
         )}
       </Popup>
 
-      <footer className="px-6 py-20 border-t border-gray-100">
+      <section id="pricing" className="bg-gray-50 px-6 py-28">
+        <div className="mx-auto max-w-7xl">
+          <div className="mx-auto mb-16 max-w-3xl text-center">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-600">Bot plans</p>
+            <h2 className="mt-4 text-5xl font-black tracking-tight text-gray-900">Start free. Advance when ready.</h2>
+            <p className="mt-6 text-lg leading-8 text-gray-500">Start with a free bot, add the everyday Basic toolkit for $2, then unlock deeper training and deployment controls.</p>
+          </div>
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              { id: 'starter', name: 'Starter', price: 0, displayPrice: 'Free', text: 'A focused role-based bot to get your store moving.', cta: 'Start free' },
+              { id: 'basic', name: 'Basic', price: 2, displayPrice: '$2/mo', text: 'Three role-based bots for everyday store support.', cta: 'Get Basic' },
+              { id: 'pro', name: 'Pro', price: 9.99, displayPrice: '$9.99/mo', text: 'Advanced training and deployment with IyonicShop Professional.', cta: 'Get Pro' },
+              { id: 'promax', name: 'Pro Max', price: 29.99, displayPrice: '$29.99/mo', text: 'Priority automation and the complete agent toolkit with Enterprise.', cta: 'Get Pro Max' }
+            ].map((plan, index) => {
+              const isSeller = user?.role === 'seller';
+              const isCurrent = isSeller && billing.plan.id === plan.id;
+              return (
+              <div key={plan.name} className={`rounded-[2rem] p-8 ${
+                index === 1 ? 'bg-blue-600 text-white shadow-2xl shadow-blue-200' : 'bg-white text-gray-900 shadow-xl'
+              } ${isCurrent ? 'ring-2 ring-indigo-600' : ''}`}>
+                <p className={`text-xs font-black uppercase tracking-[0.2em] ${index === 1 ? 'text-blue-100' : 'text-blue-600'}`}>{plan.name}</p>
+                <p className="mt-5 text-4xl font-black">{plan.displayPrice}</p>
+                {plan.price > 0 && (
+                  <p className={`mt-2 text-xs ${index === 1 ? 'text-blue-200' : 'text-gray-400'}`}>per bot per month</p>
+                )}
+                <p className={`mt-4 min-h-14 leading-7 ${index === 1 ? 'text-blue-100' : 'text-gray-500'}`}>{plan.text}</p>
+                <button
+                  onClick={() => isSeller ? handlePricingAction() : setIsRegisterPopupOpen(true)}
+                  className={`mt-8 w-full rounded-xl px-5 py-3 font-black transition ${index === 1 ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-gray-900 text-white hover:bg-black'}`}
+                  disabled={isCurrent}
+                >
+                  {isCurrent ? 'Current Plan' : (isSeller ? plan.cta : 'Start with this tier')}
+                </button>
+              </div>
+            );
+            })}
+        </div>
+          </div>
+      </section>
+
+      <ProductFooter product="IyonicBots" accentClass="text-blue-400" description="Train practical AI agents on your business knowledge and give your team more time for work that matters." />
+      <footer className="hidden">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 flex items-center justify-center">
@@ -1467,14 +2102,3 @@ agent.chat('How do I process a refund?', (chunk) => {
 };
 
 export default IyonicBots;
-
-// Simple Badge component if not available in ui
-const Badge: React.FC<{ children: React.ReactNode; variant?: 'success' | 'warning' | 'danger' | 'info' }> = ({ children, variant = 'info' }) => {
-  const styles = {
-    success: 'bg-green-100 text-green-700',
-    warning: 'bg-yellow-100 text-yellow-700',
-    danger: 'bg-red-100 text-red-700',
-    info: 'bg-blue-100 text-blue-700'
-  };
-  return <span className={`px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest ${styles[variant]}`}>{children}</span>;
-};

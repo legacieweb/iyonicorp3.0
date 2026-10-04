@@ -25,6 +25,7 @@ const ICON_MAP: Record<string, any> = {
 import { useAuth } from '../../../context/AuthContext';
 import { useAutoFillAddress } from '../../../hooks/useAutoFillAddress';
 import { useNavigate, useLocation } from 'react-router-dom';
+import ThemeMedia from '../../../components/ThemeMedia';
 
 declare const PaystackPop: any;
 
@@ -32,6 +33,7 @@ interface ThemeProps {
   seller: Seller;
   products: Product[];
   editMode?: boolean;
+  hideInlineEditor?: boolean;
   sellerData?: Seller;
   onUpdateData?: (fieldPath: string, value: any) => void;
   onUpdateThemeCustomization?: (section: string, field: string, value: any) => void;
@@ -75,7 +77,7 @@ const ProductCard = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       <div className="relative aspect-[3/4] overflow-hidden mb-6" style={{ backgroundColor: themeSecondary }}>
-        <img
+              <ThemeMedia
           src={product.images[0]}
           alt={product.name}
           className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
@@ -147,6 +149,7 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
   seller: initialSeller,
   products,
   editMode = false,
+  hideInlineEditor = false,
   sellerData,
   onUpdateData,
   onUpdateThemeCustomization,
@@ -187,6 +190,7 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
   ];
 
   const [view, setView] = useState<View>('home');
+  const [confirmationAmounts, setConfirmationAmounts] = useState({ paid: 0, remaining: 0 });
 
   const mainBgColor = customizations.mainBgColor || '#0a0a0a';
   const cardBgColor = customizations.cardBgColor || '#151515';
@@ -490,7 +494,8 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
         customerEmail: checkoutData.email,
         customerPhone: checkoutData.phone,
         items: orderItems,
-        total: finalTotal,
+        total: cartTotal - discountAmount + deliveryFee,
+        amountPaid: finalTotal,
         subtotal: cartTotal,
         originalTotal: cartTotal,
         discount: appliedDiscount ? {
@@ -517,6 +522,8 @@ const LuxuryBoutique: React.FC<ThemeProps> = ({
       } as any;
 
       const response = await ordersAPI.create(orderData);
+
+      setConfirmationAmounts({ paid: paymentAmount, remaining: remainingBalance });
 
       if (checkoutData.paymentMethod === 'pod') {
         setCart([]);
@@ -564,6 +571,7 @@ if (response.paymentLink && response.reference) {
             ordersAPI.verifyPayment(paystackResponse.reference, response.id)
               .then(res => {
                 if (res.success) {
+                  setConfirmationAmounts({ paid: paymentAmount, remaining: remainingBalance });
                   setCart([]);
                   setAppliedDiscount(null);
                   localStorage.removeItem(`cart_${seller.id}`);
@@ -1195,7 +1203,7 @@ const renderCheckout = () => {
               </button>
               {!user && (
                 <button 
-                  onClick={() => navigate(`/login?shop=${seller.id}`)}
+                  onClick={() => navigate(`/login?shop=${encodeURIComponent(seller.id)}&subdomain=${encodeURIComponent(seller.subdomain)}`)}
                   className="px-4 py-2 text-[10px] uppercase tracking-widest font-medium transition-all rounded-full"
                   style={{ 
                     backgroundColor: customizations.headerButtonBgColor || '#ffffff',
@@ -1453,8 +1461,14 @@ const renderCheckout = () => {
                         </>
                       ) : (
                         <>
-                          <span className="text-xs font-light uppercase tracking-widest text-gray-500 mb-1">Total</span>
-                          <span className="text-3xl font-light italic text-[#c5a059]">{formatPrice(finalTotal, seller.currency)}</span>
+                          <div className="flex flex-col items-end">
+                            <span className="text-xs font-light uppercase tracking-widest text-gray-500 mb-1">Total</span>
+                            <span className="text-3xl font-light italic text-white">{formatPrice(cartTotal - discountAmount + deliveryFee, seller.currency)}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-xs font-light uppercase tracking-widest text-gray-500 mb-1">Amount Due</span>
+                            <span className="text-3xl font-light italic text-[#c5a059]">{formatPrice(finalTotal, seller.currency)}</span>
+                          </div>
                         </>
                       )}
                     </div>
@@ -1494,7 +1508,7 @@ const renderCheckout = () => {
           <h2 className="text-5xl font-light text-white mb-6 italic">Order Confirmed</h2>
           {checkoutData.paymentMethod === 'deposit' && (
             <p className="text-gray-400 mb-4 max-w-md mx-auto">
-              You've paid {formatPrice(paymentAmount, seller.currency)}. Remaining balance of {formatPrice(remainingBalance, seller.currency)} is due on delivery.
+              You've paid {formatPrice(confirmationAmounts.paid, seller.currency)}. Remaining balance of {formatPrice(confirmationAmounts.remaining, seller.currency)} is due on delivery.
             </p>
           )}
           {checkoutData.paymentMethod === 'pod' && (
@@ -1884,7 +1898,9 @@ const renderCheckout = () => {
     address: '',
     deliveryLocationId: '',
     paymentMethod: 'site' as 'site' | 'pod' | 'deposit'
-   });
+  });
+
+  useAutoFillAddress(setCheckoutData);
 
   const enabledDeliveryLocations = useMemo(() => {
     return (seller.deliveryLocations || []).filter((loc: DeliveryLocation) => loc.enabled);
@@ -1897,20 +1913,22 @@ const renderCheckout = () => {
   const deliveryFee = selectedDeliveryLocation?.fee || 0;
 
   const paymentTerms = seller.paymentTerms || { methods: ['site'], depositPercentage: 50, rules: 'all' };
+  const orderTotal = Math.max(0, cartTotal - discountAmount + deliveryFee);
+  const depositPercentage = Math.min(99, Math.max(1, Number(paymentTerms.depositPercentage) || 50));
   
   const paymentAmount = useMemo(() => {
     if (checkoutData.paymentMethod === 'deposit') {
-      return (cartTotal - discountAmount + deliveryFee) * (paymentTerms.depositPercentage / 100);
+      return Math.round(orderTotal * (depositPercentage / 100) * 100) / 100;
     }
-    return cartTotal - discountAmount + deliveryFee;
-  }, [cartTotal, discountAmount, deliveryFee, checkoutData.paymentMethod, paymentTerms.depositPercentage]);
+    return orderTotal;
+  }, [orderTotal, checkoutData.paymentMethod, depositPercentage]);
 
   const remainingBalance = useMemo(() => {
     if (checkoutData.paymentMethod === 'deposit') {
-      return (cartTotal - discountAmount + deliveryFee) * ((100 - paymentTerms.depositPercentage) / 100);
+      return Math.max(0, Math.round((orderTotal - paymentAmount) * 100) / 100);
     }
     return 0;
-  }, [cartTotal, discountAmount, deliveryFee, checkoutData.paymentMethod, paymentTerms.depositPercentage]);
+  }, [orderTotal, paymentAmount, checkoutData.paymentMethod]);
 
   const finalTotal = useMemo(() => {
     if (checkoutData.paymentMethod === 'pod') {
@@ -1921,7 +1939,7 @@ const renderCheckout = () => {
 
   return (
     <div className="min-h-screen text-white" style={{ backgroundColor: mainBgColor }}>
-      {editMode && (
+      {editMode && !hideInlineEditor && (
         <div className="fixed top-0 left-0 right-0 z-[100] bg-[#0a0a0a] text-white px-6 py-4 flex flex-col lg:flex-row items-center justify-between shadow-2xl border-b border-white/10 gap-6">
           <div className="flex items-center gap-4 shrink-0">
             <div className="p-2 bg-blue-600/20 rounded-lg">
@@ -2303,14 +2321,14 @@ const renderCheckout = () => {
                 ) : (
                   <>
                     <button
-                      onClick={() => navigate(`/login?shop=${seller.id}`)}
+                      onClick={() => navigate(`/login?shop=${encodeURIComponent(seller.id)}&subdomain=${encodeURIComponent(seller.subdomain)}`)}
                       className="text-xs uppercase tracking-widest font-bold hover:brightness-125 transition-colors"
                       style={{ color: customizations.headerTextColor || '#9ca3af' }}
                     >
                       Login
                     </button>
                     <button
-                      onClick={() => navigate(`/register?role=customer&shop=${seller.id}`)}
+                      onClick={() => navigate(`/register?role=customer&shop=${encodeURIComponent(seller.id)}&subdomain=${encodeURIComponent(seller.subdomain)}`)}
                       className="px-4 py-2 text-[10px] uppercase tracking-widest font-bold transition-all"
                       style={{ 
                         backgroundColor: customizations.headerButtonBgColor || '#ffffff',

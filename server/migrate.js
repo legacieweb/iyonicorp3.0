@@ -143,6 +143,45 @@ async function migrate() {
       ALTER TABLE bots ADD COLUMN IF NOT EXISTS last_trained TIMESTAMP WITH TIME ZONE;
       ALTER TABLE bots ADD COLUMN IF NOT EXISTS deployments INTEGER DEFAULT 0;
       ALTER TABLE bots ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active';
+      ALTER TABLE bots ADD COLUMN IF NOT EXISTS configuration JSONB DEFAULT '{"description": "", "responseLength": "balanced", "language": "English", "instructions": "", "allowedKnowledge": ["business", "products", "policies", "faqs", "documents"], "permissions": {}, "enabledActions": [], "escalation": {"enabled": true, "afterRepeatedFailures": 2}, "welcomeMessage": "", "suggestedQuestions": []}'::JSONB;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_bots_one_active_per_category
+        ON bots (seller_id, type) WHERE status = 'active';
+
+      CREATE TABLE IF NOT EXISTS bot_knowledge_documents (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(), seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+        title VARCHAR(255) NOT NULL, document_type VARCHAR(50) NOT NULL DEFAULT 'text', source VARCHAR(100) NOT NULL DEFAULT 'seller',
+        source_url TEXT, content TEXT NOT NULL, metadata JSONB DEFAULT '{}'::JSONB, status VARCHAR(30) NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_bot_knowledge_documents_seller_created ON bot_knowledge_documents (seller_id, created_at DESC);
+      CREATE TABLE IF NOT EXISTS bot_faqs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(), seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+        question TEXT NOT NULL, answer TEXT NOT NULL, category VARCHAR(100), source VARCHAR(100) DEFAULT 'seller', status VARCHAR(30) NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_bot_faqs_seller_status ON bot_faqs (seller_id, status);
+      CREATE TABLE IF NOT EXISTS bot_conversations (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(), seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+        bot_id UUID REFERENCES bots(id) ON DELETE SET NULL, session_id VARCHAR(255), customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+        status VARCHAR(30) NOT NULL DEFAULT 'active', resolution_status VARCHAR(30) DEFAULT 'unresolved', metadata JSONB DEFAULT '{}'::JSONB,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_bot_conversations_seller_created ON bot_conversations (seller_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_bot_conversations_bot ON bot_conversations (bot_id);
+      CREATE TABLE IF NOT EXISTS bot_messages (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(), conversation_id UUID NOT NULL REFERENCES bot_conversations(id) ON DELETE CASCADE,
+        role VARCHAR(20) NOT NULL, content TEXT NOT NULL, sources JSONB DEFAULT '[]'::JSONB, tool_calls JSONB DEFAULT '[]'::JSONB,
+        metadata JSONB DEFAULT '{}'::JSONB, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_bot_messages_conversation_created ON bot_messages (conversation_id, created_at);
+      CREATE TABLE IF NOT EXISTS bot_knowledge_gaps (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(), seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+        bot_id UUID REFERENCES bots(id) ON DELETE SET NULL, question TEXT NOT NULL, frequency INTEGER NOT NULL DEFAULT 1,
+        last_asked_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, suggested_category VARCHAR(100), sample_response TEXT,
+        status VARCHAR(30) NOT NULL DEFAULT 'unresolved', created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, UNIQUE (seller_id, question)
+      );
+      CREATE INDEX IF NOT EXISTS idx_bot_knowledge_gaps_seller_status ON bot_knowledge_gaps (seller_id, status, frequency DESC);
 
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS currency VARCHAR(10) DEFAULT 'NGN';
 

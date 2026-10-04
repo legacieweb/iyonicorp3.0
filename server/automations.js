@@ -1,6 +1,5 @@
 import db from './db.js';
 import * as mailer from './mailer.js';
-import nodemailer from 'nodemailer';
 
 /**
  * Trigger an automation based on an event
@@ -33,61 +32,9 @@ export const triggerAutomation = async (event, data) => {
       fromEmail = settings.from_email;
       fromName = settings.from_name || 'Store';
 
-      // Create transporter based on provider
-      if (settings.provider === 'smtp') {
-        transporter = nodemailer.createTransport({
-          host: settings.smtp_host,
-          port: settings.smtp_port || 587,
-          secure: settings.smtp_port === 465,
-          auth: {
-            user: settings.smtp_user,
-            pass: settings.smtp_password
-          }
-        });
-      } else if (settings.provider === 'sendgrid') {
-        transporter = nodemailer.createTransport({
-          service: 'SendGrid',
-          auth: {
-            apiKey: settings.api_key
-          }
-        });
-      } else if (settings.provider === 'mailgun') {
-        transporter = nodemailer.createTransport({
-          service: 'Mailgun',
-          auth: {
-            apiKey: settings.api_key,
-            domain: settings.domain || 'mg.yourdomain.com'
-          }
-        });
-      } else if (settings.provider === 'aws-ses') {
-        transporter = nodemailer.createTransport({
-          host: `email.${settings.region}.amazonaws.com`,
-          port: 587,
-          secure: false,
-          auth: {
-            user: settings.access_key_id,
-            pass: settings.secret_access_key
-          }
-        });
-      } else if (settings.provider === 'brevo' || settings.provider === 'sendinblue') {
-        transporter = nodemailer.createTransport({
-          host: 'smtp-relay.brevo.com',
-          port: 587,
-          auth: {
-            user: settings.api_key,
-            pass: ''
-          }
-        });
-      } else if (settings.provider === 'postmark') {
-        transporter = nodemailer.createTransport({
-          host: 'smtp.postmarkapp.com',
-          port: 587,
-          auth: {
-            user: settings.api_key,
-            pass: settings.api_key
-          }
-        });
-      } else {
+      // Create transporter using shared helper from mailer module
+      transporter = mailer.createTransporterFromSettings(settings);
+      if (!transporter) {
         // Default to system mailer
         const { sendEmail } = await import('./mailer.js');
         transporter = { sendMail: sendEmail };

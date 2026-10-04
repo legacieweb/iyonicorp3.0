@@ -84,7 +84,8 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const reserved = ['www', 'localhost', 'web', 'api', 'admin', 'shop', 'store', 'app', ''];
     if (reserved.includes(subdomain.toLowerCase())) return false;
     if (subdomain.length < 2) return false;
-    if (!/^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/.test(subdomain)) return false;
+    // Existing stores may contain apostrophes from their generated store slug.
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9'_-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/.test(subdomain)) return false;
     return true;
   };
 
@@ -125,7 +126,7 @@ const shopSubdomain = (path.startsWith('/shop/')
           subdomain: seller.subdomain,
           shopType: seller.shopType || 'product',
           description: seller.description,
-          themeId: seller.themeId || seller.theme?.selectedTheme,
+          themeId: seller.themeId || seller.theme?.selectedTheme || 'modern-ecommerce',
           theme: seller.theme || {
             primaryColor: '#3b82f6',
             fontFamily: 'Inter'
@@ -140,7 +141,10 @@ const shopSubdomain = (path.startsWith('/shop/')
           logo: seller.logo,
           currency: seller.currency || 'USD',
           deliveryLocations: seller.deliveryLocations || [],
-          paymentTerms: seller.paymentTerms || { methods: ['site'], depositPercentage: 50, rules: 'all' }
+          paymentTerms: seller.paymentTerms || { methods: ['site'], depositPercentage: 50, rules: 'all' },
+          pricingConfig: seller.pricingConfig,
+          subscription: seller.subscription,
+          paymentGateways: seller.paymentGateways
         });
         setIsMainPlatform(false);
         setIsLoading(false);
@@ -174,13 +178,16 @@ const shopSubdomain = (path.startsWith('/shop/')
       if (queryTheme) {
         themeParam = queryTheme;
       }
+      const isAuraSalonPreview = themeParam.toLowerCase() === 'aura-salon';
       setIsMainPlatform(false);
-setTenant({
+      setTenant({
          id: 'demo-seller',
-         name: 'Demo Store',
+         name: isAuraSalonPreview ? 'Aura Salon theme preview' : 'Demo Store',
          subdomain: 'demo',
-         shopType: 'product',
-         description: 'Welcome to our demo store. This is a preview of our theme.',
+         shopType: isAuraSalonPreview ? 'service' : 'product',
+         description: isAuraSalonPreview
+           ? 'Theme preview only. Salon details and appointment requests appear when configured on a live store.'
+           : 'Welcome to our demo store. This is a preview of our theme.',
          themeId: themeParam,
          theme: { 
            selectedTheme: themeParam,
@@ -226,7 +233,7 @@ setTenant({
           subdomain: seller.subdomain,
           shopType: seller.shopType || 'product',
           description: seller.description,
-          themeId: seller.themeId || seller.theme?.selectedTheme,
+          themeId: seller.themeId || seller.theme?.selectedTheme || 'modern-ecommerce',
           theme: seller.theme || {
             primaryColor: '#3b82f6',
             fontFamily: 'Inter'
@@ -241,7 +248,10 @@ setTenant({
           logo: seller.logo,
           currency: seller.currency || 'USD',
           deliveryLocations: seller.deliveryLocations || [],
-          paymentTerms: seller.paymentTerms || { methods: ['site'], depositPercentage: 50, rules: 'all' }
+          paymentTerms: seller.paymentTerms || { methods: ['site'], depositPercentage: 50, rules: 'all' },
+          pricingConfig: seller.pricingConfig,
+          subscription: seller.subscription,
+          paymentGateways: seller.paymentGateways
         });
         setIsMainPlatform(false);
       } catch (error) {

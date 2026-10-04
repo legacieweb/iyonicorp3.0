@@ -3,7 +3,7 @@ import { MessageSquare, X, Send, Bot as BotIcon, Zap, Terminal } from 'lucide-re
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:2823/api';
 
 interface Message {
   id: string;
@@ -30,6 +30,7 @@ const BotWidget: React.FC<BotWidgetProps> = ({ bot }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsBotTyping] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const primaryColor = bot.widgetConfig?.primaryColor || '#3b82f6';
@@ -71,8 +72,12 @@ const BotWidget: React.FC<BotWidgetProps> = ({ bot }) => {
 
     try {
       const response = await axios.post(`${API_URL}/public/bots/${bot.id}/chat`, {
-        message: inputText
+        message: inputText,
+        conversationId,
+        sessionId: `widget-${bot.id}`
       });
+
+      if (response.data.conversationId) setConversationId(response.data.conversationId);
 
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import ThemeMedia from '../../../components/ThemeMedia';
 
 interface ThemeProps {
   seller: Seller;
@@ -170,7 +171,7 @@ const ModernWellness: React.FC<ThemeProps> = ({
             </nav>
           </div>
           <button 
-            onClick={() => navigate(user ? (user.role === 'customer' ? '/customer/dashboard' : '/seller/dashboard') : `/login?shop=${seller.id}`)}
+            onClick={() => navigate(user ? (user.role === 'customer' ? '/customer/dashboard' : '/seller/dashboard') : `/login?shop=${encodeURIComponent(seller.id)}&subdomain=${encodeURIComponent(seller.subdomain)}`)}
             className="px-8 py-3.5 bg-emerald-900/5 text-emerald-900 border border-emerald-900/20 rounded-full text-[10px] font-black uppercase tracking-widest hover:text-white transition-all"
             style={{ '--hover-bg': themePrimary } as any}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = themePrimary)}
@@ -284,7 +285,7 @@ const ModernWellness: React.FC<ThemeProps> = ({
                   </div>
                   <div className="relative">
                      <div className="aspect-[4/5] rounded-[4rem] overflow-hidden shadow-2xl">
-                        <img 
+                        <ThemeMedia 
                           src={customizations.heroImage || "https://images.unsplash.com/photo-1545208393-216c7addb00c?q=80&w=1974&auto=format&fit=crop"} 
                           className="w-full h-full object-cover scale-110 hover:scale-100 transition-transform duration-[3s]"
                           alt="Wellness"
@@ -428,7 +429,7 @@ const ModernWellness: React.FC<ThemeProps> = ({
                   </h3>
                   <div className="flex flex-col items-center">
                      <div className="w-20 h-20 rounded-full overflow-hidden mb-6 border-4 border-white shadow-xl relative group/avatar">
-                        <img src={customizations.testimonial_avatar || "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=2070&auto=format&fit=crop"} className="w-full h-full object-cover" />
+                                <ThemeMedia src={customizations.testimonial_avatar || "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=2070&auto=format&fit=crop"} alt="Testimonial" className="w-full h-full object-cover" />
                         {editMode && (
                           <button 
                             onClick={() => {

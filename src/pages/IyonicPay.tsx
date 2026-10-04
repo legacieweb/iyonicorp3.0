@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import { authAPI, api, sellersAPI, Seller } from '../services/api';
 import { formatPrice } from '../utils/currency';
 import { motion, AnimatePresence } from 'framer-motion';
+import ProductFooter from '../components/ProductFooter';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
@@ -40,12 +41,16 @@ import {
   Play,
   ArrowLeft,
   Palette,
-Menu,
+  Menu,
   Activity,
   RotateCcw,
   RefreshCw,
   Link2,
-  Check
+  Check,
+  Receipt,
+  Tag,
+  PiggyBank,
+  Star
 } from 'lucide-react';
 
 declare const PaystackPop: any;
@@ -61,6 +66,74 @@ declare global {
     };
   }
 }
+
+const SELLER_PLANS_LOCAL: Record<string, { price: number }> = {
+  starter: { price: 0 },
+  basic: { price: 15 },
+  professional: { price: 29 },
+  enterprise: { price: 99 }
+};
+
+const BOT_PLANS_LOCAL: Record<string, { name: string; price: number }> = {
+  starter: { name: 'Starter', price: 0 },
+  basic: { name: 'Basic', price: 2 },
+  pro: { name: 'Pro', price: 9.99 },
+  promax: { name: 'Pro Max', price: 29.99 }
+};
+
+const DEFAULT_BUNDLES: Record<string, any> = {
+  starter: { name: 'Starter Bundle', planIds: ['starter', 'starter'], basePrice: 0, description: 'Starter Shop + Starter Bots' },
+  growth: { name: 'Basic Bundle', planIds: ['basic', 'basic'], basePrice: 16, description: 'Basic Shop + Basic Bots' },
+  pro: { name: 'Professional Bundle', planIds: ['professional', 'pro'], basePrice: 34.99, description: 'Professional Shop + Pro Bots' },
+  enterprise: { name: 'Enterprise Bundle', planIds: ['enterprise', 'promax'], basePrice: 118.99, description: 'Enterprise Shop + Pro Max Bots' }
+};
+
+const DEFAULT_ADDONS: Record<string, any> = {
+  customDomain: { name: 'Custom Domain', price: 3, category: 'Brand', description: 'Connect your own domain to your store.' },
+  advancedAnalytics: { name: 'Advanced Analytics', price: 7, category: 'Growth', description: 'Track sales, conversion and customer trends.' },
+  premiumSupport: { name: 'Priority Support', price: 9, category: 'Support', description: 'Faster support response for your business.' },
+  apiAccess: { name: 'API Access', price: 8, category: 'Automation', description: 'Connect your tools to IyonicShop and IyonicBots.' },
+  whiteLabel: { name: 'White Label', price: 12, category: 'Brand', description: 'Remove Iyonicorp branding from your storefront.' }
+};
+
+const DEFAULT_DISCOUNTS: Record<string, any> = {
+  starter: { name: 'Starter', planIds: ['starter', 'starter'], basePrice: 0, discount: 0, finalPrice: 0 },
+  growth: { name: 'Basic', planIds: ['basic', 'basic'], basePrice: 17, discount: 1, finalPrice: 16 },
+  pro: { name: 'Professional', planIds: ['professional', 'pro'], basePrice: 38.99, discount: 4, finalPrice: 34.99 },
+  enterprise: { name: 'Enterprise', planIds: ['enterprise', 'promax'], basePrice: 128.99, discount: 10, finalPrice: 118.99 }
+};
+
+const computeTotalSubscriptionFee = (unifiedBilling: any, botBilling: any, sellerBilling: any): number => {
+  const shopPlans = (unifiedBilling?.shopPlans || sellerBilling?.plans || SELLER_PLANS_LOCAL);
+  const botPlans = unifiedBilling?.botPlans || botBilling?.plans || {};
+  const bundles = unifiedBilling?.bundles || DEFAULT_BUNDLES;
+  const addons = unifiedBilling?.addons || DEFAULT_ADDONS;
+  const discounts = unifiedBilling?.discounts || DEFAULT_DISCOUNTS;
+  const currentSub = unifiedBilling?.currentSubscription;
+  const shopPlan = currentSub?.shopPlan || sellerBilling?.subscription?.plan || 'starter';
+  const botPlan = currentSub?.botPlan || botBilling?.plan?.id || 'starter';
+  const bundleId = currentSub?.bundle;
+  const currentAddons: string[] = currentSub?.addons || sellerBilling?.subscription?.addons || [];
+
+  let total = 0;
+  if (bundleId && bundles[bundleId]) {
+    total += (discounts?.[bundleId]?.finalPrice || bundles[bundleId].basePrice) || 0;
+  } else {
+    total += Number(shopPlans[shopPlan]?.price || 0);
+    total += Number(botPlans[botPlan]?.price || botBilling?.plan?.price || 0);
+  }
+  currentAddons.forEach((a: string) => { total += Number(addons[a]?.price || 0); });
+  return total;
+};
+
+const getBundlePricing = (bundleId: string, bundle: any, discounts: Record<string, any>, shopPlans: Record<string, any>, botPlans: Record<string, any>) => {
+  const shopPrice = Number(shopPlans[bundle.planIds?.[0]]?.price || 0);
+  const botPrice = Number(botPlans[bundle.planIds?.[1]]?.price ?? BOT_PLANS_LOCAL[bundle.planIds?.[1]]?.price ?? 0);
+  const regularPrice = shopPrice + botPrice;
+  const finalPrice = Number(discounts?.[bundleId]?.finalPrice ?? bundle.basePrice ?? regularPrice);
+  const savings = Math.max(0, regularPrice - finalPrice);
+  return { regularPrice, finalPrice, savings, savingsPercent: regularPrice ? Math.round((savings / regularPrice) * 100) : 0 };
+};
 
 // Helper to convert DB rows (snake_case) to camelCase
 const toCamel = (obj: any): any => {
@@ -89,6 +162,700 @@ interface SidebarItem {
   badge?: string | number;
 }
 
+interface BillSectionProps {
+  billing: any;
+  onPayWithWallet: (planId: string) => Promise<void>;
+  onAutoRenewToggle: (enabled: boolean, planId: string) => Promise<void>;
+  platform: 'iyonicbots' | 'iyonicshop';
+  autoRenew: any;
+}
+
+interface BillPlatformCardProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  gradient: string;
+  currentPlan: string;
+  renewalDate: string;
+  autoRenewEnabled?: boolean;
+  onAutoRenewToggle?: () => void;
+  onClick: () => void;
+}
+
+const BillPlatformCard: React.FC<BillPlatformCardProps> = ({ icon, title, description, gradient, currentPlan, renewalDate, autoRenewEnabled, onAutoRenewToggle, onClick }) => {
+  const isOverdue = renewalDate !== 'N/A' && new Date(renewalDate) < new Date();
+  return (
+    <div
+      onClick={onClick}
+      className="rounded-[2.5rem] border-none bg-white shadow-xl cursor-pointer transition-all duration-300 hover:shadow-2xl group relative overflow-hidden h-full"
+    >
+      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-5 rounded-[2.5rem]`}></div>
+      <div className="relative p-8 flex flex-col h-full">
+        <div className="flex items-center gap-4 mb-4">
+          <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white`}>
+            {icon}
+          </div>
+          <h4 className="text-2xl font-black text-gray-900">{title}</h4>
+        </div>
+        <p className="text-sm text-gray-500 mb-6">{description}</p>
+        <div className="space-y-2 mt-auto">
+          <div className="flex justify-between">
+            <span className="text-xs font-bold text-gray-400 uppercase">Current Plan</span>
+            <span className="text-sm font-black text-gray-900">{currentPlan}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-xs font-bold text-gray-400 uppercase">Renewal</span>
+            <span className={`text-sm font-black ${isOverdue ? 'text-red-600' : 'text-gray-900'}`}>
+              {renewalDate}
+              {isOverdue && <Badge variant="danger" className="ml-2 text-[10px]">Overdue</Badge>}
+            </span>
+          </div>
+          {autoRenewEnabled && (
+            <div className="flex justify-between mt-2">
+              <span className="text-xs font-bold text-gray-400 uppercase">Auto-Renew</span>
+              <span className="text-xs font-black text-green-600">Enabled</span>
+            </div>
+          )}
+          {onAutoRenewToggle && (
+            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Wallet className="w-4 h-4 text-indigo-600" />
+                <span className="text-xs font-bold text-gray-700">Auto-renew with IyonicPay</span>
+              </label>
+              <button
+                type="button"
+                role="switch"
+                onClick={(e) => { e.stopPropagation(); onAutoRenewToggle(); }}
+                className={`relative inline-flex w-10 h-5 rounded-full transition-colors ${
+                  autoRenewEnabled ? 'bg-indigo-600' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                  autoRenewEnabled ? 'left-5' : 'left-0.5'
+                }`}></span>
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="mt-4 text-indigo-600 group-hover:text-indigo-800 transition-colors font-bold text-sm flex items-center gap-1">
+          <span>Manage subscription</span>
+          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface DiscountBundlesSectionProps {
+  bundles: Record<string, any>;
+  addons: Record<string, any>;
+  discounts: Record<string, any>;
+  shopPlans: Record<string, any>;
+  botPlans: Record<string, any>;
+  currentShopPlan: string;
+  currentBotPlan: string;
+  walletBalance: number;
+  walletCurrency: string;
+  onSubscribe: (bundleId: string, addons: string[]) => Promise<void>;
+}
+
+const DiscountBundlesSection: React.FC<DiscountBundlesSectionProps> = ({
+  bundles,
+  addons,
+  discounts,
+  shopPlans,
+  botPlans,
+  currentShopPlan,
+  currentBotPlan,
+  walletBalance,
+  walletCurrency,
+  onSubscribe
+}) => {
+  const [selectedBundle, setSelectedBundle] = useState<string | null>(null);
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const toggleAddon = (id: string) => {
+    setSelectedAddons(prev =>
+      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
+    );
+  };
+
+  const computeTotal = () => {
+    let total = 0;
+    if (selectedBundle && bundles[selectedBundle]) {
+      total += getBundlePricing(selectedBundle, bundles[selectedBundle], discounts, shopPlans, botPlans).finalPrice;
+    }
+    selectedAddons.forEach(id => {
+      if (addons[id]) total += addons[id].price;
+    });
+    return total;
+  };
+
+  const payBundle = async (bundleId: string) => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await onSubscribe(bundleId, []);
+      setSelectedBundle(null);
+      setSelectedAddons([]);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSubscribe = async () => {
+    if (!selectedBundle || isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await onSubscribe(selectedBundle, selectedAddons);
+      setSelectedBundle(null);
+      setSelectedAddons([]);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <Card className="rounded-[3rem] border-none p-8 shadow-2xl shadow-indigo-50/50">
+      <div className="flex items-center gap-4 mb-6">
+        <div className="w-14 h-14 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-3xl flex items-center justify-center">
+          <Tag className="w-7 h-7 text-indigo-600" />
+        </div>
+        <div>
+          <h3 className="text-2xl font-black text-gray-900">Discount Bundles</h3>
+          <p className="text-sm text-gray-500 mt-1">Pair the right Shop and Bots tier with one simple monthly payment.</p>
+        </div>
+      </div>
+
+      {/* Current subscription summary */}
+      <div className="mb-6 p-4 bg-gray-50 rounded-2xl border border-gray-200">
+        <div className="flex items-center gap-2 mb-2">
+          <PiggyBank className="w-4 h-4 text-indigo-600" />
+          <span className="text-xs font-bold text-gray-500 uppercase">Current Subscription</span>
+        </div>
+        <div className="flex flex-wrap gap-3 text-sm">
+          <span className="px-3 py-1 bg-white rounded-full border text-gray-700">Shop: <span className="font-black capitalize">{currentShopPlan}</span></span>
+          <span className="px-3 py-1 bg-white rounded-full border text-gray-700">Bots: <span className="font-black capitalize">{currentBotPlan}</span></span>
+        </div>
+      </div>
+
+      {/* Wallet balance */}
+      <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-indigo-600" />
+            <span className="text-xs font-bold text-gray-500 uppercase">IyonicPay Wallet Balance</span>
+          </div>
+          <span className="font-black text-gray-900">{walletBalance.toFixed(2)} {walletCurrency}</span>
+        </div>
+      </div>
+
+      {/* Bundles grid */}
+      <div className="mb-10">
+        <div className="flex items-end justify-between gap-4 mb-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">Platform plans</p>
+            <h4 className="text-xl font-black text-gray-900 mt-1">One monthly price. Both products.</h4>
+          </div>
+          <span className="hidden sm:block text-xs font-bold text-gray-400">Billed monthly from your wallet</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Object.entries(bundles).map(([id, bundle]) => {
+            const isSelected = selectedBundle === id;
+            const isCurrent = currentShopPlan === (bundle.planIds?.[0]) && currentBotPlan === (bundle.planIds?.[1]);
+            const pricing = getBundlePricing(id, bundle, discounts, shopPlans, botPlans);
+            const shopName = shopPlans[bundle.planIds?.[0]]?.name || bundle.planIds?.[0];
+            const botName = botPlans[bundle.planIds?.[1]]?.name || bundle.planIds?.[1];
+
+            return (
+              <div
+                key={id}
+                onClick={() => !isCurrent && setSelectedBundle(id)}
+                className={`relative p-5 rounded-2xl border cursor-pointer transition-all duration-200 flex flex-col ${
+                  isSelected
+                    ? 'border-indigo-600 bg-indigo-50/70 ring-2 ring-indigo-100'
+                    : 'border-gray-200 bg-white hover:border-indigo-200 hover:shadow-lg'
+                } ${isCurrent ? 'opacity-60' : ''}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h5 className="font-black text-gray-900 text-lg">{bundle.name}</h5>
+                    <p className="text-xs text-gray-500 mt-1">{shopName} + {botName}</p>
+                  </div>
+                  {pricing.savingsPercent > 0 && <Badge variant="success" className="text-[10px] py-1">-{pricing.savingsPercent}%</Badge>}
+                </div>
+                <div className="mt-5">
+                  <span className="text-3xl font-black text-gray-900">${pricing.finalPrice.toFixed(2)}</span>
+                  <span className="text-xs font-bold text-gray-400"> / month</span>
+                  {pricing.savings > 0 && <p className="text-xs text-gray-400 mt-1"><span className="line-through">${pricing.regularPrice.toFixed(2)}</span> <span className="text-emerald-600 font-bold">Save ${pricing.savings.toFixed(2)}</span></p>}
+                </div>
+                <p className="text-xs text-gray-500 mt-3 min-h-[32px]">{bundle.description}</p>
+                {isCurrent && (
+                  <Badge variant="outline" className="mt-3 w-fit text-xs">Current plan</Badge>
+                )}
+                {!isCurrent && <Button type="button" size="sm" fullWidth className="mt-5" leftIcon={<CreditCard className="w-4 h-4" />} disabled={isProcessing} onClick={(event) => { event.stopPropagation(); payBundle(id); }}>Pay bundle</Button>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Add-ons */}
+      <div className="mb-8">
+        <div className="flex items-end justify-between gap-4 mb-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-600">Optional extras</p>
+            <h4 className="text-xl font-black text-gray-900 mt-1">Build your monthly stack</h4>
+          </div>
+          <span className="text-xs font-bold text-gray-400">{selectedAddons.length} selected</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(addons).map(([id, addon]) => {
+            const isSelected = selectedAddons.includes(id);
+            return (
+              <div
+                key={id}
+                onClick={() => toggleAddon(id)}
+                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                  isSelected
+                    ? 'border-indigo-600 bg-indigo-50'
+                    : 'border-gray-200 hover:border-indigo-200'
+                }`}
+              >
+                <div className="flex justify-between items-start gap-3 mb-2">
+                  <div><span className="text-[10px] font-black uppercase tracking-wider text-gray-400">{addon.category || 'Platform'}</span><h6 className="font-black text-gray-900 mt-1">{addon.name}</h6></div>
+                  <span className="text-lg font-black text-gray-900">${Number(addon.price).toFixed(2)}<span className="text-[10px] text-gray-400"> / mo</span></span>
+                </div>
+                <p className="text-xs text-gray-500">{addon.description}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Checkout */}
+      {selectedBundle && (
+        <div className="border-t border-gray-200 pt-6">
+          <div className="flex items-center justify-between mb-6">
+            <span className="text-gray-600 font-medium">Total</span>
+            <span className="text-3xl font-black text-gray-900">${computeTotal().toFixed(2)}</span>
+          </div>
+          <Button
+            className="w-full rounded-3xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black py-4 shadow-xl"
+            leftIcon={isProcessing ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Wallet className="w-5 h-5" />}
+            disabled={isProcessing}
+            onClick={handleSubscribe}
+          >
+            {isProcessing ? 'Processing...' : `Pay $${computeTotal().toFixed(2)} with IyonicPay`}
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+};
+
+interface ActiveSubscriptionsSectionProps {
+  unifiedBilling: any;
+  botBilling: any;
+  sellerBilling: any;
+  autoRenewSettings: any;
+  onCancel: (platform?: string) => Promise<void>;
+  onAutoRenewToggle: (platform: 'iyonicbots' | 'iyonicshop', enabled: boolean, planId?: string) => Promise<void>;
+  onRefresh: () => void;
+}
+
+const ActiveSubscriptionsSection: React.FC<ActiveSubscriptionsSectionProps> = ({
+  unifiedBilling,
+  botBilling,
+  sellerBilling,
+  autoRenewSettings,
+  onCancel,
+  onAutoRenewToggle,
+  onRefresh
+}) => {
+  const currentSub = unifiedBilling?.currentSubscription;
+  const shopPlan = currentSub?.shopPlan || sellerBilling?.subscription?.plan || 'starter';
+  const botPlan = currentSub?.botPlan || botBilling?.plan?.id || 'starter';
+  const shopPlans = (unifiedBilling?.shopPlans || sellerBilling?.plans || SELLER_PLANS_LOCAL);
+  const botPlans = unifiedBilling?.botPlans || botBilling?.plans || {};
+  const addons = unifiedBilling?.addons || DEFAULT_ADDONS;
+  const currentAddons: string[] = currentSub?.addons || [];
+  const bundleId = currentSub?.bundle;
+  const bundles = unifiedBilling?.bundles || DEFAULT_BUNDLES;
+  const endDate = currentSub?.endDate || sellerBilling?.subscription?.endDate || null;
+
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'N/A';
+    try {
+      return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const subscriptions = [
+    {
+      id: 'shop',
+      title: 'IyonicShop Plan',
+      plan: shopPlan,
+      planName: shopPlans[shopPlan]?.name || shopPlan,
+      price: shopPlans[shopPlan]?.price || 0,
+      renewalDate: formatDate(endDate || ''),
+      autoRenew: autoRenewSettings?.autoRenew?.iyonicshop?.enabled || false,
+      platform: 'iyonicshop' as const
+    },
+    {
+      id: 'bots',
+      title: 'IyonicBots Plan',
+      plan: botPlan,
+      planName: botPlans[botPlan]?.name || botPlan,
+      price: botPlans[botPlan]?.price || botBilling?.plan?.price || 0,
+      renewalDate: formatDate(currentSub?.botPlanStartedAt || currentSub?.endDate || botBilling?.plan?.botPlanStartedAt || endDate || ''),
+      autoRenew: autoRenewSettings?.autoRenew?.iyonicbots?.enabled || false,
+      platform: 'iyonicbots' as const
+    }
+  ];
+
+  if (currentAddons.length > 0) {
+    subscriptions.push({
+      id: 'addons',
+      title: 'Bundle Add-ons',
+      plan: 'addons',
+      planName: currentAddons.map(a => addons[a]?.name || a).join(', '),
+      price: currentAddons.reduce((sum, a) => sum + (addons[a]?.price || 0), 0),
+      renewalDate: formatDate(endDate || ''),
+      autoRenew: bundleId ? true : false,
+      platform: 'iyonicshop' as const
+    });
+  }
+
+  if (bundleId && bundles[bundleId]) {
+    subscriptions.unshift({
+      id: 'bundle',
+      title: bundles[bundleId].name,
+      plan: bundleId,
+      planName: `${bundles[bundleId].name} (${bundles[bundleId].description})`,
+      price: (unifiedBilling?.discounts?.[bundleId]?.finalPrice || bundles[bundleId].basePrice) || 0,
+      renewalDate: formatDate(endDate || ''),
+      autoRenew: true,
+      platform: 'iyonicshop' as const
+    });
+  }
+
+  return (
+    <Card className="rounded-[2rem] border border-slate-200 bg-slate-50/70 p-5 sm:p-7 shadow-xl shadow-slate-200/50">
+      <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white"><LayoutDashboard className="h-5 w-5" /></div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">Control center</p>
+            <h3 className="text-2xl font-black text-slate-950">Active subscriptions</h3>
+            <p className="mt-1 text-sm text-slate-500">Manage plans, renewals, and bundle extras in one place.</p>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" onClick={onRefresh} className="w-fit">
+          <RefreshCw className="mr-2 h-4 w-4" /> Refresh status
+        </Button>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {subscriptions.map((sub) => (
+          <div key={sub.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h4 className="font-black text-slate-950">{sub.title}</h4>
+                <p className="mt-1 text-sm font-medium text-slate-500">{sub.planName}</p>
+              </div>
+              <Badge variant="success" className="text-xs">Active</Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-3 border-y border-slate-100 py-4 text-sm sm:grid-cols-3">
+                <div>
+                  <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Monthly price</span>
+                  <span className="font-black text-slate-950">${sub.price.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Renews</span>
+                  <span className="font-black text-slate-950">{sub.renewalDate}</span>
+                </div>
+                <div className="col-span-2 flex items-center gap-2 sm:col-span-1">
+                  <Wallet className="h-4 w-4 text-indigo-600" />
+                  <span className="text-xs font-bold text-slate-500">Auto-renew</span>
+                  <Badge variant={sub.autoRenew ? 'success' : 'warning'} className="py-0 text-[8px]">
+                    {sub.autoRenew ? 'ON' : 'OFF'}
+                  </Badge>
+                </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={() => onCancel(sub.platform)}
+                  className="flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition-all hover:bg-red-100"
+                >
+                  <X className="h-3 w-3" />
+                  Cancel
+                </button>
+                <button
+                  onClick={() => onAutoRenewToggle(sub.platform, !sub.autoRenew, sub.plan)}
+                  className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-600 transition-all hover:bg-indigo-100"
+                >
+                  {sub.autoRenew ? 'Disable' : 'Enable'} Auto-renew
+                </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+};
+
+const IyonicBotsBillSection: React.FC<BillSectionProps> = ({ billing, onPayWithWallet, onAutoRenewToggle, platform, autoRenew }) => {
+  if (!billing) return null;
+  const plans = billing.plans || {};
+  const currentPlan = billing.plan?.id;
+
+  return (
+    <Card className="rounded-[3xl] border-none shadow-2xl shadow-indigo-100/50 overflow-hidden">
+      <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 p-8 text-white">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center">
+            <Users className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <h4 className="text-3xl font-black">IyonicBots</h4>
+            <p className="text-indigo-200 font-medium">AI chatbot plans for your store</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-8 space-y-4">
+        {Object.entries(plans).map(([planId, plan]: [string, any]) => {
+          const isActive = currentPlan === planId;
+          const isFree = plan.price === 0;
+          const hasSubscription = currentPlan && currentPlan !== '';
+          const isResubscribing = hasSubscription && currentPlan !== planId;
+          const actionLabel = isFree
+            ? 'Included'
+            : isActive
+            ? 'Current Plan'
+            : (isResubscribing ? 'Change Plan' : 'Subscribe');
+
+          return (
+            <div
+              key={planId}
+              className={`p-6 rounded-3xl border-2 transition-all duration-200 ${
+                isActive
+                  ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-100'
+                  : 'border-gray-200 hover:border-indigo-200 hover:bg-gray-50/50'
+              }`}
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h5 className="font-black text-lg text-gray-900">{plan.name}</h5>
+                  {isResubscribing && (
+                    <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+                      Resubscribe
+                    </span>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className="text-3xl font-black text-gray-900">
+                    {isFree ? 'Free' : `$${plan.price.toFixed(2)}`}
+                  </span>
+                  {isFree && <span className="text-xs text-gray-400">/one-time</span>}
+                </div>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">{plan.description}</p>
+
+              {actionLabel === 'Subscribe' && !isFree && (
+                <Button
+                  className="w-full rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black py-3 shadow-lg shadow-indigo-200"
+                  leftIcon={<Wallet className="w-5 h-5" />}
+                  onClick={() => onPayWithWallet(planId)}
+                >
+                  Pay ${plan.price.toFixed(2)} with IyonicPay
+                </Button>
+              )}
+              {actionLabel === 'Change Plan' && !isFree && (
+                <Button
+                  className="w-full rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-black py-3 shadow-lg shadow-indigo-200"
+                  leftIcon={<Wallet className="w-5 h-5" />}
+                  onClick={() => onPayWithWallet(planId)}
+                >
+                  Switch to ${plan.price.toFixed(2)} with IyonicPay
+                </Button>
+              )}
+              {isActive && (
+                <Badge variant="success" className="mt-2">Active Plan</Badge>
+              )}
+              {actionLabel === 'Included' && (
+                <Badge variant="default" className="mt-2 bg-gray-100 text-gray-600">Included</Badge>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {billing.plan?.id && billing.plan.id !== 'starter' && (
+        <div className="mt-6 p-4 bg-gray-50 rounded-2xl border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-black text-gray-900 flex items-center gap-2">
+                Auto-renew with IyonicPay
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                Automatically renew this plan using your wallet balance before expiration.
+              </p>
+            </div>
+            <label className="relative inline-flex h-6 w-12 items-center rounded-full cursor-pointer transition-colors">
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={autoRenew?.[platform]?.enabled || false}
+                onChange={(e) => onAutoRenewToggle(e.target.checked, autoRenew?.[platform]?.plan || billing.plan.id)}
+              />
+              <span className={`inline-block h-6 w-12 rounded-full transition-colors ${
+                autoRenew?.[platform]?.enabled ? 'bg-indigo-600' : 'bg-gray-300'
+              }`}>
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                  autoRenew?.[platform]?.enabled ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </span>
+            </label>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+};
+
+const IyonicShopBillSection: React.FC<BillSectionProps> = ({ billing, onPayWithWallet, onAutoRenewToggle, platform, autoRenew }) => {
+  if (!billing) return null;
+  const plans = billing.plans || {};
+  const subscription = billing.subscription || { plan: 'starter', status: 'active' };
+
+  return (
+    <Card className="rounded-[3xl] border-none shadow-2xl shadow-amber-100/50 overflow-hidden">
+      <div className="bg-gradient-to-br from-amber-500 via-orange-500 to-amber-700 p-8 text-white">
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center">
+            <Store className="w-8 h-8 text-white" />
+          </div>
+          <div>
+            <h4 className="text-3xl font-black">IyonicShop</h4>
+            <p className="text-amber-200 font-medium">E-commerce store plans</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-8 space-y-4">
+        {Object.entries(plans).map(([planId, plan]: [string, any]) => {
+          const isActive = subscription.plan === planId;
+          const isFree = plan.price === 0;
+          const hasSubscription = subscription.plan && subscription.plan !== '';
+          const isResubscribing = hasSubscription && subscription.plan !== planId;
+          const actionLabel = isFree
+            ? 'Current'
+            : isActive
+            ? 'Current Plan'
+            : (isResubscribing ? 'Change Plan' : 'Subscribe');
+
+          return (
+            <div
+              key={planId}
+              className={`p-6 rounded-3xl border-2 transition-all duration-200 ${
+                isActive
+                  ? 'border-amber-600 bg-amber-50/50 ring-2 ring-amber-100'
+                  : 'border-gray-200 hover:border-amber-200 hover:bg-gray-50/50'
+              }`}
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h5 className="font-black text-lg text-gray-900">{plan.name}</h5>
+                  {isResubscribing && (
+                    <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+                      Resubscribe
+                    </span>
+                  )}
+                </div>
+                <div className="text-right">
+                  <span className="text-3xl font-black text-gray-900">
+                    {isFree ? 'Free' : `$${plan.price.toFixed(2)}`}
+                  </span>
+                  {isFree && <span className="text-xs text-gray-400">/month</span>}
+                </div>
+              </div>
+              <p className="text-sm text-gray-500 mb-4">{plan.description}</p>
+              <ul className="mb-4 space-y-1">
+                {plan.features?.map((f: string, i: number) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
+                    <CheckCircle2 className="w-3 h-3 text-green-500" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              {actionLabel === 'Subscribe' && !isFree && (
+                <Button
+                  className="w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black py-3 shadow-lg shadow-amber-200"
+                  leftIcon={<Wallet className="w-5 h-5" />}
+                  onClick={() => onPayWithWallet(planId)}
+                >
+                  Pay ${plan.price.toFixed(2)} with IyonicPay
+                </Button>
+              )}
+              {actionLabel === 'Change Plan' && !isFree && (
+                <Button
+                  className="w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-black py-3 shadow-lg shadow-amber-200"
+                  leftIcon={<Wallet className="w-5 h-5" />}
+                  onClick={() => onPayWithWallet(planId)}
+                >
+                  Switch to ${plan.price.toFixed(2)} with IyonicPay
+                </Button>
+              )}
+              {isActive && (
+                <Badge variant="success" className="mt-2">Active Plan</Badge>
+              )}
+              {(actionLabel === 'Current' || (isFree && !isActive)) && (
+                <Badge variant="default" className="mt-2 bg-gray-100 text-gray-600">Free Tier</Badge>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {subscription.plan && subscription.plan !== 'starter' && SELLER_PLANS_LOCAL[subscription.plan]?.price > 0 && (
+        <div className="mt-6 p-4 bg-gray-50 rounded-2xl border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-black text-gray-900 flex items-center gap-2">
+                Auto-renew with IyonicPay
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                Automatically renew this plan using your wallet balance before expiration.
+              </p>
+            </div>
+            <label className="relative inline-flex h-6 w-12 items-center rounded-full cursor-pointer transition-colors">
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={autoRenew?.[platform]?.enabled || false}
+                onChange={(e) => onAutoRenewToggle(e.target.checked, autoRenew?.[platform]?.plan || subscription.plan)}
+              />
+              <span className={`inline-block h-6 w-12 rounded-full transition-colors ${
+                autoRenew?.[platform]?.enabled ? 'bg-amber-600' : 'bg-gray-300'
+              }`}>
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                  autoRenew?.[platform]?.enabled ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </span>
+            </label>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+};
+
 const IyonicPay: React.FC = () => {
   const { user, login, register, setAuthenticatedUser, logout } = useAuth();
   const { showToast } = useToast();
@@ -99,8 +866,8 @@ const IyonicPay: React.FC = () => {
   
   // Dashboard states
   const initialTab = searchParams.get('tab') as any;
-   const validTabs = ['dashboard', 'transactions', 'invoices', 'withdrawals', 'api', 'refunds', 'cheques'];
-   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'invoices' | 'withdrawals' | 'api' | 'refunds' | 'cheques'>(
+  const validTabs = ['dashboard', 'transactions', 'invoices', 'withdrawals', 'api', 'refunds', 'cheques', 'my-bills'];
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'invoices' | 'withdrawals' | 'api' | 'refunds' | 'cheques' | 'my-bills'>(
      validTabs.includes(initialTab) ? initialTab : 'dashboard'
    );
 
@@ -168,7 +935,9 @@ const IyonicPay: React.FC = () => {
   const [depositAmount, setDepositAmount] = useState('');
   const [sendData, setSendData] = useState({ recipient: '', amount: '', description: '' });
   const [invoiceData, setInvoiceData] = useState({ amount: '', description: '', isReusable: false, usageLimit: '' });
-  const [withdrawData, setWithdrawData] = useState({ amount: '', bankName: '', accountNo: '', accountName: '' });
+  const [withdrawData, setWithdrawData] = useState({ amount: '', method: 'bank', country: '', bankName: '', accountNo: '', accountName: '', iban: '', swiftCode: '', routingNumber: '', sortCode: '', branchCode: '', bankAddress: '', walletProvider: '', walletNumber: '' });
+  const [hasSavedPayoutDetails, setHasSavedPayoutDetails] = useState(false);
+  const [lastWithdrawalDetails, setLastWithdrawalDetails] = useState<any | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [loadingRefunds, setLoadingRefunds] = useState(false);
   const [isOptingIn, setIsOptingIn] = useState(false);
@@ -191,6 +960,24 @@ const IyonicPay: React.FC = () => {
     customTitle: '',
     customButtonText: ''
   });
+  const [refundsError, setRefundsError] = useState('');
+  const [botBilling, setBotBilling] = useState<any>(null);
+  const [sellerBilling, setSellerBilling] = useState<any>(null);
+  const [billsLoading, setBillsLoading] = useState(false);
+  const [selectedBillPlatform, setSelectedBillPlatform] = useState<'iyonicbots' | 'iyonicshop' | null>(null);
+  const [unifiedBilling, setUnifiedBilling] = useState<any>(null);
+  const [selectedBundle, setSelectedBundle] = useState<string | null>(null);
+  const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+  const [autoRenewSettings, setAutoRenewSettings] = useState<any>(null);
+
+  const selectTab = (tab: 'dashboard' | 'transactions' | 'invoices' | 'withdrawals' | 'api' | 'refunds' | 'cheques' | 'my-bills') => {
+    // Customizer panels sit above the dashboard, so clear them before the next tab mounts.
+    setIsCustomizing(false);
+    setIsCustomizingGlobalTheme(false);
+    setPreviewTheme(null);
+    setSelectedInvoice(null);
+    setActiveTab(tab);
+  };
 
   // Auth forms
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
@@ -207,13 +994,15 @@ const IyonicPay: React.FC = () => {
     if (document.getElementById('iyonicpay-checkout-script')) return;
     const script = document.createElement('script');
     script.id = 'iyonicpay-checkout-script';
-    script.src = `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '')}/checkout.js`;
+    script.src = `${(import.meta.env.VITE_API_URL || 'http://localhost:2823/api').replace('/api', '')}/checkout.js`;
     script.async = true;
     document.body.appendChild(script);
   };
 
   useEffect(() => {
     if (user) {
+      const savedPayoutDetails = localStorage.getItem(`iyonicpay-payout-details-${user.id}`);
+      setHasSavedPayoutDetails(Boolean(savedPayoutDetails));
       if (user.iyonicpayOptIn) {
         setView('dashboard');
         fetchWalletData();
@@ -228,7 +1017,6 @@ const IyonicPay: React.FC = () => {
       if (user.role === 'seller' && user.sellerId) {
         sellersAPI.getMe().then(seller => {
           const currency = seller.currency || (seller as any).currencyCode || 'USD';
-          // Only set if not already set by wallet
           setSellerCurrency(prev => prev === 'USD' ? currency : prev);
         }).catch(() => {
           // Fallback handled by wallet fetch
@@ -236,6 +1024,36 @@ const IyonicPay: React.FC = () => {
       }
     }
   }, [user]);
+
+  const savePayoutDetails = () => {
+    if (!user) return;
+    const hasRequiredDetails = withdrawData.method === 'bank'
+      ? withdrawData.bankName.trim() && withdrawData.accountNo.trim() && withdrawData.accountName.trim()
+      : withdrawData.walletProvider.trim() && withdrawData.walletNumber.trim() && withdrawData.accountName.trim();
+    if (!hasRequiredDetails) {
+      setError(withdrawData.method === 'bank' ? 'Complete the bank details before saving them.' : 'Complete the mobile wallet details before saving them.');
+      return;
+    }
+    const { amount, ...payoutDetails } = withdrawData;
+    localStorage.setItem(`iyonicpay-payout-details-${user.id}`, JSON.stringify(payoutDetails));
+    setHasSavedPayoutDetails(true);
+    setSuccess('Payout details saved for next time.');
+    setTimeout(() => setSuccess(''), 3000);
+  };
+
+  const useSavedPayoutDetails = () => {
+    if (!user) return;
+    const saved = localStorage.getItem(`iyonicpay-payout-details-${user.id}`);
+    if (!saved) return;
+    try {
+      setWithdrawData(prev => ({ ...prev, ...JSON.parse(saved) }));
+      setError('');
+      setSuccess('Saved payout details loaded.');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch {
+      setError('Saved payout details could not be loaded.');
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'api') {
@@ -249,7 +1067,31 @@ const IyonicPay: React.FC = () => {
     if (activeTab === 'cheques') {
       fetchCheques();
     }
+
+    if (activeTab === 'my-bills' && user?.role === 'seller') {
+      fetchBillsData();
+    }
   }, [activeTab, user]);
+
+  const fetchBillsData = async () => {
+    setBillsLoading(true);
+    try {
+      const [botRes, sellerRes, autoRenewRes, unifiedRes] = await Promise.allSettled([
+        api.get('/bots/billing'),
+        api.get('/sellers/me/billing'),
+        api.get('/billing/auto-renew'),
+        sellersAPI.getUnifiedBilling()
+      ]);
+      if (botRes.status === 'fulfilled') setBotBilling(botRes.value.data);
+      if (sellerRes.status === 'fulfilled') setSellerBilling(sellerRes.value.data);
+      if (autoRenewRes.status === 'fulfilled') setAutoRenewSettings(autoRenewRes.value.data);
+      if (unifiedRes.status === 'fulfilled') setUnifiedBilling(unifiedRes.value.data);
+    } catch (err) {
+      console.error('Failed to fetch bills data:', err);
+    } finally {
+      setBillsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'api' && apiKey) {
@@ -377,9 +1219,6 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
       setWalletData(data);
       
       const currentCurrency = data.currency || 'USD';
-      if (data.currency) {
-        setSellerCurrency(currentCurrency);
-      }
       
       const transRes = await api.get('/iyonicpay/transactions/all');
       const transactionsData = toCamel(transRes.data);
@@ -481,11 +1320,13 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
 
   const fetchRefundRequests = async () => {
     setLoadingRefunds(true);
+    setRefundsError('');
     try {
       const res = await api.get('/iyonicpay/refunds');
       setRefundRequests(toCamel(res.data));
     } catch (err: any) {
       console.error('Failed to fetch refund requests:', err);
+      setRefundsError(err.response?.data?.message || 'We could not load refund requests. Please try again.');
     } finally {
       setLoadingRefunds(false);
     }
@@ -656,7 +1497,7 @@ const convertAmount = (amount: number, fromCurrency: string, toCurrency: string)
       setSuccess('Invoice generated!');
       setIsInvoiceModalOpen(false);
       setInvoiceData({ amount: '', description: '', isReusable: false, usageLimit: '' });
-      setActiveTab('invoices');
+      selectTab('invoices');
       fetchWalletData();
       fetchInvoices();
       setTimeout(() => setSuccess(''), 3000);
@@ -706,15 +1547,18 @@ const handleWithdraw = async (e: React.FormEvent) => {
         setLoading(false);
         return;
       }
-      const availableBalance = cashflow.income - cashflow.expense;
-      const availableInSellerCurrency = convertAmount(availableBalance, 'USD', sellerCurrency);
+      const walletBalance = Number(walletData?.balance || 0);
+      const walletCurrency = walletData?.currency || sellerCurrency;
+      const availableInSellerCurrency = convertAmount(walletBalance, walletCurrency, sellerCurrency);
       if (amount > availableInSellerCurrency) {
-        setError('Insufficient funds');
+        setError(`Insufficient funds. Available balance: ${formatPrice(availableInSellerCurrency, sellerCurrency)}`);
         setLoading(false);
         return;
       }
-      if (!withdrawData.bankName.trim() || !withdrawData.accountNo.trim() || !withdrawData.accountName.trim()) {
-        setError('Please fill in all bank details');
+      const hasBankDetails = withdrawData.bankName.trim() && withdrawData.accountNo.trim() && withdrawData.accountName.trim();
+      const hasWalletDetails = withdrawData.walletProvider.trim() && withdrawData.walletNumber.trim() && withdrawData.accountName.trim();
+      if (withdrawData.method === 'bank' ? !hasBankDetails : !hasWalletDetails) {
+        setError(withdrawData.method === 'bank' ? 'Please fill in the bank name, account number, and account name' : 'Please fill in the mobile wallet provider, wallet number, and account name');
         setLoading(false);
         return;
       }
@@ -724,12 +1568,33 @@ const handleWithdraw = async (e: React.FormEvent) => {
         bankDetails: {
           bankName: withdrawData.bankName.trim(),
           accountNo: withdrawData.accountNo.trim(),
-          accountName: withdrawData.accountName.trim()
+          accountName: withdrawData.accountName.trim(),
+          method: withdrawData.method,
+          country: withdrawData.country,
+          iban: withdrawData.iban,
+          swiftCode: withdrawData.swiftCode,
+          routingNumber: withdrawData.routingNumber,
+          sortCode: withdrawData.sortCode,
+          branchCode: withdrawData.branchCode,
+          bankAddress: withdrawData.bankAddress,
+          walletProvider: withdrawData.walletProvider,
+          walletNumber: withdrawData.walletNumber
         }
       });
-      setSuccess('Withdrawal request submitted!');
+      const payoutSnapshot = {
+        ...withdrawData,
+        amount: undefined,
+        processedAt: new Date().toISOString()
+      };
+      const { amount: _ignoredAmount, ...savedPayoutDetails } = payoutSnapshot;
+      if (user) {
+        localStorage.setItem(`iyonicpay-payout-details-${user.id}`, JSON.stringify(savedPayoutDetails));
+      }
+      setHasSavedPayoutDetails(true);
+      setLastWithdrawalDetails(payoutSnapshot);
+      setSuccess('Withdrawal request submitted and payout details saved for next time.');
       setIsWithdrawModalOpen(false);
-      setWithdrawData({ amount: '', bankName: '', accountNo: '', accountName: '' });
+      setWithdrawData(prev => ({ ...prev, amount: '' }));
       fetchWalletData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err: any) {
@@ -903,11 +1768,12 @@ const handleWithdraw = async (e: React.FormEvent) => {
   const exportToCSV = () => {
     if (transactions.length === 0) return;
     
-    const headers = ['ID', 'Type', 'Amount', 'Date', 'Status', 'Description'];
+    const headers = ['ID', 'Type', 'Amount (USD)', 'Amount (' + sellerCurrency + ')', 'Date', 'Status', 'Description'];
     const rows = transactions.map(t => [
       t.id,
       getTransactionLabel(t),
       `${t.receiverWalletId === walletData?.id ? '+' : '-'}${formatPrice(convertAmount(Number(t.amount), t.currency || sellerCurrency, 'USD'), 'USD')}`,
+      `${t.receiverWalletId === walletData?.id ? '+' : '-'}${formatPrice(Number(t.amount), t.currency || sellerCurrency)}`,
       new Date(t.createdAt).toLocaleString(),
       t.status,
       t.description || ''
@@ -928,6 +1794,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
     const doc = new jsPDF() as any;
     const label = getTransactionLabel(t);
     const amount = `${t.receiverWalletId === walletData?.id ? '+' : '-'}${formatPrice(convertAmount(Number(t.amount), t.currency || sellerCurrency, 'USD'), 'USD')}`;
+    const amountLocal = `${t.receiverWalletId === walletData?.id ? '+' : '-'}${formatPrice(Number(t.amount), t.currency || sellerCurrency)}`;
     
     // Header
     doc.setFillColor(79, 70, 229); // Indigo 600
@@ -966,6 +1833,11 @@ const handleWithdraw = async (e: React.FormEvent) => {
     const isReceiver = t.receiverWalletId === walletData?.id;
     doc.setTextColor(isReceiver ? 16 : 31, isReceiver ? 185 : 41, isReceiver ? 129 : 55);
     doc.text(amount, 120, 97);
+    if ((t.currency || sellerCurrency) !== 'USD') {
+      doc.setFontSize(10);
+      doc.setTextColor(156, 163, 175);
+      doc.text(amountLocal, 120, 103);
+    }
     
     doc.setTextColor(156, 163, 175);
     doc.setFontSize(10);
@@ -1473,6 +2345,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
       { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
       { id: 'transactions', label: 'Transactions', icon: <History className="w-5 h-5" /> },
       { id: 'cheques', label: 'Cheques', icon: <Banknote className="w-5 h-5" /> },
+       { id: 'my-bills', label: 'My Bills', icon: <Receipt className="w-5 h-5" /> },
        ...(user?.role === 'seller' ? [
          { id: 'invoices', label: 'Payment Links', icon: <CreditCard className="w-5 h-5" /> },
          { 
@@ -1522,7 +2395,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
               <button
                 key={item.id}
                 onClick={() => {
-                  setActiveTab(item.id as any);
+                  selectTab(item.id as 'dashboard' | 'transactions' | 'invoices' | 'withdrawals' | 'api' | 'refunds' | 'cheques');
                   setIsSidebarOpen(false);
                 }}
                 className={`w-full flex items-center space-x-3 px-4 py-3.5 rounded-2xl transition-all duration-200 group ${
@@ -1639,15 +2512,17 @@ const handleWithdraw = async (e: React.FormEvent) => {
                       <div className="relative z-10 flex flex-col h-full">
                         <div className="flex justify-between items-start mb-12">
                           <div>
-                            <p className="text-gray-400 text-xs font-black uppercase tracking-[0.2em] mb-3">Available Balance</p>
-                             <div className="flex items-baseline space-x-4">
-                               <h2 className="text-6xl font-black tracking-tighter">{formatPrice(cashflow.income - cashflow.expense, 'USD')}</h2>
-                               {sellerCurrency !== 'USD' && (
-                                 <span className="text-2xl font-bold text-gray-500 opacity-60">
-                                   ≈ {formatPrice((cashflow.income - cashflow.expense) * (EXCHANGE_RATES[sellerCurrency] || 1), sellerCurrency)}
-                                 </span>
-                               )}
-                             </div>
+                             <p className="text-gray-400 text-xs font-black uppercase tracking-[0.2em] mb-3">Available Balance</p>
+                              <div className="flex items-baseline space-x-4">
+                                <h2 className="text-6xl font-black tracking-tighter">
+                                  {formatPrice(convertAmount(Number(walletData?.balance || 0), walletData?.currency || 'USD', 'USD'), 'USD')}
+                                </h2>
+                                {sellerCurrency !== 'USD' && (
+                                  <span className="text-2xl font-bold text-gray-500 opacity-60">
+                                    ≈ {formatPrice(convertAmount(Number(walletData?.balance || 0), walletData?.currency || 'USD', sellerCurrency), sellerCurrency)}
+                                  </span>
+                                )}
+                              </div>
                           </div>
                           <div className="w-16 h-10 bg-white/10 backdrop-blur-md rounded-xl border border-white/20 flex items-center justify-center">
                             <Wallet className="w-6 h-6" />
@@ -1730,7 +2605,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                     <div className="flex justify-between items-center">
                       <h3 className="text-2xl font-black text-gray-900">Recent Activity</h3>
                       <button 
-                        onClick={() => setActiveTab('transactions')}
+                        onClick={() => selectTab('transactions')}
                         className="text-indigo-600 font-black text-sm hover:underline flex items-center space-x-1"
                       >
                         <span>View Records</span>
@@ -1767,23 +2642,23 @@ const handleWithdraw = async (e: React.FormEvent) => {
                                 <span>•</span>
                                 <span className="uppercase">{t.status}</span>
                               </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className={`text-xl font-black ${
-                              t.receiverWalletId === walletData?.id
-                                ? 'text-green-600' 
-                                : 'text-gray-900'
-                            }`}>
-                              {t.receiverWalletId === walletData?.id ? '+' : '-'}{formatPrice(Number(t.amount), t.currency || sellerCurrency)}
-                            </p>
-                            {(t.currency || sellerCurrency) === 'KES' && (
-                              <p className="text-[10px] text-gray-400 font-bold mt-0.5">
-                                ≈ ${ (Number(t.amount) / 125).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </p>
-                            )}
-                            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Confirmed</p>
-                          </div>
+                             </div>
+                           </div>
+                           <div className="text-right">
+                             <p className={`text-xl font-black ${
+                               t.receiverWalletId === walletData?.id
+                                 ? 'text-green-600' 
+                                 : 'text-gray-900'
+                             }`}>
+                               {t.receiverWalletId === walletData?.id ? '+' : '-'}{formatPrice(Number(t.amount), t.currency || sellerCurrency)}
+                             </p>
+                             {(t.currency || sellerCurrency) !== 'USD' && (
+                               <p className="text-[10px] text-gray-400 font-bold mt-0.5">
+                                 ≈ {formatPrice(convertAmount(Number(t.amount), t.currency || sellerCurrency, 'USD'), 'USD')}
+                               </p>
+                             )}
+                             <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mt-1">Confirmed</p>
+                           </div>
                         </motion.div>
                       )) : (
                         <div className="py-20 bg-white rounded-[3rem] border border-dashed border-gray-200 flex flex-col items-center justify-center text-center">
@@ -1856,10 +2731,17 @@ const handleWithdraw = async (e: React.FormEvent) => {
                             </td>
                             <td className="py-6 font-mono text-xs text-gray-500 uppercase tracking-tighter">{t.id.slice(0, 8)}...</td>
 <td className={`py-6 font-black ${
-                                              t.receiverWalletId === walletData?.id
-                                                ? 'text-green-600' : 'text-gray-900'
-                                            }`}>
-                                            {t.receiverWalletId === walletData?.id ? '+' : '-'}{formatPrice(convertAmount(Number(t.amount), t.currency || sellerCurrency, 'USD'), 'USD')}
+                                            t.receiverWalletId === walletData?.id
+                                              ? 'text-green-600' : 'text-gray-900'
+}` }>
+                                            <div className="flex flex-col items-start">
+                                              <span>{t.receiverWalletId === walletData?.id ? '+' : '-'}{formatPrice(convertAmount(Number(t.amount), t.currency || sellerCurrency, 'USD'), 'USD')}</span>
+                                              {(t.currency || sellerCurrency) !== 'USD' && (
+                                                <span className="text-xs text-gray-500 font-medium">
+                                                  ≈ {formatPrice(Number(t.amount), t.currency || sellerCurrency)}
+                                                </span>
+                                              )}
+                                            </div>
                                           </td>
                             <td className="py-6 text-sm text-gray-500 font-medium">{t.createdAt ? new Date(t.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}</td>
                             <td className="py-6">
@@ -2020,6 +2902,49 @@ const handleWithdraw = async (e: React.FormEvent) => {
                 </motion.div>
               )}
 
+              {activeTab === 'refunds' && (
+                <motion.section
+                  key="refunds"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-8"
+                  aria-labelledby="refunds-heading"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-orange-600">Payment operations</p>
+                      <h2 id="refunds-heading" className="mt-2 text-3xl font-black tracking-tight text-gray-900">Refund requests</h2>
+                      <p className="mt-2 font-medium text-gray-500">Review customer requests and keep every resolution on record.</p>
+                    </div>
+                    <button type="button" onClick={fetchRefundRequests} disabled={loadingRefunds} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-orange-100 bg-white px-5 py-3 text-sm font-black text-orange-700 transition-colors hover:bg-orange-50 focus:outline-none focus:ring-4 focus:ring-orange-100 disabled:cursor-not-allowed disabled:opacity-60">
+                      <RefreshCw className={`h-4 w-4 ${loadingRefunds ? 'animate-spin' : ''}`} /> Refresh
+                    </button>
+                  </div>
+
+                  {refundsError ? (
+                    <div className="rounded-[2rem] border border-red-100 bg-red-50 p-8 text-center">
+                      <AlertCircle className="mx-auto mb-4 h-10 w-10 text-red-500" />
+                      <h3 className="text-xl font-black text-red-950">Refunds are temporarily unavailable</h3>
+                      <p className="mx-auto mt-2 max-w-md font-medium text-red-800/70">{refundsError}</p>
+                      <button type="button" onClick={fetchRefundRequests} className="mt-6 rounded-xl bg-red-600 px-5 py-3 text-sm font-black text-white hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-200">Try again</button>
+                    </div>
+                  ) : loadingRefunds ? (
+                    <div className="rounded-[2.5rem] border border-gray-100 bg-white px-8 py-24 text-center shadow-sm"><RefreshCw className="mx-auto h-9 w-9 animate-spin text-orange-500" /><p className="mt-5 font-bold text-gray-500">Loading refund requests…</p></div>
+                  ) : refundRequests.length === 0 ? (
+                    <div className="rounded-[2.5rem] border-2 border-dashed border-orange-100 bg-orange-50/40 px-8 py-24 text-center"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-orange-500 shadow-sm"><RotateCcw className="h-7 w-7" /></div><h3 className="mt-6 text-xl font-black text-gray-900">No refund requests</h3><p className="mx-auto mt-2 max-w-md font-medium text-gray-500">New customer refund requests will appear here for review.</p></div>
+                  ) : (
+                    <div className="overflow-hidden rounded-[2.5rem] border border-gray-100 bg-white shadow-sm"><div className="overflow-x-auto"><table className="min-w-[760px] w-full text-left"><thead className="border-b border-gray-100 bg-gray-50/70 text-[10px] font-black uppercase tracking-[0.18em] text-gray-400"><tr><th className="px-7 py-5">Request</th><th className="px-5 py-5">Customer</th><th className="px-5 py-5">Amount</th><th className="px-5 py-5">Reason</th><th className="px-5 py-5">Status</th><th className="px-7 py-5 text-right">Action</th></tr></thead><tbody className="divide-y divide-gray-50">
+                      {refundRequests.map((refund) => {
+                        const status = String(refund.status || 'pending').toLowerCase();
+                        const statusClass = status === 'pending' ? 'bg-amber-50 text-amber-700' : status === 'approved' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700';
+                        return <tr key={refund.id} className="group transition-colors hover:bg-orange-50/30"><td className="px-7 py-6"><p className="font-mono text-sm font-bold text-gray-800">#{String(refund.orderId || refund.invoiceId || refund.id).slice(0, 8)}</p><p className="mt-1 text-xs font-medium text-gray-400">{refund.createdAt ? new Date(refund.createdAt).toLocaleDateString() : 'Recently submitted'}</p></td><td className="px-5 py-6"><p className="font-bold text-gray-900">{refund.customerName || 'Guest customer'}</p><p className="mt-1 text-xs text-gray-500">{refund.customerEmail || 'No email provided'}</p></td><td className="px-5 py-6 font-black text-gray-900">{formatPrice(Number(refund.amount || 0), refund.currency || sellerCurrency)}</td><td className="max-w-[230px] px-5 py-6 text-sm font-medium text-gray-500"><p className="truncate" title={refund.reason}>{refund.reason || 'No reason provided'}</p></td><td className="px-5 py-6"><span className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${statusClass}`}>{status}</span></td><td className="px-7 py-6 text-right">{status === 'pending' ? <div className="flex justify-end gap-2"><button type="button" onClick={() => setRefundActionData({ id: refund.id, action: 'approve' })} className="rounded-xl bg-gray-900 px-4 py-2.5 text-xs font-black text-white transition-colors hover:bg-emerald-600 focus:outline-none focus:ring-4 focus:ring-emerald-100">Approve</button><button type="button" onClick={() => setRefundActionData({ id: refund.id, action: 'reject' })} className="rounded-xl border border-red-100 px-4 py-2.5 text-xs font-black text-red-600 transition-colors hover:bg-red-50 focus:outline-none focus:ring-4 focus:ring-red-100">Reject</button></div> : <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Processed</span>}</td></tr>;
+                      })}
+                    </tbody></table></div></div>
+                  )}
+                </motion.section>
+              )}
+
               {activeTab === 'withdrawals' && (
                 <motion.div
                   key="withdrawals"
@@ -2031,21 +2956,81 @@ const handleWithdraw = async (e: React.FormEvent) => {
                     <div className="relative z-10">
                       <h3 className="text-3xl font-black text-gray-900 mb-4">Request Withdrawal</h3>
                       <p className="text-gray-500 font-medium mb-12">Submit your details to withdraw funds to your local bank account.</p>
+                      <div className="flex flex-wrap gap-3 mb-8">
+                        {hasSavedPayoutDetails && (
+                          <button type="button" onClick={useSavedPayoutDetails} className="rounded-2xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-sm font-bold text-indigo-700 hover:bg-indigo-100">Use saved payout details</button>
+                        )}
+                        <button type="button" onClick={savePayoutDetails} className="rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50">Save details for next time</button>
+                      </div>
+
+                      {lastWithdrawalDetails && (
+                        <div className="mb-8 rounded-[2rem] border border-emerald-100 bg-emerald-50 p-6">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Saved after last withdrawal</p>
+                              <h4 className="mt-2 text-lg font-black text-emerald-950">Your payout details are ready next time</h4>
+                            </div>
+                            <CheckCircle2 className="h-6 w-6 flex-shrink-0 text-emerald-600" />
+                          </div>
+                          <div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                            <p><span className="font-bold text-emerald-900">Method:</span> {lastWithdrawalDetails.method === 'mobile_wallet' ? 'Mobile wallet' : 'Bank transfer'}</p>
+                            <p><span className="font-bold text-emerald-900">Country:</span> {lastWithdrawalDetails.country || 'Not specified'}</p>
+                            <p><span className="font-bold text-emerald-900">Provider:</span> {lastWithdrawalDetails.method === 'mobile_wallet' ? lastWithdrawalDetails.walletProvider : lastWithdrawalDetails.bankName}</p>
+                            <p><span className="font-bold text-emerald-900">Account:</span> {String(lastWithdrawalDetails.method === 'mobile_wallet' ? lastWithdrawalDetails.walletNumber : lastWithdrawalDetails.accountNo).replace(/.(?=.{4})/g, '*')}</p>
+                          </div>
+                        </div>
+                      )}
                       
                       <form onSubmit={handleWithdraw} className="space-y-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Withdrawal Amount ({sellerCurrency})</label>
-                            <input 
-                              type="number" 
-                              step="0.01" 
-                              placeholder="0.00" 
-                              value={withdrawData.amount}
-                              onChange={(e) => setWithdrawData({...withdrawData, amount: e.target.value})}
-                              className="w-full bg-gray-50 border-0 rounded-[2rem] px-8 py-5 text-gray-900 font-black focus:ring-4 ring-indigo-50 transition-all placeholder:text-gray-300"
-                              required
-                            />
+                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Withdrawal Amount ({sellerCurrency})</label>
+                             <input 
+                               type="number" 
+                               step="0.01" 
+                               placeholder="0.00" 
+                               value={withdrawData.amount}
+                               onChange={(e) => setWithdrawData({...withdrawData, amount: e.target.value})}
+                               className="w-full bg-gray-50 border-0 rounded-[2rem] px-8 py-5 text-gray-900 font-black focus:ring-4 ring-indigo-50 transition-all placeholder:text-gray-300"
+                               required
+                             />
+                             {withdrawData.amount && !isNaN(parseFloat(withdrawData.amount)) && sellerCurrency !== 'USD' && (
+                               <p className="text-xs text-gray-500 mt-2">
+                                 ≈ {formatPrice(convertAmount(parseFloat(withdrawData.amount), sellerCurrency, 'USD'), 'USD')} USD
+                               </p>
+                             )}
                           </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Payout Method</label>
+                            <select value={withdrawData.method} onChange={(e) => setWithdrawData({...withdrawData, method: e.target.value})} className="w-full bg-gray-50 border-0 rounded-[2rem] px-8 py-5 text-gray-900 font-bold focus:ring-4 ring-indigo-50">
+                              <option value="bank">Bank transfer</option>
+                              <option value="mobile_wallet">Mobile wallet</option>
+                            </select>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Country</label>
+                            <input type="text" placeholder="Country of payout" value={withdrawData.country} onChange={(e) => setWithdrawData({...withdrawData, country: e.target.value})} className="w-full bg-gray-50 border-0 rounded-[2rem] px-8 py-5 text-gray-900 font-bold focus:ring-4 ring-indigo-50" required />
+                          </div>
+                          {withdrawData.method === 'mobile_wallet' ? (
+                            <>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Mobile Wallet</label>
+                                <select value={withdrawData.walletProvider} onChange={(e) => setWithdrawData({...withdrawData, walletProvider: e.target.value})} className="w-full bg-gray-50 border-0 rounded-[2rem] px-8 py-5 text-gray-900 font-bold focus:ring-4 ring-indigo-50" required>
+                                  <option value="">Select wallet provider</option>
+                                  <option>M-Pesa</option><option>MTN MoMo</option><option>Airtel Money</option><option>Orange Money</option><option>Vodafone Cash</option><option>GCash</option><option>PayMaya</option><option> bKash</option><option>JazzCash</option><option>Paytm</option><option>UPI</option><option>Mercado Pago</option><option>PIX</option>
+                                </select>
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Wallet Number</label>
+                                <input type="text" placeholder="Wallet phone or account number" value={withdrawData.walletNumber} onChange={(e) => setWithdrawData({...withdrawData, walletNumber: e.target.value})} className="w-full bg-gray-50 border-0 rounded-[2rem] px-8 py-5 text-gray-900 font-bold focus:ring-4 ring-indigo-50" required />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Beneficiary Name</label>
+                                <input type="text" placeholder="Full legal name" value={withdrawData.accountName} onChange={(e) => setWithdrawData({...withdrawData, accountName: e.target.value})} className="w-full bg-gray-50 border-0 rounded-[2rem] px-8 py-5 text-gray-900 font-bold focus:ring-4 ring-indigo-50" required />
+                              </div>
+                            </>
+                          ) : (
+                            <>
                           <div className="space-y-2">
                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Bank Name</label>
                             <input 
@@ -2079,6 +3064,12 @@ const handleWithdraw = async (e: React.FormEvent) => {
                               required
                             />
                           </div>
+                          <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">IBAN</label><input type="text" placeholder="Optional IBAN" value={withdrawData.iban} onChange={(e) => setWithdrawData({...withdrawData, iban: e.target.value})} className="w-full bg-gray-50 border-0 rounded-[2rem] px-8 py-5 text-gray-900 font-bold focus:ring-4 ring-indigo-50" /></div>
+                          <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">SWIFT / BIC</label><input type="text" placeholder="Optional SWIFT or BIC" value={withdrawData.swiftCode} onChange={(e) => setWithdrawData({...withdrawData, swiftCode: e.target.value})} className="w-full bg-gray-50 border-0 rounded-[2rem] px-8 py-5 text-gray-900 font-bold focus:ring-4 ring-indigo-50" /></div>
+                          <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Routing / Sort Code</label><input type="text" placeholder="Optional local routing code" value={withdrawData.routingNumber} onChange={(e) => setWithdrawData({...withdrawData, routingNumber: e.target.value})} className="w-full bg-gray-50 border-0 rounded-[2rem] px-8 py-5 text-gray-900 font-bold focus:ring-4 ring-indigo-50" /></div>
+                          <div className="space-y-2"><label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 ml-4">Bank Address</label><input type="text" placeholder="Optional branch or bank address" value={withdrawData.bankAddress} onChange={(e) => setWithdrawData({...withdrawData, bankAddress: e.target.value})} className="w-full bg-gray-50 border-0 rounded-[2rem] px-8 py-5 text-gray-900 font-bold focus:ring-4 ring-indigo-50" /></div>
+                            </>
+                          )}
                         </div>
 
                         <div className="bg-indigo-50 p-6 rounded-[2rem] flex items-start space-x-4 border border-indigo-100/50">
@@ -2104,7 +3095,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                 </motion.div>
                )}
 
-              {activeTab === 'cheques' && (
+               {activeTab === 'cheques' && (
                 <motion.div
                   key="cheques"
                   initial={{ opacity: 0, x: 20 }}
@@ -2112,6 +3103,262 @@ const handleWithdraw = async (e: React.FormEvent) => {
                   exit={{ opacity: 0, x: -20 }}
                 >
                   {renderCheques()}
+                </motion.div>
+              )}
+
+               {activeTab === 'my-bills' && (
+                 <motion.div
+                   key="my-bills"
+                   initial={{ opacity: 0, x: 20 }}
+                   animate={{ opacity: 1, x: 0 }}
+                   exit={{ opacity: 0, x: -20 }}
+                   className="space-y-8"
+                 >
+                   {billsLoading ? (
+                     <div className="flex items-center justify-center py-20">
+                       <RefreshCw className="w-8 h-8 animate-spin text-indigo-600" />
+                       <span className="ml-4 text-gray-500 font-medium">Loading your bills...</span>
+                     </div>
+                    ) : !selectedBillPlatform ? (
+                      <div className="space-y-6">
+                       <div className="flex justify-between items-center">
+                         <h3 className="text-3xl font-black text-gray-900 flex items-center gap-3">
+                           <Receipt className="w-8 h-8 text-indigo-600" />
+                           My Bills Dashboard
+                         </h3>
+                         <Button onClick={fetchBillsData} variant="outline" className="flex items-center gap-2">
+                           <RefreshCw className="w-4 h-4" />
+                           Refresh
+                         </Button>
+                       </div>
+
+                       {/* Dashboard stats row */}
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <Card className="rounded-[2.5rem] border-none p-6 shadow-xl">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center">
+                                <Receipt className="w-6 h-6 text-indigo-600" />
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-gray-400 uppercase">Total Subscription Fee</p>
+                                <p className="text-2xl font-black text-gray-900">
+                                  ${computeTotalSubscriptionFee(unifiedBilling, botBilling, sellerBilling).toFixed(2)} / mo
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">IyonicShop + IyonicBots</p>
+                              </div>
+                            </div>
+                          </Card>
+                         <Card className="rounded-[2.5rem] border-none p-6 shadow-xl">
+                           <div className="flex items-center gap-4">
+                             <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center">
+                               <Store className="w-6 h-6 text-amber-600" />
+                             </div>
+                             <div>
+                               <p className="text-xs font-bold text-gray-400 uppercase">Shop Plan</p>
+                               <p className="text-2xl font-black text-gray-900 capitalize">
+                                 {(unifiedBilling?.currentSubscription?.shopPlan || sellerBilling?.subscription?.plan || 'starter')}
+                               </p>
+                             </div>
+                           </div>
+                         </Card>
+                         <Card className="rounded-[2.5rem] border-none p-6 shadow-xl">
+                           <div className="flex items-center gap-4">
+                             <div className="w-12 h-12 bg-indigo-100 rounded-2xl flex items-center justify-center">
+                               <Users className="w-6 h-6 text-indigo-600" />
+                             </div>
+                             <div>
+                               <p className="text-xs font-bold text-gray-400 uppercase">Bots Plan</p>
+                               <p className="text-2xl font-black text-gray-900 capitalize">
+                                 {(unifiedBilling?.currentSubscription?.botPlan || botBilling?.plan?.id || 'starter')}
+                               </p>
+                             </div>
+                           </div>
+                         </Card>
+                       </div>
+
+                       {/* Platform tiles - on top */}
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+                         {user?.role === 'seller' && botBilling && (
+                           <BillPlatformCard
+                             icon={<Users className="w-8 h-8" />}
+                             title="IyonicBots"
+                             description="AI chatbot subscriptions"
+                             gradient="from-indigo-600 to-purple-600"
+                             currentPlan={botBilling.plan?.id ? `${botBilling.plan.name} ($${botBilling.plan.price.toFixed(2)})` : 'No active bot plan'}
+                             renewalDate={botBilling.plan?.botPlanStartedAt ? new Date(botBilling.plan.botPlanStartedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
+                             autoRenewEnabled={autoRenewSettings?.autoRenew?.iyonicbots?.enabled || false}
+                             onAutoRenewToggle={async () => {
+                               const enabled = !autoRenewSettings?.autoRenew?.iyonicbots?.enabled;
+                               try {
+                                 await sellersAPI.updateAutoRenew('iyonicbots', enabled);
+                                 await fetchBillsData();
+                                 showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for IyonicBots`, 'success');
+                               } catch (err: any) {
+                                 showToast(err.response?.data?.message || 'Could not update auto-renew', 'error');
+                               }
+                             }}
+                             onClick={() => setSelectedBillPlatform('iyonicbots')}
+                           />
+                         )}
+                         {sellerBilling && (
+                           <BillPlatformCard
+                             icon={<Store className="w-8 h-8" />}
+                             title="IyonicShop"
+                             description="E-commerce store subscriptions"
+                             gradient="from-amber-500 to-orange-500"
+                             currentPlan={sellerBilling.subscription?.plan ? `${sellerBilling.plans?.[sellerBilling.subscription.plan]?.name || sellerBilling.subscription.plan} ($${sellerBilling.plans?.[sellerBilling.subscription.plan]?.price.toFixed(2) || 0})` : 'No active shop plan'}
+                             renewalDate={sellerBilling.subscription?.endDate ? new Date(sellerBilling.subscription.endDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
+                             autoRenewEnabled={autoRenewSettings?.autoRenew?.iyonicshop?.enabled || false}
+                             onAutoRenewToggle={async () => {
+                               const enabled = !autoRenewSettings?.autoRenew?.iyonicshop?.enabled;
+                               try {
+                                 await sellersAPI.updateAutoRenew('iyonicshop', enabled);
+                                 await fetchBillsData();
+                                 showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for IyonicShop`, 'success');
+                               } catch (err: any) {
+                                 showToast(err.response?.data?.message || 'Could not update auto-renew', 'error');
+                               }
+                             }}
+                             onClick={() => setSelectedBillPlatform('iyonicshop')}
+                           />
+                         )}
+                       </div>
+
+                       {/* Active Subscriptions section */}
+                       {(unifiedBilling || botBilling || sellerBilling) && (
+                         <ActiveSubscriptionsSection
+                           unifiedBilling={unifiedBilling}
+                           botBilling={botBilling}
+                           sellerBilling={sellerBilling}
+                           autoRenewSettings={autoRenewSettings}
+                           onCancel={async (platform) => {
+                             try {
+                               const result = await sellersAPI.cancelUnifiedSubscription(platform);
+                               showToast(result?.message || 'Subscription cancelled', 'success');
+                               await fetchBillsData();
+                             } catch (err: any) {
+                               showToast(err.response?.data?.message || 'Could not cancel subscription', 'error');
+                             }
+                           }}
+                           onAutoRenewToggle={async (platform, enabled, planId) => {
+                             try {
+                               await sellersAPI.updateAutoRenew(platform, enabled, planId);
+                               await fetchBillsData();
+                               showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for ${platform === 'iyonicbots' ? 'IyonicBots' : 'IyonicShop'}`, 'success');
+                             } catch (err: any) {
+                               showToast(err.response?.data?.message || 'Could not update auto-renew', 'error');
+                             }
+                           }}
+                           onRefresh={fetchBillsData}
+                         />
+                       )}
+
+                       {/* Discount bundles + addons - at bottom */}
+                       <p className="text-gray-500 max-w-2xl">Want to save? Bundle IyonicShop and IyonicBots together with discount bundles and add-ons.</p>
+
+                       {(unifiedBilling || true) && (
+                         <DiscountBundlesSection
+                           bundles={(unifiedBilling && unifiedBilling.bundles) || DEFAULT_BUNDLES}
+                           addons={(unifiedBilling && unifiedBilling.addons) || DEFAULT_ADDONS}
+                           discounts={(unifiedBilling && unifiedBilling.discounts) || DEFAULT_DISCOUNTS}
+                           shopPlans={(unifiedBilling && unifiedBilling.shopPlans) || SELLER_PLANS_LOCAL}
+                           botPlans={(unifiedBilling && unifiedBilling.botPlans) || {}}
+                           currentShopPlan={unifiedBilling?.currentSubscription?.shopPlan || sellerBilling?.subscription?.plan || 'starter'}
+                           currentBotPlan={unifiedBilling?.currentSubscription?.botPlan || botBilling?.plan?.id || 'starter'}
+                           walletBalance={Number(unifiedBilling?.wallet?.balance || walletData?.balance || 0)}
+                           walletCurrency={unifiedBilling?.wallet?.currency || walletData?.currency || 'USD'}
+                           onSubscribe={async (bundleId, addonIds) => {
+                             try {
+                               const result = await sellersAPI.subscribeUnified({ bundleId, addons: addonIds });
+                               const data = result.data || result;
+                               showToast(data?.message || 'Bundle and add-ons activated!', 'success');
+                               await fetchBillsData();
+                             } catch (err: any) {
+                               if (err.response?.status === 402) {
+                                 showToast('Insufficient IyonicPay wallet balance. Add funds to complete this purchase.', 'error');
+                               } else {
+                                 showToast(err.response?.data?.message || 'Could not activate bundle', 'error');
+                               }
+                             }
+                           }}
+                         />
+                        )}
+                      </div>
+                    ) : (
+                    <>
+                      <div className="flex items-center gap-4">
+                        <button
+                          onClick={() => setSelectedBillPlatform(null)}
+                          className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 transition-colors"
+                        >
+                          <ArrowLeft className="w-5 h-5" />
+                        </button>
+                        <h3 className={`text-2xl font-black ${selectedBillPlatform === 'iyonicbots' ? 'text-indigo-600' : 'text-amber-600'}`}>
+                          {selectedBillPlatform === 'iyonicbots' ? 'IyonicBots' : 'IyonicShop'} Billing
+                        </h3>
+                      </div>
+
+                      {selectedBillPlatform === 'iyonicbots' && botBilling && (
+                        <IyonicBotsBillSection
+                          billing={botBilling}
+                          platform="iyonicbots"
+                          autoRenew={autoRenewSettings?.autoRenew}
+                          onPayWithWallet={async (planId) => {
+                            try {
+                              const result = await api.post('/bots/billing/subscribe', { planId });
+                              showToast(result.data?.message || 'Bot plan activated', 'success');
+                              await fetchBillsData();
+                            } catch (err: any) {
+                              if (err.response?.status === 402) {
+                                showToast('Insufficient IyonicPay wallet balance. Add funds to your wallet to subscribe.', 'error');
+                              } else {
+                                showToast(err.response?.data?.message || 'Could not activate plan', 'error');
+                              }
+                            }
+                          }}
+                          onAutoRenewToggle={async (enabled, planId) => {
+                            try {
+                              await sellersAPI.updateAutoRenew('iyonicbots', enabled, planId);
+                              await fetchBillsData();
+                              showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for IyonicBots`, 'success');
+                            } catch (err: any) {
+                              showToast(err.response?.data?.message || 'Could not update auto-renew', 'error');
+                            }
+                          }}
+                        />
+                      )}
+
+                      {selectedBillPlatform === 'iyonicshop' && sellerBilling && (
+                        <IyonicShopBillSection
+                          billing={sellerBilling}
+                          platform="iyonicshop"
+                          autoRenew={autoRenewSettings?.autoRenew}
+                          onPayWithWallet={async (planId) => {
+                            try {
+                              const result = await api.post('/sellers/me/pay-subscription', { planId });
+                              showToast(result.data?.message || 'Shop plan activated via IyonicPay', 'success');
+                              await fetchBillsData();
+                            } catch (err: any) {
+                              if (err.response?.status === 402) {
+                                showToast('Insufficient IyonicPay wallet balance. Add funds to your wallet to subscribe.', 'error');
+                              } else {
+                                showToast(err.response?.data?.message || 'Could not activate plan', 'error');
+                              }
+                            }
+                          }}
+                          onAutoRenewToggle={async (enabled, planId) => {
+                            try {
+                              await sellersAPI.updateAutoRenew('iyonicshop', enabled, planId);
+                              await fetchBillsData();
+                              showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for IyonicShop`, 'success');
+                            } catch (err: any) {
+                              showToast(err.response?.data?.message || 'Could not update auto-renew', 'error');
+                            }
+                          }}
+                        />
+                      )}
+                    </>
+                  )}
                 </motion.div>
               )}
 
@@ -2148,7 +3395,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                           <div className="bg-gray-900 rounded-[2rem] p-8 text-indigo-300 font-mono text-xs overflow-hidden relative">
                             <pre className="overflow-x-auto pb-4">
 {`<!-- Add this to your website -->
-<script src="${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '')}/checkout.js"></script>
+<script src="${(import.meta.env.VITE_API_URL || 'http://localhost:2823/api').replace('/api', '')}/checkout.js"></script>
 
 <!-- Payment Button -->
 <button 
@@ -2163,7 +3410,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                             </pre>
                             <button 
                               onClick={() => copyToClipboard(`<!-- Add this to your website -->
-<script src="${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '')}/checkout.js"></script>
+<script src="${(import.meta.env.VITE_API_URL || 'http://localhost:2823/api').replace('/api', '')}/checkout.js"></script>
 
 <!-- Payment Button -->
 <button 
@@ -2915,7 +4162,18 @@ const handleWithdraw = async (e: React.FormEvent) => {
               </div>
             </div>
             <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-3">Your Balance</p>
-            <h3 className="text-5xl font-black text-gray-900 mb-12 tracking-tighter">{formatPrice(24950, sellerCurrency)}</h3>
+             <div className="flex items-baseline space-x-4 mb-12">
+               <h3 className="text-5xl font-black text-gray-900 tracking-tighter">
+                 {walletData
+                   ? formatPrice(convertAmount(Number(walletData.balance || 0), walletData.currency || 'USD', sellerCurrency), sellerCurrency)
+                    : formatPrice(24950, sellerCurrency)}
+               </h3>
+               {walletData && sellerCurrency !== 'USD' && (
+                 <span className="text-xl font-bold text-gray-500 opacity-60">
+                   ≈ {formatPrice(convertAmount(Number(walletData.balance || 0), walletData.currency || 'USD', 'USD'), 'USD')}
+                 </span>
+               )}
+             </div>
             <div className="space-y-4">
               <div className="p-5 bg-indigo-50 rounded-[2rem] flex items-center justify-between border border-indigo-100/50">
                 <div className="flex items-center space-x-4">
@@ -3112,7 +4370,8 @@ const handleWithdraw = async (e: React.FormEvent) => {
         </div>
       </section>
 
-      <footer className="px-8 py-20 border-t border-gray-100">
+      <ProductFooter product="IyonicPay" accentClass="text-indigo-400" description="A modern financial layer for sending, receiving, and moving money with clarity across borders." />
+      <footer className="hidden">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 flex items-center justify-center">

@@ -7,18 +7,50 @@ import { ToastProvider } from './context/ToastContext';
 import { Homepage } from './pages/Homepage';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
+import Themes from './pages/Themes';
 import { SellerDashboard } from './pages/seller/SellerDashboard';
 import { SellerManagerDashboard } from './pages/manager/SellerManagerDashboard';
 import { ManagerAdminDashboard } from './pages/admin/ManagerAdminDashboard';
 import CustomerDashboard from './pages/customer/CustomerDashboard';
 import Storefront from './pages/Storefront';
+import PulseFitAdmin from './platforms/services/fitness/pulse-fit/PulseFitAdmin';
+import PulseFitClient from './platforms/services/fitness/pulse-fit/PulseFitClient';
+import PulseFitServicePage from './platforms/services/fitness/pulse-fit/PulseFitServicePage';
+import AuraSalonAdmin from './platforms/services/beauty/salon/aura-salon/AuraSalonAdmin';
+import AuraSalonClient from './platforms/services/beauty/salon/aura-salon/AuraSalonClient';
+import AuraSalonServicePage from './platforms/services/beauty/salon/aura-salon/AuraSalonServicePage';
+import CraftCollectiveSite from './platforms/marketplace/craft-collective/CraftCollectiveSite';
+import CraftCollectiveAdmin from './platforms/marketplace/craft-collective/CraftCollectiveAdmin';
+import CraftCollectiveVendor from './platforms/marketplace/craft-collective/CraftCollectiveVendor';
+import PosSite from './platforms/services/pos/point-of-sale/PosSite';
+import ApexPosSite from './platforms/services/pos/apex-pos/ApexPosSite';
+import ApexPosAdmin from './platforms/services/pos/apex-pos/ApexPosAdmin';
+import KitchenDisplay from './platforms/services/pos/apex-pos/pages/KitchenDisplay';
+import PosAdmin from './platforms/services/pos/point-of-sale/PosAdmin';
+import EventPlannerAdmin from './platforms/services/events/event-planner/EventPlannerAdmin';
+import EventPlannerClient from './platforms/services/events/event-planner/EventPlannerClient';
+import EventPlannerDetail from './platforms/services/events/event-planner/EventPlannerDetail';
+import EventoAdmin from './platforms/services/events/evento/EventoAdmin';
+import EventoClient from './platforms/services/events/evento/EventoClient';
+import EventoServicePage from './platforms/services/events/evento/EventoServicePage';
+import NLMSongs from './platforms/streaming/nlmsongs/NLMSongs';
+import IxStreamSite from './platforms/streaming/ixstream/IxStreamSite';
+import IxStreamAdmin from './platforms/streaming/ixstream/IxStreamAdmin';
+import EssayMeLanding from './platforms/services/education/essayme/EssayMeLanding';
+import TutorMeStudent from './platforms/services/education/essayme/TutorMeStudent';
+import HomeworkerStudent from './platforms/services/education/homeworker/HomeworkerStudent';
+import HomeworkerWorker from './platforms/services/education/homeworker/HomeworkerWorker';
+import { sellersAPI } from './services/api';
+import { normalizeThemeId } from './utils/themeDashboard';
 import IyonicPay from './pages/IyonicPay';
 import IyonicBots from './pages/IyonicBots';
 import InvoicePage from './pages/InvoicePage';
 import IyonicShop from './pages/IyonicShop';
 import Refunds from './pages/Refunds';
+import TsppLandingPage from './platforms/services/education/tspp/TsppLandingPage';
+import TsppAdmin from './platforms/services/education/tspp/TsppAdmin';
+import TsppClient from './platforms/services/education/tspp/TsppClient';
 import { About, Careers, Blog, Press, Documentation, APIReference, HelpCenter, Status, Privacy, Terms, Cookies, Licenses } from './pages/static';
-// Removed Themes import
 
 const getUserRedirectPath = (user: any, shopSubdomain?: string | null) => {
   if (!user) return '/login';
@@ -61,6 +93,30 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles: string
     return <Navigate to={getUserRedirectPath(user, shopSubdomain)} replace />;
   }
   
+  return <>{children}</>;
+};
+
+const LicensedPlatformRoute: React.FC<{ children: React.ReactNode; themeId: string }> = ({ children, themeId }) => {
+  const location = useLocation();
+  const [access, setAccess] = React.useState<'checking' | 'allowed' | 'denied'>('checking');
+
+  React.useEffect(() => {
+    let active = true;
+    sellersAPI.getMe().then((seller) => {
+      if (!active) return;
+      const currentTheme = normalizeThemeId(seller.themeId || seller.theme?.selectedTheme);
+      const acquired = (seller.acquiredThemes || []).map(normalizeThemeId);
+      setAccess(acquired.includes(normalizeThemeId(themeId)) || currentTheme === normalizeThemeId(themeId) ? 'allowed' : 'denied');
+    }).catch(() => {
+      if (active) setAccess('denied');
+    });
+    return () => { active = false; };
+  }, [themeId]);
+
+  if (access === 'checking') {
+    return <div className="flex min-h-screen items-center justify-center bg-[#f4f1e9] text-sm font-semibold text-[#536457]" role="status">Checking your platform license…</div>;
+  }
+  if (access === 'denied') return <Navigate to="/themes" replace state={{ from: `${location.pathname}${location.search}` }} />;
   return <>{children}</>;
 };
 
@@ -117,6 +173,18 @@ const AppContent: React.FC = () => {
     location.pathname.startsWith('/seller') ||
     location.pathname.startsWith('/manager') ||
     location.pathname.startsWith('/admin') ||
+    location.pathname.startsWith('/fit/pulse-fit') ||
+    location.pathname.startsWith('/salon/aura-salon') ||
+    location.pathname.startsWith('/pos/point-of-sale') ||
+    location.pathname.startsWith('/pos/apex-pos') ||
+    location.pathname.startsWith('/marketplace/craft-collective') ||
+    location.pathname.startsWith('/evento') ||
+    location.pathname.startsWith('/nlmsongs') ||
+    location.pathname.startsWith('/ixstream') ||
+    location.pathname.startsWith('/utorme') ||
+    location.pathname.startsWith('/homeworker') ||
+    location.pathname.startsWith('/events/event-planner') ||
+    location.pathname.startsWith('/events/carnovga') ||
     location.pathname === '/login' ||
     location.pathname === '/register' ||
     location.pathname === '/refunds';
@@ -151,20 +219,12 @@ const AppContent: React.FC = () => {
   return (
     <Routes location={location}>
       <Route path="/" element={
-        isAuthenticated && user ? (
-          location.pathname.startsWith('/iyonicpay') || 
-          location.pathname.startsWith('/iyonicbots') ||
-          location.pathname.includes('/shop/') ? null : (
-            <Navigate to={getUserRedirectPath(user)} replace />
-          )
-        ) : (
-          <Homepage 
-            onGetStarted={handleGetStarted} 
-            onSignIn={handleSignIn} 
-            onOpenIyonicPay={handleOpenIyonicPay}
-            onOpenIyonicBots={handleOpenIyonicBots}
-          />
-        )
+        <Homepage
+          onGetStarted={handleGetStarted}
+          onSignIn={handleSignIn}
+          onOpenIyonicPay={handleOpenIyonicPay}
+          onOpenIyonicBots={handleOpenIyonicBots}
+        />
       } />
       
       <Route path="/login" element={
@@ -177,6 +237,19 @@ const AppContent: React.FC = () => {
         <AuthRoute>
           <RegisterWrapper />
         </AuthRoute>
+      } />
+
+      <Route path="/themes" element={<Themes />} />
+      <Route path="/tspp" element={<TsppLandingPage />} />
+      <Route path="/tspp/admin" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="tspp"><TsppAdmin /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/tspp/client" element={
+        <ProtectedRoute allowedRoles={['customer']}>
+          <TsppClient />
+        </ProtectedRoute>
       } />
 
       <Route path="/customer/*" element={
@@ -202,7 +275,130 @@ const AppContent: React.FC = () => {
           <ManagerAdminDashboard />
         </ProtectedRoute>
       } />
+
+      <Route path="/fit/pulse-fit/admin" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="pulse-fit"><PulseFitAdmin /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/fit/pulse-fit/client" element={
+        <ProtectedRoute allowedRoles={['customer']}>
+          <PulseFitClient />
+        </ProtectedRoute>
+      } />
+      <Route path="/fit/pulse-fit/class/:serviceId" element={<PulseFitServicePage />} />
       
+      <Route path="/salon/aura-salon/admin" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="aura-salon"><AuraSalonAdmin /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/salon/aura-salon/client" element={
+        <ProtectedRoute allowedRoles={['customer']}>
+          <AuraSalonClient />
+        </ProtectedRoute>
+      } />
+      <Route path="/salon/aura-salon/service/:serviceId" element={<AuraSalonServicePage />} />
+      <Route path="/marketplace/craft-collective/admin" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="craft-collective"><CraftCollectiveAdmin /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/marketplace/craft-collective/vendor" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="craft-collective"><CraftCollectiveVendor /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/marketplace/craft-collective" element={<CraftCollectiveSite />} />
+      <Route path="/pos/point-of-sale/admin" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="point-of-sale"><PosAdmin /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/pos/point-of-sale" element={<PosSite />} />
+      <Route path="/pos/apex-pos/admin" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="apex-pos"><ApexPosAdmin /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/pos/apex-pos/kitchen" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="apex-pos"><KitchenDisplay /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/pos/apex-pos" element={<ApexPosSite />} />
+
+      <Route path="/evento/admin" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="evento"><EventoAdmin /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/evento/client" element={
+        <ProtectedRoute allowedRoles={['customer']}>
+          <EventoClient />
+        </ProtectedRoute>
+      } />
+      <Route path="/evento/event/:eventId" element={<EventoServicePage />} />
+
+      <Route path="/nlmsongs/dashboard" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="nlmsongs"><NLMSongs mode="admin" /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/nlmsongs" element={<NLMSongs />} />
+
+      <Route path="/ixstream/dashboard" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="ixstream"><IxStreamAdmin /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/ixstream" element={<IxStreamSite />} />
+
+      <Route path="/utorme/student" element={
+        <ProtectedRoute allowedRoles={['customer']}>
+          <TutorMeStudent />
+        </ProtectedRoute>
+      } />
+      <Route path="/utorme/tutor" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="utorme"><SellerDashboard /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/utorme" element={<EssayMeLanding />} />
+      <Route path="/homeworker/student" element={
+        <ProtectedRoute allowedRoles={['customer']}>
+          <HomeworkerStudent />
+        </ProtectedRoute>
+      } />
+      <Route path="/homeworker/worker" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="homeworker"><HomeworkerWorker /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/events/event-planner/admin" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="event-planner"><EventPlannerAdmin /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/events/carnovga/admin" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="carnovga"><EventPlannerAdmin /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
+      <Route path="/events/event-planner/client" element={
+        <ProtectedRoute allowedRoles={['customer']}>
+          <EventPlannerClient />
+        </ProtectedRoute>
+      } />
+      <Route path="/events/carnovga/client" element={
+        <ProtectedRoute allowedRoles={['customer']}>
+          <EventPlannerClient />
+        </ProtectedRoute>
+      } />
+      <Route path="/events/event-planner/event/:serviceId" element={<EventPlannerDetail />} />
+      <Route path="/events/carnovga/event/:serviceId" element={<EventPlannerDetail />} />
+
       <Route path="/iyonicpay/invoice/:token" element={<InvoicePage />} />
       <Route path="/iyonicpay/*" element={<IyonicPay />} />
       <Route path="/refunds" element={<Refunds />} />

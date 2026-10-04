@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { 
   Store, 
@@ -10,7 +10,6 @@ import {
   Zap, 
   Globe, 
   ArrowRight,
-  ChevronRight,
   CheckCircle,
   Menu,
   X,
@@ -27,21 +26,13 @@ import {
   Mail,
   ArrowUpRight,
   Hexagon,
-  Twitter,
-  Github,
-  Linkedin,
-  Youtube,
   Send,
   Zap as ZapIcon,
-  Instagram,
-  Facebook,
-  Heart,
-  ExternalLink,
-  ChevronUp,
   MessageSquare,
   Package
 } from 'lucide-react';
 import { Button } from '../components/ui';
+import { HomepageFooter } from '../components/HomepageFooter';
 
 interface HomepageProps {
   onGetStarted?: (role: 'seller' | 'seller_manager') => void;
@@ -80,36 +71,10 @@ const AnimatedCounter = ({ value, suffix = '' }: { value: string, suffix?: strin
   return <div ref={ref}>{displayValue.toLocaleString()}{suffix}</div>;
 };
 
-const PRODUCT_THEMES = [
-  { id: 'modern-ecommerce', name: 'Modern E-commerce', preview: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&q=80&w=400', description: 'Clean and minimal design for product stores. Perfect for fashion and retail.', tags: ['Minimal', 'Clean', 'White'], color: 'from-blue-500 to-cyan-500' },
-  { id: 'luxury-boutique', name: 'Luxury Boutique', preview: 'https://images.unsplash.com/photo-1441984908747-5c39bbce50e6?auto=format&fit=crop&q=80&w=400', description: 'Elegant dark theme with gold accents. Sophisticated and premium feel.', tags: ['Dark', 'Luxury', 'Gold'], color: 'from-amber-500 to-yellow-500' },
-  { id: 'beauty-store', name: 'Beauty Store', preview: 'https://images.unsplash.com/photo-1596462502278-27bfdc4033c8?auto=format&fit=crop&q=80&w=400', description: 'Soft and modern aesthetics for beauty and skincare brands. Elegant and fresh.', tags: ['Beauty', 'Modern', 'Pink'], color: 'from-pink-400 to-rose-400' },
-  { id: 'shoe-store', name: 'Shoe Store', preview: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&q=80&w=400', description: 'Bold and urban design for footwear brands. Performance meets lifestyle.', tags: ['Shoes', 'Urban', 'Bold'], color: 'from-orange-500 to-red-600' },
-  { id: 'jewelry-store', name: 'Jewelry Store', preview: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&q=80&w=400', description: 'Elegant and modern theme for fine jewelry. Timeless and sophisticated.', tags: ['Luxury', 'Elegant', 'Gold'], color: 'from-yellow-600 to-amber-700' },
-  { id: 'bakery-store', name: 'Bakery Store', preview: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=400', description: 'Warm and artisanal theme for bakeries and cafes. Cozy and fresh.', tags: ['Artisanal', 'Bakery', 'Warm'], color: 'from-orange-400 to-yellow-600' },
-  { id: 'couture-store', name: 'Couture Store', preview: 'https://images.unsplash.com/photo-1539109132314-d4a8c62e41dc?auto=format&fit=crop&q=80&w=400', description: 'High-fashion minimalist theme for couture and designer labels.', tags: ['Fashion', 'Minimalist', 'Couture'], color: 'from-gray-700 to-black' },
-];
-
-const SERVICE_THEMES = [
-  { id: 'elite-consulting', name: 'Elite Consulting', preview: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&q=80&w=400', description: 'Corporate and professional theme for consulting and business services.', tags: ['Corporate', 'Consulting', 'Blue'], color: 'from-blue-700 to-indigo-900' },
-  { id: 'creative-studio', name: 'Creative Studio', preview: 'https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&q=80&w=400', description: 'Bold and minimalist theme for creative agencies and studios.', tags: ['Creative', 'Bold', 'Modern'], color: 'from-pink-500 to-yellow-500' },
-  { id: 'modern-wellness', name: 'Modern Wellness', preview: 'https://images.unsplash.com/photo-1545208393-216c7addb00c?auto=format&fit=crop&q=80&w=400', description: 'Serene and holistic theme for wellness and health practices.', tags: ['Wellness', 'Serene', 'Green'], color: 'from-emerald-700 to-teal-900' },
-];
-
-const STREAMING_THEMES: any[] = [];
-
-const PAYMENT_THEMES: any[] = [];
-
-const ALL_THEMES = [...PRODUCT_THEMES, ...SERVICE_THEMES, ...STREAMING_THEMES, ...PAYMENT_THEMES];
-const FEATURED_THEMES = ALL_THEMES.slice(0, 6);
-
 export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOpenIyonicPay, onOpenIyonicBots }) => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
-  const [email, setEmail] = useState('');
-  const [isSubscribed, setIsSubscribed] = useState(false);
   
 
   const products = [
@@ -117,10 +82,10 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
       id: 'iyonicshop',
       name: 'IyonicShop',
       tagline: 'Commerce Engine',
-      description: 'Build stunning stores with our drag-and-drop builder. No coding required.',
+      description: 'Launch a polished storefront from a flexible theme system, then make it unmistakably yours.',
       icon: Store,
       color: 'from-blue-500 to-indigo-600',
-      features: ['Drag & Drop Builder', 'AI Product Descriptions', 'Global Shipping', 'Multi-currency'],
+      features: ['Theme-led storefront design', 'Code from scratch with APIs', 'Global shipping', 'Multi-currency'],
       cta: 'Continue',
       onClick: () => navigate('/iyonicshop')
     },
@@ -164,19 +129,6 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
     setIsMenuOpen(false);
   };
 
-  const handleNewsletterSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email) {
-      setIsSubscribed(true);
-      setEmail('');
-      setTimeout(() => setIsSubscribed(false), 3000);
-    }
-  };
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   return (
     <div className="min-h-screen bg-white text-gray-900 selection:bg-gray-900 selection:text-white">
       <SEO 
@@ -206,6 +158,12 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
                   {product.name}
                 </button>
               ))}
+              <button
+                onClick={() => navigate('/themes')}
+                className="px-4 py-2 rounded-full text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all"
+              >
+                Themes
+              </button>
               <button
                 onClick={onSignIn}
                 className="px-4 py-2 rounded-full text-sm font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-all"
@@ -251,6 +209,12 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
                     {product.name}
                   </button>
                 ))}
+                <button
+                  onClick={() => { navigate('/themes'); setIsMenuOpen(false); }}
+                  className="block w-full text-left px-4 py-3 rounded-xl text-lg font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Themes
+                </button>
                 <button
                   onClick={onSignIn}
                   className="block w-full text-left px-4 py-3 rounded-xl text-lg font-semibold text-gray-700 hover:bg-gray-50"
@@ -392,104 +356,6 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
               </motion.div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Featured Themes Section */}
-      <section className="py-20 lg:py-32 bg-white">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="mb-16"
-          >
-            <h2 className="text-4xl lg:text-6xl font-black text-gray-900 mb-4">Featured Themes</h2>
-            <p className="text-xl text-gray-500 max-w-2xl mx-auto">Experience our stunning, high-converting store templates live.</p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-            {FEATURED_THEMES.map((theme, index) => (
-              <motion.div
-                key={theme.id}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.05, duration: 0.5 }}
-                className="group relative bg-white rounded-[2.5rem] overflow-hidden shadow-xl border border-gray-100 hover:shadow-2xl transition-all duration-500"
-              >
-                {/* Website Preview Container (Iframe scaled down) */}
-                <div className="aspect-[16/10] overflow-hidden relative bg-gray-50">
-                  <div className="absolute inset-0 origin-top-left" style={{ width: '200%', height: '200%', transform: 'scale(0.5)' }}>
-                    <iframe 
-                      src={`${window.location.origin}#/shop/demo?theme=${theme.id}`} 
-                      title={theme.name}
-                      className="w-full h-full border-none pointer-events-none"
-                      loading="lazy"
-                    />
-                  </div>
-                  
-                  {/* Overlay to intercept clicks and provide UX */}
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center">
-                    <Button 
-                      onClick={() => window.open(`${window.location.origin}#/shop/demo?theme=${theme.id}`, '_blank')}
-                      className="opacity-0 group-hover:opacity-100 bg-white text-gray-900 hover:bg-gray-100 rounded-full px-8 py-3 font-bold shadow-xl transition-all duration-300 scale-90 group-hover:scale-100"
-                    >
-                      Live Preview
-                      <ExternalLink className="ml-2 w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-8 text-left">
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {theme.tags.slice(0, 2).map((tag: string) => (
-                      <span key={tag} className="px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-[10px] font-black uppercase tracking-wider">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  <h3 className="text-2xl font-black text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">
-                    {theme.name}
-                  </h3>
-                  <p className="text-gray-500 text-sm leading-relaxed mb-6 line-clamp-2">
-                    {theme.description}
-                  </p>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className={`h-1.5 w-12 bg-gradient-to-r ${theme.color} rounded-full`} />
-                    <button 
-                      onClick={() => window.open(`${window.location.origin}#/shop/demo?theme=${theme.id}`, '_blank')}
-                      className="text-sm font-bold text-gray-900 flex items-center hover:gap-2 transition-all"
-                    >
-                      Explore <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-          >
-            <Button 
-              size="lg"
-              className="bg-gray-900 text-white hover:bg-black rounded-full px-12 py-7 text-xl font-black shadow-2xl hover:scale-105 transition-all group"
-              onClick={() => onGetStarted?.('seller')}
-            >
-              View All Themes
-              <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform" />
-            </Button>
-            <p className="mt-4 text-gray-400 font-bold text-sm">
-              Requires a free IyonicShop seller account
-            </p>
-          </motion.div>
         </div>
       </section>
 
@@ -736,176 +602,7 @@ export const Homepage: React.FC<HomepageProps> = ({ onGetStarted, onSignIn, onOp
         </div>
       </section>
 
-      {/* Redesigned Footer */}
-      <footer className="bg-white border-t border-gray-100 relative overflow-hidden">
-        {/* Background Decorative Elements */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-50 rounded-full blur-[100px] -translate-y-1/2" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-50 rounded-full blur-[100px] translate-y-1/2" />
-        </div>
-        
-        <div className="max-w-7xl mx-auto px-6 pt-24 pb-12 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-8 mb-20">
-            {/* Brand Column */}
-            <div className="lg:col-span-4">
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className="flex items-center space-x-3 mb-8 cursor-pointer group"
-                onClick={scrollToTop}
-              >
-                <div className="w-12 h-12 flex items-center justify-center">
-                  <img src="/logo.png" alt="iyonicweb Logo" className="w-12 h-12 object-contain group-hover:scale-110 transition-transform duration-500" />
-                </div>
-                <span className="text-2xl font-black tracking-tighter text-gray-900">iyonicweb</span>
-              </motion.div>
-              <p className="text-gray-500 mb-8 leading-relaxed text-lg max-w-sm">
-                The next generation modular commerce platform. Engineered for growth, scale, and intelligence.
-              </p>
-              
-              {/* Social Links */}
-              <div className="flex items-center gap-3">
-                {[
-                  { icon: Twitter, href: '#', label: 'Twitter' },
-                  { icon: Instagram, href: '#', label: 'Instagram' },
-                  { icon: Linkedin, href: '#', label: 'LinkedIn' },
-                  { icon: Github, href: '#', label: 'GitHub' }
-                ].map((social, i) => (
-                  <motion.a
-                    key={i}
-                    href={social.href}
-                    whileHover={{ y: -4, scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-all duration-300"
-                    aria-label={social.label}
-                  >
-                    <social.icon className="w-5 h-5" />
-                  </motion.a>
-                ))}
-              </div>
-            </div>
-
-            {/* Links Columns */}
-            <div className="lg:col-span-8 grid grid-cols-2 md:grid-cols-4 gap-8">
-              <div>
-                <h4 className="font-bold text-gray-900 mb-6 uppercase text-xs tracking-widest">Platform</h4>
-                <ul className="space-y-4">
-                  {[
-                    { name: 'IyonicShop', href: '/iyonicshop' },
-                    { name: 'IyonicPay', href: '/iyonicpay' },
-                    { name: 'IyonicBots', href: '/iyonicbots' },
-                    { name: 'Pricing', href: '/register?role=seller' }
-                  ].map((item) => (
-                    <li key={item.name}>
-                      <a href={item.href} className="text-gray-500 hover:text-gray-900 transition-colors font-medium text-sm">{item.name}</a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-bold text-gray-900 mb-6 uppercase text-xs tracking-widest">Company</h4>
-                <ul className="space-y-4">
-                  {[
-                    { name: 'About', href: '/about' },
-                    { name: 'Careers', href: '/careers' },
-                    { name: 'Blog', href: '/blog' },
-                    { name: 'Press', href: '/press' }
-                  ].map((item) => (
-                    <li key={item.name}>
-                      <a href={item.href} className="text-gray-500 hover:text-gray-900 transition-colors font-medium text-sm">{item.name}</a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-bold text-gray-900 mb-6 uppercase text-xs tracking-widest">Resources</h4>
-                <ul className="space-y-4">
-                  {[
-                    { name: 'Docs', href: '/documentation' },
-                    { name: 'API', href: '/api-reference' },
-                    { name: 'Help', href: '/help-center' },
-                    { name: 'Status', href: '/status' },
-                    { name: 'Refunds', href: '/refunds' }
-                  ].map((item) => (
-                    <li key={item.name}>
-                      <a 
-                        href={item.href} 
-                        className="text-gray-500 hover:text-gray-900 transition-colors font-medium text-sm"
-                      >
-                        {item.name}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-bold text-gray-900 mb-6 uppercase text-xs tracking-widest">Legal</h4>
-                <ul className="space-y-4">
-                  {[
-                    { name: 'Privacy', href: '/privacy' },
-                    { name: 'Terms', href: '/terms' },
-                    { name: 'Cookie', href: '/cookies' },
-                    { name: 'Licenses', href: '/licenses' }
-                  ].map((item) => (
-                    <li key={item.name}>
-                      <a href={item.href} className="text-gray-500 hover:text-gray-900 transition-colors font-medium text-sm">{item.name}</a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* Newsletter / Bottom Section */}
-          <div className="border-t border-gray-100 pt-12">
-            <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
-              <div className="flex-1 text-center lg:text-left">
-                <h4 className="font-bold text-xl text-gray-900 mb-2">Join our newsletter</h4>
-                <p className="text-gray-500 font-medium">Get the latest updates on new features and product releases.</p>
-              </div>
-              <div className="w-full lg:w-auto">
-                <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-3">
-                  <input 
-                    type="email" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email" 
-                    className="bg-gray-50 border border-gray-200 rounded-2xl px-6 py-4 w-full sm:w-80 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
-                    required
-                  />
-                  <Button 
-                    type="submit"
-                    className="bg-gray-900 text-white hover:bg-black rounded-2xl px-8 py-4 font-bold transition-all shadow-lg"
-                  >
-                    {isSubscribed ? 'Subscribed!' : 'Subscribe'}
-                  </Button>
-                </form>
-              </div>
-            </div>
-            
-            <div className="mt-20 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-gray-50 pt-8">
-              <p className="text-gray-400 text-sm font-medium">© 2026 iyonicweb Inc. All rights reserved.</p>
-              <div className="flex items-center gap-8">
-                <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
-                  <span>🌍 Global Commerce</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
-                  <span>🌱 Carbon Neutral</span>
-                </div>
-              </div>
-              <motion.button
-                whileHover={{ scale: 1.1, y: -4 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={scrollToTop}
-                className="w-10 h-10 bg-gray-50 hover:bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-900 transition-all shadow-sm"
-              >
-                <ChevronUp className="w-5 h-5" />
-              </motion.button>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <HomepageFooter />
     </div>
   );
 };

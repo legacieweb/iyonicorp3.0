@@ -8,7 +8,8 @@ import {
   Upload, Image as ImageIcon, Edit3, Gift, Package, CreditCard, Zap, Award, Clock, MoveRight
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import ThemeMedia from '../../../components/ThemeMedia';
 
 const ICON_MAP: Record<string, any> = {
   truck: Truck,
@@ -29,6 +30,7 @@ interface ThemeProps {
   seller: Seller;
   products: Product[];
   editMode?: boolean;
+  hideInlineEditor?: boolean;
   sellerData?: Seller;
   onUpdateData?: (fieldPath: string, value: any) => void;
   onUpdateThemeCustomization?: (section: string, field: string, value: any) => void;
@@ -100,6 +102,7 @@ const ShoeStore: React.FC<ThemeProps> = ({
   seller: initialSeller,
   products,
   editMode = false,
+  hideInlineEditor = false,
   sellerData,
   onUpdateData,
   onUpdateThemeCustomization,
@@ -108,6 +111,7 @@ const ShoeStore: React.FC<ThemeProps> = ({
 }) => {
   const seller = editMode && sellerData ? sellerData : initialSeller;
   const { user } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
   
   const themePrimary = seller.theme?.primaryColor || '#ff6b00';
@@ -158,6 +162,12 @@ const ShoeStore: React.FC<ThemeProps> = ({
 
   const cartTotal = useMemo(() => cart.reduce((total, item) => total + (Number(item.product.price) * item.quantity), 0), [cart]);
 
+  const beginCheckout = () => {
+    if (cart.length === 0) return;
+    localStorage.setItem(`cart_${seller.id}`, JSON.stringify(cart));
+    navigate(`${location.pathname}?checkout=true`);
+  };
+
   const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.product.id === product.id);
@@ -189,9 +199,15 @@ const ShoeStore: React.FC<ThemeProps> = ({
   }, [products, selectedCategory]);
 
   return (
-    <div className="min-h-screen font-sans bg-white" style={{ fontFamily: '"Inter", sans-serif', backgroundColor: customizations.mainBgColor || '#ffffff' }}>
+    <div className="kicks-shell min-h-screen font-sans bg-white" style={{ fontFamily: '"Inter", sans-serif', backgroundColor: customizations.mainBgColor || '#f7f7f2' }}>
+      <style>{`
+        .kicks-shell { color: #111111; background-image: linear-gradient(rgba(17,17,17,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(17,17,17,.035) 1px, transparent 1px); background-size: 32px 32px; }
+        .kicks-shell .group:hover { box-shadow: 0 24px 55px rgba(17,17,17,.14); }
+        .kicks-shell main > section { scroll-margin-top: 7rem; }
+        @media (prefers-reduced-motion: no-preference) { .kicks-shell .group:hover img, .kicks-shell .group:hover video { transform: scale(1.06) rotate(-1deg); } }
+      `}</style>
       {/* Modern Live Editor */}
-      {editMode && (
+      {editMode && !hideInlineEditor && (
         <div className="fixed top-0 left-0 right-0 z-[100] bg-white/90 backdrop-blur-xl border-b border-gray-200 px-6 py-3 shadow-lg overflow-x-auto scrollbar-hide">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-8 whitespace-nowrap text-gray-900">
             <div className="flex items-center gap-3 shrink-0">
@@ -354,7 +370,7 @@ const ShoeStore: React.FC<ThemeProps> = ({
               </button>
               {!user ? (
                 <button 
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate(`/login?shop=${encodeURIComponent(seller.id)}&subdomain=${encodeURIComponent(seller.subdomain)}`)}
                   className="hidden md:block px-8 py-3.5 bg-gray-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-orange-600 transition-all shadow-xl shadow-gray-200"
                 >
                   Join the Club
@@ -375,7 +391,7 @@ const ShoeStore: React.FC<ThemeProps> = ({
           {!customizations.hideHero && (
             <section className="relative h-[90vh] flex items-center overflow-hidden bg-gray-900">
               <div className="absolute inset-0 z-0">
-                <img 
+                <ThemeMedia 
                   src={customizations.heroImage || "https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=2070&auto=format&fit=crop"} 
                   className="w-full h-full object-cover opacity-60 scale-110"
                   alt="Shoe Hero"
@@ -515,7 +531,7 @@ const ShoeStore: React.FC<ThemeProps> = ({
                 <div className="grid md:grid-cols-2 gap-24 items-center">
                   <div className="relative group order-2 md:order-1">
                     <div className="aspect-square rounded-[3rem] overflow-hidden shadow-2xl">
-                      <img
+                      <ThemeMedia
                         src={customizations.storyImage || "https://images.unsplash.com/photo-1556906781-9a412961c28c?q=80&w=1974&auto=format&fit=crop"}
                         alt="Our Story"
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
@@ -842,7 +858,7 @@ const ShoeStore: React.FC<ThemeProps> = ({
                       <span className="text-lg font-black uppercase tracking-tighter italic">Total</span>
                       <span className="text-3xl font-black text-orange-500">{formatPrice(cartTotal, seller.currency)}</span>
                     </div>
-                    <button className="w-full py-6 bg-white text-gray-900 rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs hover:bg-orange-600 hover:text-white transition-all shadow-2xl">
+                    <button onClick={beginCheckout} className="w-full py-6 bg-white text-gray-900 rounded-[2rem] font-black uppercase tracking-[0.2em] text-xs hover:bg-orange-600 hover:text-white transition-all shadow-2xl">
                       Secure Checkout
                     </button>
                   </div>

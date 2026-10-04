@@ -9,11 +9,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import ThemeMedia from '../../../components/ThemeMedia';
 
 interface ThemeProps {
   seller: Seller;
   products: Product[];
   editMode?: boolean;
+  hideInlineEditor?: boolean;
   sellerData?: Seller;
   onUpdateData?: (fieldPath: string, value: any) => void;
   onUpdateThemeCustomization?: (section: string, field: string, value: any) => void;
@@ -114,6 +116,7 @@ const BakeryStore: React.FC<ThemeProps> = ({
   seller: initialSeller,
   products,
   editMode = false,
+  hideInlineEditor = false,
   sellerData,
   onUpdateData,
   onUpdateThemeCustomization,
@@ -205,7 +208,7 @@ const BakeryStore: React.FC<ThemeProps> = ({
   return (
     <div className="min-h-screen font-sans" style={{ backgroundColor: customizations.mainBgColor || '#fdfaf5' }}>
       {/* Modern Live Editor */}
-      {editMode && (
+      {editMode && !hideInlineEditor && (
         <div className="fixed top-0 left-0 right-0 z-[100] bg-white/90 backdrop-blur-xl border-b border-gray-200 px-6 py-3 shadow-lg overflow-x-auto scrollbar-hide">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-8 whitespace-nowrap text-gray-900">
             <div className="flex items-center gap-3 shrink-0">
@@ -352,7 +355,7 @@ const BakeryStore: React.FC<ThemeProps> = ({
               </button>
               {!user ? (
                 <button 
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate(`/login?shop=${encodeURIComponent(seller.id)}&subdomain=${encodeURIComponent(seller.subdomain)}`)}
                   className="px-6 py-2.5 bg-[#8b5e3c] text-white rounded-full text-xs font-bold uppercase tracking-widest hover:bg-[#6f4a30] transition-all"
                 >
                   Sign In
@@ -373,7 +376,7 @@ const BakeryStore: React.FC<ThemeProps> = ({
           {!customizations.hideHero && (
             <section className="relative h-[80vh] flex items-center overflow-hidden bg-[#faf3eb]">
               <div className="absolute inset-0 z-0">
-                <img 
+                <ThemeMedia 
                   src={customizations.heroImage || "https://images.unsplash.com/photo-1509440159596-0249088772ff?q=80&w=2072&auto=format&fit=crop"} 
                   className="w-full h-full object-cover opacity-80"
                   alt="Bakery Hero"
@@ -546,7 +549,7 @@ const BakeryStore: React.FC<ThemeProps> = ({
                 <div className="grid md:grid-cols-2 gap-16 items-center">
                   <div className="relative group">
                     <div className="aspect-square rounded-[3rem] overflow-hidden shadow-2xl">
-                      <img
+                      <ThemeMedia
                         src={customizations.storyImage || "https://images.unsplash.com/photo-1555507036-ab1f4038808a?q=80&w=1926&auto=format&fit=crop"}
                         alt="Our Story"
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"

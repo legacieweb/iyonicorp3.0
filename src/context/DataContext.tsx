@@ -95,7 +95,7 @@ interface DataContextType {
   saveEmailSettings: (settings: Partial<EmailSettings>) => Promise<EmailSettings>;
   updateEmailSettings: (id: string, updates: Partial<EmailSettings>) => Promise<EmailSettings>;
   verifyEmailSettings: (id: string) => Promise<{ verified: boolean; message: string }>;
-  sendTestEmail: (to: string, subject?: string, html?: string) => Promise<{ success: boolean; message: string }>;
+  sendTestEmail: (to: string, subject?: string, html?: string, settingsId?: string) => Promise<{ success: boolean; message: string }>;
 
   // Marketing - Email Campaigns
   emailCampaigns: EmailCampaign[];
@@ -485,11 +485,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
      return await emailMarketingAPI.verifySettings(id);
    };
 
-   const sendTestEmail = async (to: string, subject?: string, html?: string): Promise<{ success: boolean; message: string }> => {
-     const subj = subject || 'Test Email from ShopRight';
-     const content = html || '<p>This is a test email from your ShopRight store.</p><p>If you received this, your email configuration is working correctly!</p>';
-     return await emailMarketingAPI.sendTestEmail({ to, subject: subj, html: content });
-   };
+  const sendTestEmail = async (to: string, subject?: string, html?: string, settingsId?: string): Promise<{ success: boolean; message: string }> => {
+    const subj = subject || 'Test Email from ShopRight';
+    const content = html || '<p>This is a test email from your ShopRight store.</p><p>If you received this, your email configuration is working correctly!</p>';
+    return await emailMarketingAPI.sendTestEmail({ to, subject: subj, html: content, settingsId });
+  };
 
    // Marketing Methods - Campaigns
    const createCampaign = async (campaign: Partial<EmailCampaign>): Promise<EmailCampaign> => {
