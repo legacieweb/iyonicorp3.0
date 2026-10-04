@@ -31,6 +31,7 @@ interface RegisterData {
   shopType?: 'product' | 'service' | 'payment';
   managerId?: string;
   sellerId?: string;
+  themeId?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

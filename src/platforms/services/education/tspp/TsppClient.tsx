@@ -1,170 +1,199 @@
 import React from 'react';
-import { ArrowRight, BadgeCheck, BookOpenText, Building2, GraduationCap, Search, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Building2, CheckCircle2, GraduationCap, MapPin, Search, ShieldCheck, Sparkles, Star, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import './tspp-theme.css';
 
-const highlights = [
-  'Verified teacher profiles',
-  'School fit and curriculum matching',
-  'Fast shortlist and interview flow',
+const nearbyOpenings = [
+  { id: 1, school: 'Oak Crest Academy', location: 'Lagos, Nigeria', role: 'Primary Science Teacher', badge: 'Verified', match: 94 },
+  { id: 2, school: 'Greenfield College', location: 'Abuja, Nigeria', role: 'Biology (IGCSE)', badge: 'Verified', match: 88 },
+  { id: 3, school: 'Nile Heights Academy', location: 'Lagos, Nigeria', role: 'Head of Early Years', badge: 'Verified', match: 82 },
 ];
 
-const schools = [
-  { name: 'Oak Crest Academy', focus: 'Primary & middle school', seats: '4 roles open' },
-  { name: 'Greenfield College', focus: 'STEM and business studies', seats: '3 roles open' },
-  { name: 'Nile Heights Academy', focus: 'Early years leadership', seats: '2 roles open' },
-];
-
-const teachers = [
-  { name: 'Ruth M.', label: 'English specialist', meta: '15 years • DBS cleared' },
-  { name: 'Jude A.', label: 'Biology teacher', meta: 'IGCSE expertise • 4.9 rating' },
-  { name: 'Aisha K.', label: 'Head of primary', meta: 'Leadership track • Available now' },
+const savedSearches = [
+  { id: 1, label: 'Primary Science, Lagos', active: true },
+  { id: 2, label: 'IGCSE Biology, Remote', active: false },
+  { id: 3, label: 'Head of Department', active: false },
 ];
 
 const TsppClient: React.FC = () => (
-  <div className="min-h-screen bg-[#f5efe8] text-[#1d2430]">
-    <header className="mx-auto max-w-6xl px-5 py-5 sm:px-6 lg:px-8">
-      <div className="flex flex-col gap-4 rounded-[28px] border border-[#e0d5bf] bg-[#fffdf9]/80 p-4 backdrop-blur md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#1d2430] text-base font-semibold text-[#f8f6f1]">T</div>
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.22em] text-[#5d6c62]">Teachers & Private Schools</p>
-            <p className="text-xl font-semibold">TSPP</p>
-          </div>
+  <div className="tspp-client" style={{ minHeight: '100vh', backgroundColor: 'var(--tspp-cream)' }}>
+    <header className="tspp-topbar-inner">
+      <div className="tspp-brand" aria-label="TSPP home">
+        <span className="tspp-brand-mark">T</span>
+        <div className="tspp-brand-text">
+          <strong>TSPP</strong>
+          <small>Teachers &amp; Private Schools</small>
         </div>
+      </div>
 
-        <nav className="flex flex-wrap items-center gap-3 text-sm text-[#475a53]">
-          <a href="#platform" className="hover:text-[#1d2430]">Platform</a>
-          <a href="#schools" className="hover:text-[#1d2430]">Schools</a>
-          <a href="#teachers" className="hover:text-[#1d2430]">Teachers</a>
-          <Link to="/themes" className="hover:text-[#1d2430]">Themes</Link>
-        </nav>
+      <nav className="tspp-nav" aria-label="TSPP navigation">
+        <a href="#openings">Openings</a>
+        <a href="#profile">My profile</a>
+        <a href="#saved">Saved searches</a>
+        <Link to="/themes">Themes</Link>
+      </nav>
 
-        <div className="flex items-center gap-3">
-          <Link to="/login?redirect=%2Ftspp%2Fclient" className="rounded-full border border-[#d5c7af] bg-white px-4 py-2 text-sm font-medium text-[#1d2430]">
-            Sign in
-          </Link>
-          <Link to="/register?theme=tspp&redirect=%2Ftspp%2Fadmin" className="inline-flex items-center gap-2 rounded-full bg-[#1d2430] px-4 py-2 text-sm font-medium text-white">
-            Create school account <ArrowRight size={16} />
-          </Link>
-        </div>
+      <div className="tspp-actions">
+        <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-ghost">Sign in</Link>
+        <Link to="/register?theme=tspp&role=customer&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-amber">
+          Create teacher profile <ArrowRight size={16} />
+        </Link>
       </div>
     </header>
 
-    <main className="mx-auto max-w-6xl space-y-8 px-5 pb-14 pt-2 sm:px-6 lg:px-8">
-      <section className="grid gap-6 rounded-[30px] border border-[#e7dcc2] bg-[#fffdf9] p-6 shadow-[0_18px_55px_rgba(29,36,48,0.04)] lg:grid-cols-[1.3fr_0.9fr] lg:p-8">
-        <div>
-          <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-[#f5efe8] px-3 py-1.5 text-[11px] uppercase tracking-[0.2em] text-[#5d6f5e]">
-            <Sparkles size={13} /> Premium school hiring
+    <main className="tspp-section" style={{ padding: '2rem 0' }}>
+      <section className="tspp-hero" style={{ paddingTop: '2.5rem', paddingBottom: '2.5rem' }}>
+        <div className="tspp-hero-copy">
+          <div className="tspp-kicker">
+            <span className="tspp-badge tspp-badge-premium"><Sparkles size={14} /> Verified and visible</span>
           </div>
-          <h1 className="max-w-xl text-4xl font-semibold tracking-[-0.05em] md:text-6xl">Build the right school team—without the noise.</h1>
-          <p className="mt-4 max-w-xl text-base leading-7 text-[#4a5d59]">
-            TSPP connects schools with verified teachers, trusted school profiles, and streamlined hiring workflows designed for premium education brands.
+
+          <h1>Your credentials are verified. Your next school is here.</h1>
+          <p className="tspp-subheading">
+            TSPP removes the friction from teacher job hunting. One verified profile gets you in front of private schools that match your expertise — no more unverified applications or scattered inboxes.
           </p>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link to="/register?theme=tspp&redirect=%2Ftspp%2Fadmin" className="inline-flex items-center gap-2 rounded-full bg-[#1d2430] px-5 py-3 text-sm font-medium text-white">
-              Find qualified teachers <ArrowRight size={16} />
+          <div className="tspp-cta-row">
+            <Link to="/register?theme=tspp&role=customer&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-primary tspp-btn-primary-large">
+              Create your teacher profile <ArrowRight size={16} />
             </Link>
-            <Link to="/login?redirect=%2Ftspp%2Fclient" className="rounded-full border border-[#d5c7af] bg-[#f5efe8] px-5 py-3 text-sm font-medium text-[#1d2430]">
+            <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-ghost">
               Teacher sign in
             </Link>
           </div>
 
-          <div className="mt-6 flex flex-wrap gap-3 text-sm text-[#475a53]">
-            {highlights.map((item) => (
-              <span key={item} className="inline-flex items-center gap-2 rounded-full bg-[#f6f1ea] px-3 py-2">
-                <BadgeCheck size={15} className="text-[#1a6f5c]" />
-                {item}
-              </span>
-            ))}
+          <div className="tspp-proof-row">
+            <div className="tspp-proof">
+              <strong>1,200+</strong>
+              <span>teachers verified</span>
+            </div>
+            <div className="tspp-proof">
+              <strong>94%</strong>
+              <span>of teachers find interviews</span>
+            </div>
+            <div className="tspp-proof">
+              <strong>24 hrs</strong>
+              <span>average first response</span>
+            </div>
           </div>
         </div>
 
-        <div className="rounded-[28px] bg-[#1d2430] p-5 text-white shadow-[0_18px_60px_rgba(29,36,48,0.18)]">
-          <div className="mb-4 flex items-center justify-between text-sm text-[#e0dfd8]">
-            <span className="inline-flex items-center gap-2"><Search size={15} /> Search talent</span>
-            <span className="rounded-full bg-white/10 px-2 py-1 text-xs uppercase tracking-[0.18em]">Live</span>
+        <div className="tspp-hero-panel" aria-label="Verification status panel">
+          <div className="tspp-panel-header">
+            <span className="tspp-dot" />
+            <span className="tspp-dot" />
+            <span className="tspp-dot" />
           </div>
 
-          <div className="space-y-3">
-            <div className="rounded-2xl bg-white/5 p-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-[#d6cab4]">Focus</p>
-              <p className="mt-2 text-xl font-semibold">Mathematics teacher</p>
+          <div className="tspp-panel-card" style={{ padding: '1.5rem' }}>
+            <div className="tspp-card-topline">
+              <span className="tspp-badge tspp-badge-live">You're verified</span>
+              <span className="tspp-pill">6 months active</span>
             </div>
-            <div className="rounded-2xl bg-white/5 p-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-[#d6cab4]">Location</p>
-              <p className="mt-2 text-xl font-semibold">Lagos / Remote hybrid</p>
+
+            <div className="tspp-card-main">
+              <div>
+                <p className="tspp-label">What's unlocked for you</p>
+                <h2 style={{ fontSize: '1.5rem', marginTop: '0.25rem' }}>Full platform access</h2>
+              </div>
+              <div className="tspp-avatar" style={{ width: '56px', height: '56px', fontSize: '1.1rem' }}>AO</div>
             </div>
-            <div className="rounded-2xl bg-white/5 p-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-[#d6cab4]">Criteria</p>
-              <p className="mt-2 text-xl font-semibold">IGCSE + safeguarding cleared</p>
+
+            <ul className="tspp-list">
+              <li><BadgeCheck size={14} style={{ color: 'var(--tspp-mint)' }} /> Appear in school searches</li>
+              <li><BadgeCheck size={14} style={{ color: 'var(--tspp-mint)' }} /> See openings near you</li>
+              <li><BadgeCheck size={14} style={{ color: 'var(--tspp-mint)' }} /> Message and interview schools</li>
+            </ul>
+
+            <div className="tspp-card-footer">
+              <div>
+                <small>Profile strength</small>
+                <strong>87%</strong>
+              </div>
+              <button type="button" className="tspp-btn tspp-btn-mini">Complete profile</button>
             </div>
           </div>
         </div>
       </section>
 
-      <section id="schools" className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-[28px] border border-[#e7dcc2] bg-[#fffdf9] p-5 shadow-sm">
-          <div className="mb-5 flex items-center justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-[#6a7d6c]">Schools</p>
-              <h2 className="mt-2 text-2xl font-semibold">Active hiring opportunities</h2>
-            </div>
-            <Building2 className="text-[#1d2430]" size={22} />
-          </div>
+      <section id="openings" className="tspp-section" style={{ paddingTop: 0 }}>
+        <div className="tspp-section-heading">
+          <p className="tspp-kicker">OPENINGS NEAR YOU</p>
+          <h2>Recent roles from verified schools</h2>
+          <p>These schools are actively hiring and match your verified profile.</p>
+        </div>
 
-          <div className="space-y-3">
-            {schools.map((school) => (
-              <div key={school.name} className="flex items-center justify-between rounded-2xl border border-[#ebdfc9] bg-white p-3">
-                <div>
-                  <p className="font-medium text-[#1d2430]">{school.name}</p>
-                  <p className="text-sm text-[#586b63]">{school.focus}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-[#1d2430]">{school.seats}</p>
-                  <span className="inline-flex items-center gap-1 text-[11px] uppercase tracking-[0.16em] text-[#1a6f5c]"><ShieldCheck size={12} /> verified</span>
-                </div>
+        <div className="tspp-feature-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.25rem' }}>
+          {nearbyOpenings.map((opening) => (
+            <article key={opening.id} className="tspp-card" style={{ paddingTop: '1.25rem' }}>
+              <div className="tspp-card-topline" style={{ marginBottom: '1rem' }}>
+                <span className="tspp-pill">{opening.badge}</span>
+                <span className="tspp-pill tspp-pill-muted">
+                  <Star size={12} fill="currentColor" style={{ color: 'var(--tspp-amber)' }} />
+                  {opening.match}% match
+                </span>
               </div>
-            ))}
-          </div>
-        </div>
 
-        <div className="rounded-[28px] border border-[#e7dcc2] bg-[#1d2430] p-5 text-white shadow-sm">
-          <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#dbe5db]">
-            <BookOpenText size={14} />
-            Why schools choose TSPP
-          </div>
-          <ul className="space-y-3 text-sm text-[#e8efe9]">
-            <li className="flex gap-2"><BadgeCheck size={16} className="mt-0.5 text-[#cfae71]" /> Clear candidate screening and verification</li>
-            <li className="flex gap-2"><BadgeCheck size={16} className="mt-0.5 text-[#cfae71]" /> Branded employer pages and school profile visibility</li>
-            <li className="flex gap-2"><BadgeCheck size={16} className="mt-0.5 text-[#cfae71]" /> Smooth interview, offer, and onboarding management</li>
-          </ul>
-        </div>
-      </section>
+              <h3 style={{ fontSize: '1.25rem', margin: '0 0 0.5rem' }}>{opening.role}</h3>
 
-      <section id="teachers" className="rounded-[28px] border border-[#e7dcc2] bg-[#fffdf9] p-5 shadow-sm">
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-[#677b6d]">Teachers</p>
-            <h2 className="mt-2 text-2xl font-semibold">Featured teacher profiles</h2>
-          </div>
-          <GraduationCap className="text-[#1d2430]" size={23} />
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          {teachers.map((teacher) => (
-            <article key={teacher.name} className="rounded-[24px] border border-[#eadfc5] bg-white p-4">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f5efe8] text-sm font-semibold text-[#1d2430]">
-                {teacher.name.split(' ').map((part) => part[0]).join('')}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <Building2 size={16} style={{ color: 'var(--tspp-navy)' }} />
+                <strong style={{ fontSize: '1rem' }}>{opening.school}</strong>
               </div>
-              <p className="text-xl font-semibold text-[#1d2430]">{teacher.name}</p>
-              <p className="mt-1 text-sm text-[#586d62]">{teacher.label}</p>
-              <p className="mt-4 text-sm leading-6 text-[#41524f]">{teacher.meta}</p>
-              <button type="button" className="mt-5 rounded-full bg-[#1d2430] px-3 py-2 text-sm font-medium text-white">
-                View profile
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <MapPin size={14} style={{ color: 'var(--tspp-slate-light)' }} />
+                <span style={{ fontSize: '0.9rem', color: 'var(--tspp-slate)' }}>{opening.location}</span>
+              </div>
+
+              <button type="button" className="tspp-btn tspp-btn-amber" style={{ width: '100%', padding: '0.6rem' }}>
+                View details <ArrowRight size={14} />
               </button>
             </article>
           ))}
+        </div>
+      </section>
+
+      <section className="tspp-section" style={{ paddingTop: 0, display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+        <div className="tspp-card" style={{ flex: '1', minWidth: '300px' }}>
+          <div className="tspp-section-heading" style={{ marginBottom: '1.5rem', maxWidth: '100%' }}>
+            <p className="tspp-kicker">YOUR PROFILE</p>
+            <h2>Verification status</h2>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'var(--tspp-soft)', borderRadius: '0.75rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--tspp-navy)' }}>KYC documents</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', color: 'var(--tspp-mint)' }}><CheckCircle2 size={14} /> Verified</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'var(--tspp-soft)', borderRadius: '0.75rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--tspp-navy)' }}>Teaching credentials</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', color: 'var(--tspp-mint)' }}><CheckCircle2 size={14} /> Verified</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'var(--tspp-soft-2)', borderRadius: '0.75rem' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--tspp-navy)' }}>Reference check</span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--tspp-amber-deep)' }}>Pending</span>
+            </div>
+            <button type="button" className="tspp-btn tspp-btn-ghost" style={{ width: '100%', marginTop: '0.5rem' }}>
+              <Upload size={15} /> Upload more documents
+            </button>
+          </div>
+        </div>
+
+        <div className="tspp-card" style={{ flex: '1', minWidth: '300px' }}>
+          <div className="tspp-section-heading" style={{ marginBottom: '1.5rem', maxWidth: '100%' }}>
+            <p className="tspp-kicker">SAVED SEARCHES</p>
+            <h2>Your saved searches</h2>
+          </div>
+
+          <div style={{ display: 'grid', gap: '0.75rem' }}>
+            {savedSearches.map((search) => (
+              <div key={search.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', borderRadius: '0.75rem', backgroundColor: search.active ? 'rgba(185, 148, 69, 0.08)' : 'var(--tspp-paper-warm)', border: '1px solid var(--tspp-line)' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: search.active ? 600 : 400, color: 'var(--tspp-navy)' }}>{search.label}</span>
+                {search.active && <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--tspp-amber)' }} />}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
     </main>

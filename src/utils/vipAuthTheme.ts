@@ -135,6 +135,15 @@ const VIP_AUTH_THEMES: Record<string, VipAuthTheme> = {
     headline: 'Run a sharper service floor.',
     description: 'Sign in to power your retail and hospitality business with premium speed, clarity, and control.'
   },
+  tspp: {
+    id: 'tspp',
+    name: 'TSPP',
+    primary: '#b99445',
+    secondary: '#0f214a',
+    surface: '#f8f6f2',
+    headline: 'Verified teachers. Trusted schools.',
+    description: 'Sign in to your TSPP workspace and manage verified hiring, shortlists, and interviews.'
+  },
 };
 
 const getVipThemeFromTarget = (pathname: string, params: URLSearchParams) => {
@@ -148,6 +157,7 @@ const getVipThemeFromTarget = (pathname: string, params: URLSearchParams) => {
   if (pathname.startsWith('/pos/apex-pos')) return VIP_AUTH_THEMES['apex-pos'];
   if (pathname.startsWith('/salon/tamira-salon')) return VIP_AUTH_THEMES['tamira-salon'];
   if (pathname.startsWith('/utorme')) return VIP_AUTH_THEMES.utorme;
+  if (pathname.startsWith('/tspp')) return VIP_AUTH_THEMES.tspp;
   return null;
 };
 

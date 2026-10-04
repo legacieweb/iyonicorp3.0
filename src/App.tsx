@@ -1,56 +1,68 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { TenantProvider, useTenant } from './context/TenantContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { ToastProvider } from './context/ToastContext';
 import { Homepage } from './pages/Homepage';
-import { Login } from './pages/auth/Login';
-import { Register } from './pages/auth/Register';
-import Themes from './pages/Themes';
-import { SellerDashboard } from './pages/seller/SellerDashboard';
-import { SellerManagerDashboard } from './pages/manager/SellerManagerDashboard';
-import { ManagerAdminDashboard } from './pages/admin/ManagerAdminDashboard';
-import CustomerDashboard from './pages/customer/CustomerDashboard';
-import Storefront from './pages/Storefront';
-import PulseFitAdmin from './platforms/services/fitness/pulse-fit/PulseFitAdmin';
-import PulseFitClient from './platforms/services/fitness/pulse-fit/PulseFitClient';
-import PulseFitServicePage from './platforms/services/fitness/pulse-fit/PulseFitServicePage';
-import AuraSalonAdmin from './platforms/services/beauty/salon/aura-salon/AuraSalonAdmin';
-import AuraSalonClient from './platforms/services/beauty/salon/aura-salon/AuraSalonClient';
-import AuraSalonServicePage from './platforms/services/beauty/salon/aura-salon/AuraSalonServicePage';
-import CraftCollectiveSite from './platforms/marketplace/craft-collective/CraftCollectiveSite';
-import CraftCollectiveAdmin from './platforms/marketplace/craft-collective/CraftCollectiveAdmin';
-import CraftCollectiveVendor from './platforms/marketplace/craft-collective/CraftCollectiveVendor';
-import PosSite from './platforms/services/pos/point-of-sale/PosSite';
-import ApexPosSite from './platforms/services/pos/apex-pos/ApexPosSite';
-import ApexPosAdmin from './platforms/services/pos/apex-pos/ApexPosAdmin';
-import KitchenDisplay from './platforms/services/pos/apex-pos/pages/KitchenDisplay';
-import PosAdmin from './platforms/services/pos/point-of-sale/PosAdmin';
-import EventPlannerAdmin from './platforms/services/events/event-planner/EventPlannerAdmin';
-import EventPlannerClient from './platforms/services/events/event-planner/EventPlannerClient';
-import EventPlannerDetail from './platforms/services/events/event-planner/EventPlannerDetail';
-import EventoAdmin from './platforms/services/events/evento/EventoAdmin';
-import EventoClient from './platforms/services/events/evento/EventoClient';
-import EventoServicePage from './platforms/services/events/evento/EventoServicePage';
-import NLMSongs from './platforms/streaming/nlmsongs/NLMSongs';
-import IxStreamSite from './platforms/streaming/ixstream/IxStreamSite';
-import IxStreamAdmin from './platforms/streaming/ixstream/IxStreamAdmin';
-import EssayMeLanding from './platforms/services/education/essayme/EssayMeLanding';
-import TutorMeStudent from './platforms/services/education/essayme/TutorMeStudent';
-import HomeworkerStudent from './platforms/services/education/homeworker/HomeworkerStudent';
-import HomeworkerWorker from './platforms/services/education/homeworker/HomeworkerWorker';
 import { sellersAPI } from './services/api';
 import { normalizeThemeId } from './utils/themeDashboard';
-import IyonicPay from './pages/IyonicPay';
-import IyonicBots from './pages/IyonicBots';
-import InvoicePage from './pages/InvoicePage';
-import IyonicShop from './pages/IyonicShop';
-import Refunds from './pages/Refunds';
-import TsppLandingPage from './platforms/services/education/tspp/TsppLandingPage';
-import TsppAdmin from './platforms/services/education/tspp/TsppAdmin';
-import TsppClient from './platforms/services/education/tspp/TsppClient';
-import { About, Careers, Blog, Press, Documentation, APIReference, HelpCenter, Status, Privacy, Terms, Cookies, Licenses } from './pages/static';
+
+const Login = lazy(() => import('./pages/auth/Login').then(({ Login }) => ({ default: Login })));
+const Register = lazy(() => import('./pages/auth/Register').then(({ Register }) => ({ default: Register })));
+const Themes = lazy(() => import('./pages/Themes'));
+const SellerDashboard = lazy(() => import('./pages/seller/SellerDashboard').then(({ SellerDashboard }) => ({ default: SellerDashboard })));
+const SellerManagerDashboard = lazy(() => import('./pages/manager/SellerManagerDashboard').then(({ SellerManagerDashboard }) => ({ default: SellerManagerDashboard })));
+const ManagerAdminDashboard = lazy(() => import('./pages/admin/ManagerAdminDashboard').then(({ ManagerAdminDashboard }) => ({ default: ManagerAdminDashboard })));
+const CustomerDashboard = lazy(() => import('./pages/customer/CustomerDashboard'));
+const Storefront = lazy(() => import('./pages/Storefront'));
+const PulseFitAdmin = lazy(() => import('./platforms/services/fitness/pulse-fit/PulseFitAdmin'));
+const PulseFitClient = lazy(() => import('./platforms/services/fitness/pulse-fit/PulseFitClient'));
+const PulseFitServicePage = lazy(() => import('./platforms/services/fitness/pulse-fit/PulseFitServicePage'));
+const AuraSalonAdmin = lazy(() => import('./platforms/services/beauty/salon/aura-salon/AuraSalonAdmin'));
+const AuraSalonClient = lazy(() => import('./platforms/services/beauty/salon/aura-salon/AuraSalonClient'));
+const AuraSalonServicePage = lazy(() => import('./platforms/services/beauty/salon/aura-salon/AuraSalonServicePage'));
+const CraftCollectiveSite = lazy(() => import('./platforms/marketplace/craft-collective/CraftCollectiveSite'));
+const CraftCollectiveAdmin = lazy(() => import('./platforms/marketplace/craft-collective/CraftCollectiveAdmin'));
+const CraftCollectiveVendor = lazy(() => import('./platforms/marketplace/craft-collective/CraftCollectiveVendor'));
+const PosSite = lazy(() => import('./platforms/services/pos/point-of-sale/PosSite'));
+const ApexPosSite = lazy(() => import('./platforms/services/pos/apex-pos/ApexPosSite'));
+const ApexPosAdmin = lazy(() => import('./platforms/services/pos/apex-pos/ApexPosAdmin'));
+const KitchenDisplay = lazy(() => import('./platforms/services/pos/apex-pos/pages/KitchenDisplay'));
+const PosAdmin = lazy(() => import('./platforms/services/pos/point-of-sale/PosAdmin'));
+const EventPlannerAdmin = lazy(() => import('./platforms/services/events/event-planner/EventPlannerAdmin'));
+const EventPlannerClient = lazy(() => import('./platforms/services/events/event-planner/EventPlannerClient'));
+const EventPlannerDetail = lazy(() => import('./platforms/services/events/event-planner/EventPlannerDetail'));
+const EventoAdmin = lazy(() => import('./platforms/services/events/evento/EventoAdmin'));
+const EventoClient = lazy(() => import('./platforms/services/events/evento/EventoClient'));
+const EventoServicePage = lazy(() => import('./platforms/services/events/evento/EventoServicePage'));
+const NLMSongs = lazy(() => import('./platforms/streaming/nlmsongs/NLMSongs'));
+const IxStreamSite = lazy(() => import('./platforms/streaming/ixstream/IxStreamSite'));
+const IxStreamAdmin = lazy(() => import('./platforms/streaming/ixstream/IxStreamAdmin'));
+const EssayMeLanding = lazy(() => import('./platforms/services/education/essayme/EssayMeLanding'));
+const TutorMeStudent = lazy(() => import('./platforms/services/education/essayme/TutorMeStudent'));
+const HomeworkerStudent = lazy(() => import('./platforms/services/education/homeworker/HomeworkerStudent'));
+const HomeworkerWorker = lazy(() => import('./platforms/services/education/homeworker/HomeworkerWorker'));
+const IyonicPay = lazy(() => import('./pages/IyonicPay'));
+const IyonicBots = lazy(() => import('./pages/IyonicBots'));
+const InvoicePage = lazy(() => import('./pages/InvoicePage'));
+const IyonicShop = lazy(() => import('./pages/IyonicShop'));
+const Refunds = lazy(() => import('./pages/Refunds'));
+const TsppLandingPage = lazy(() => import('./platforms/services/education/tspp/TsppLandingPage'));
+const TsppAdmin = lazy(() => import('./platforms/services/education/tspp/TsppAdmin'));
+const TsppClient = lazy(() => import('./platforms/services/education/tspp/TsppClient'));
+const About = lazy(() => import('./pages/static').then(({ About }) => ({ default: About })));
+const Careers = lazy(() => import('./pages/static').then(({ Careers }) => ({ default: Careers })));
+const Blog = lazy(() => import('./pages/static').then(({ Blog }) => ({ default: Blog })));
+const Press = lazy(() => import('./pages/static').then(({ Press }) => ({ default: Press })));
+const Documentation = lazy(() => import('./pages/static').then(({ Documentation }) => ({ default: Documentation })));
+const APIReference = lazy(() => import('./pages/static').then(({ APIReference }) => ({ default: APIReference })));
+const HelpCenter = lazy(() => import('./pages/static').then(({ HelpCenter }) => ({ default: HelpCenter })));
+const Status = lazy(() => import('./pages/static').then(({ Status }) => ({ default: Status })));
+const Privacy = lazy(() => import('./pages/static').then(({ Privacy }) => ({ default: Privacy })));
+const Terms = lazy(() => import('./pages/static').then(({ Terms }) => ({ default: Terms })));
+const Cookies = lazy(() => import('./pages/static').then(({ Cookies }) => ({ default: Cookies })));
+const Licenses = lazy(() => import('./pages/static').then(({ Licenses }) => ({ default: Licenses })));
 
 const getUserRedirectPath = (user: any, shopSubdomain?: string | null) => {
   if (!user) return '/login';
@@ -154,11 +166,18 @@ const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const AppContent: React.FC = () => {
   const { tenant, isMainPlatform, isLoading: tenantLoading } = useTenant();
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  if (tenantLoading || authLoading) {
+  const hostname = window.location.hostname.toLowerCase();
+  const hasStoreQuery = new URLSearchParams(window.location.search).has('store')
+    || new URLSearchParams(location.search).has('store');
+  const isMainPlatformHomepage = location.pathname === '/'
+    && !hasStoreQuery
+    && ['localhost', '127.0.0.1', 'iyonicweb.com', 'www.iyonicweb.com', 'iyonicorp.com', 'www.iyonicorp.com', 'web.iyonicorp.com'].includes(hostname);
+
+  if (tenantLoading && !isMainPlatformHomepage) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-white">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -593,7 +612,13 @@ function App() {
       <AuthProvider>
         <ToastProvider>
           <DataProvider>
-            <AppContent />
+            <Suspense fallback={
+              <div className="flex min-h-screen items-center justify-center bg-white" role="status" aria-label="Loading page">
+                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+              </div>
+            }>
+              <AppContent />
+            </Suspense>
           </DataProvider>
         </ToastProvider>
       </AuthProvider>

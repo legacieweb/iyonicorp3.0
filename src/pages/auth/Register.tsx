@@ -32,6 +32,9 @@ export const Register: React.FC<RegisterProps> = ({
   const isUtormeSignup = signupParams.get('platform') === 'utorme';
   const isUtormeTutorSignup = isUtormeSignup && preselectedRole === 'seller';
   const isUtormeStudentSignup = isUtormeSignup && preselectedRole === 'customer';
+  const isTsppSignup = signupParams.get('theme') === 'tspp';
+  const isTsppTeacherSignup = isTsppSignup && preselectedRole === 'customer';
+  const isTsppSchoolSignup = isTsppSignup && preselectedRole === 'seller';
   const isShopSignup = Boolean(initialSellerId || storeSubdomain);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -40,7 +43,7 @@ export const Register: React.FC<RegisterProps> = ({
     email: '',
     password: '',
     confirmPassword: '',
-    role: (isShopSignup || isUtormeStudentSignup
+    role: (isShopSignup || isUtormeStudentSignup || isTsppTeacherSignup
       ? 'customer'
       : managerSlug
         ? 'seller'
@@ -74,8 +77,12 @@ export const Register: React.FC<RegisterProps> = ({
       setFormData((current) => ({ ...current, role: 'customer' }));
     } else if (isUtormeTutorSignup && (formData.role !== 'seller' || formData.shopType !== 'service')) {
       setFormData((current) => ({ ...current, role: 'seller', shopType: 'service' }));
+    } else if (isTsppTeacherSignup && formData.role !== 'customer') {
+      setFormData((current) => ({ ...current, role: 'customer' }));
+    } else if (isTsppSchoolSignup && formData.role !== 'seller') {
+      setFormData((current) => ({ ...current, role: 'seller' }));
     }
-  }, [formData.role, formData.shopType, isUtormeStudentSignup, isUtormeTutorSignup]);
+  }, [formData.role, formData.shopType, isUtormeStudentSignup, isUtormeTutorSignup, isTsppTeacherSignup, isTsppSchoolSignup]);
 
   useEffect(() => {
     if (invitationToken) {
@@ -182,6 +189,7 @@ export const Register: React.FC<RegisterProps> = ({
         password: formData.password,
         role: accountRole as any,
         sellerId: initialSellerId || undefined,
+        themeId: isTsppSignup ? 'tspp' : undefined,
         ...(accountRole === 'seller' ? {
           storeName: formData.storeName,
           subdomain: formData.subdomain,
@@ -278,12 +286,18 @@ export const Register: React.FC<RegisterProps> = ({
   }
 
   const benefits = {
-    seller: isUtormeTutorSignup ? [
+     seller: isUtormeTutorSignup ? [
       'Create a tutor profile and service page',
       'Manage tutoring sessions and availability',
       'Message students in one inbox',
       'Track your tutoring business',
       'Set up your own tutoring services',
+    ] : isTsppSchoolSignup ? [
+      'List unlimited school jobs',
+      'Search verified teacher profiles',
+      'Schedule interviews and collect feedback',
+      'Branded school employer page',
+      'Auto-renewing subscription',
     ] : [
       'AI-Powered Shop Management',
       'Instant IyonicPay Integration',
@@ -298,12 +312,18 @@ export const Register: React.FC<RegisterProps> = ({
       'Priority 24/7 Manager Support',
       'Automated Commission Payout System',
     ],
-    customer: isUtormeStudentSignup ? [
+     customer: isUtormeStudentSignup ? [
       'Discover tutors by subject',
       'Request sessions that fit your schedule',
       'Message your tutor directly',
       'Keep your learning sessions organized',
       'Choose your tutor before booking',
+    ] : isTsppTeacherSignup ? [
+      'Create a verified teacher profile',
+      'Get matched with private schools',
+      'Showcase your credentials and experience',
+      'Receive interview invitations',
+      'Secure messaging with schools',
     ] : isShopSignup ? [
       'Shop from our store',
       'Track your orders in real-time',
@@ -373,9 +393,9 @@ export const Register: React.FC<RegisterProps> = ({
             }`}>
               <h3 className="text-xl font-bold mb-4 flex items-center">
                 {formData.role === 'seller' ? (
-                  <><Store className="w-6 h-6 mr-2 text-blue-300" />{isUtormeTutorSignup ? 'Tutor Benefits' : 'Seller Benefits'}</>
+                  <><Store className="w-6 h-6 mr-2 text-blue-300" />{isUtormeTutorSignup ? 'Tutor Benefits' : isTsppSchoolSignup ? 'School Benefits' : 'Seller Benefits'}</>
                 ) : formData.role === 'customer' ? (
-                  <><Package className="w-6 h-6 mr-2 text-green-300" />{isUtormeStudentSignup ? 'Student Benefits' : 'Customer Benefits'}</>
+                  <><Package className="w-6 h-6 mr-2 text-green-300" />{isUtormeStudentSignup ? 'Student Benefits' : isTsppTeacherSignup ? 'Teacher Benefits' : 'Customer Benefits'}</>
                 ) : (
                   <><Users className="w-6 h-6 mr-2 text-purple-300" /> Manager Benefits</>
                 )}
@@ -461,7 +481,7 @@ export const Register: React.FC<RegisterProps> = ({
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Role Selection Tabs */}
-            {!isShopSignup && !managerSlug && !isInvitation && !isUtormeSignup && (
+            {!isShopSignup && !managerSlug && !isInvitation && !isUtormeSignup && !isTsppSignup && (
               <div className="bg-gray-100 p-1 rounded-2xl flex max-w-lg mx-auto md:mx-0">
                 <button
                   type="button"
@@ -537,7 +557,8 @@ export const Register: React.FC<RegisterProps> = ({
 
             {formData.role === 'seller' && (
               <div className="space-y-6">
-                {!isUtormeTutorSignup && <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                {!isUtormeTutorSignup && !isTsppSchoolSignup && (
+                <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
                   <p className="text-sm font-semibold text-blue-900 mb-3">Shop Type</p>
                   <div className="grid grid-cols-2 gap-3">
                     <button
@@ -566,14 +587,14 @@ export const Register: React.FC<RegisterProps> = ({
                       <p className={`text-sm font-bold ${formData.shopType === 'service' ? 'text-blue-900' : 'text-gray-700'}`}>Service Shop</p>
                       <p className="text-xs text-gray-500">Consulting, repairs, help</p>
                     </button>
-                  </div>
-                </div>}
+                   </div>
+                </div>)}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
                 <Input
-                  label={isUtormeTutorSignup ? 'Tutor or practice name' : 'Store Name'}
+                   label={isUtormeTutorSignup ? 'Tutor or practice name' : isTsppSchoolSignup ? 'School name' : 'Store Name'}
                   type="text"
-                  placeholder={isUtormeTutorSignup ? 'Your tutoring name' : 'My Awesome Store'}
+                  placeholder={isUtormeTutorSignup ? 'Your tutoring name' : isTsppSchoolSignup ? 'Your school' : 'My Awesome Store'}
                   value={formData.storeName}
                   onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
                   required

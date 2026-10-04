@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowRight, Briefcase, CheckCircle2, ChevronRight, Clock3, LayoutDashboard, MessageSquareText, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { ArrowRight, Briefcase, CheckCircle2, ChevronRight, Clock3, LayoutDashboard, MessageSquareText, Search, ShieldCheck, Sparkles, Star, Users } from 'lucide-react';
+import './tspp-theme.css';
 
 const tabs = [
   { id: 'overview', label: 'Overview' },
@@ -11,22 +12,22 @@ const tabs = [
 type TabId = (typeof tabs)[number]['id'];
 
 const metrics = [
-  { label: 'Live roles', value: '18', change: '+6 this week', tone: 'bg-[#1d2430]' },
-  { label: 'Shortlisted', value: '94', change: '18 pending review', tone: 'bg-[#cfae71]' },
-  { label: 'Offer rate', value: '76%', change: 'Above market norm', tone: 'bg-[#e7efe9]' },
-  { label: 'Avg. response', value: '9 hrs', change: 'Across all schools', tone: 'bg-[#f5efe8]' },
+  { label: 'Live roles', value: '18', change: '+6 this week', color: 'var(--tspp-navy)' },
+  { label: 'Shortlisted', value: '94', change: '18 pending review', color: 'var(--tspp-amber-deep)' },
+  { label: 'Offer rate', value: '76%', change: 'Above market norm', color: 'var(--tspp-mint)' },
+  { label: 'Avg. response', value: '9 hrs', change: 'Across all schools', color: 'var(--tspp-navy-light)' },
 ];
 
 const pipeline = [
-  { title: 'Primary English teacher', status: 'New applicants', count: '23', accent: 'bg-[#1d2430]' },
-  { title: 'Biology lead', status: 'Interviews booked', count: '9', accent: 'bg-[#cfae71]' },
-  { title: 'School counselor', status: 'Reference check', count: '4', accent: 'bg-[#dfe7de]' },
+  { title: 'Primary English teacher', status: 'New applicants', count: '23', color: 'var(--tspp-navy)' },
+  { title: 'Biology lead', status: 'Interviews booked', count: '9', color: 'var(--tspp-amber-deep)' },
+  { title: 'School counselor', status: 'Reference check', count: '4', color: 'var(--tspp-mint)' },
 ];
 
 const talent = [
-  { name: 'Amina Okafor', focus: 'Primary Science', score: '96%', label: 'Fully verified', availability: 'Available this term' },
-  { name: 'Kwame Lewis', focus: 'ICT & STEM', score: '94%', label: 'Curriculum aligned', availability: 'Open for contract' },
-  { name: 'Nadia Yusuf', focus: 'Early years', score: '92%', label: 'Safeguarding cleared', availability: 'Shortlist ready' },
+  { name: 'Amina Okafor', focus: 'Primary Science', score: '96%', label: 'Fully verified', availability: 'Available this term', tagColor: 'var(--tspp-mint)' },
+  { name: 'Kwame Lewis', focus: 'ICT & STEM', score: '94%', label: 'Curriculum aligned', availability: 'Open for contract', tagColor: 'var(--tspp-navy)' },
+  { name: 'Nadia Yusuf', focus: 'Early years', score: '92%', label: 'Safeguarding cleared', availability: 'Shortlist ready', tagColor: 'var(--tspp-amber-deep)' },
 ];
 
 const tasks = [
@@ -65,181 +66,163 @@ const TsppAdmin: React.FC = () => {
   }, [activeTab]);
 
   return (
-    <div className="min-h-screen bg-[#f5efe8] text-[#1d2430]">
-      <header className="mx-auto max-w-7xl px-5 py-5 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-4 rounded-[28px] border border-[#d7c9b4] bg-[#fffdf9]/90 p-4 shadow-[0_18px_55px_rgba(29,36,48,0.06)] backdrop-blur md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#1d2430] text-lg font-semibold text-[#f9f5ef]">T</div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.22em] text-[#5b6b5f]">Teachers & Private Schools</p>
-              <p className="text-xl font-semibold">TSPP</p>
-            </div>
+    <div className="tspp-admin" style={{ minHeight: '100vh', backgroundColor: 'var(--tspp-cream)' }}>
+      <header className="tspp-topbar-inner">
+        <div className="tspp-brand" aria-label="TSPP home">
+          <span className="tspp-brand-mark">T</span>
+          <div className="tspp-brand-text">
+            <strong>TSPP</strong>
+            <small>Teachers &amp; Private Schools</small>
           </div>
+        </div>
 
-          <nav className="flex flex-wrap items-center gap-2 text-sm text-[#42504d]">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`rounded-full px-3 py-2 transition ${activeTab === tab.id ? 'bg-[#1d2430] text-white' : 'bg-[#f5efe8] hover:bg-[#ebe3d6]'}`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
+        <nav className="tspp-tabs" role="tablist" aria-label="Admin navigation">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="tspp-tab"
+              style={activeTab === tab.id ? { backgroundColor: 'var(--tspp-navy)', color: 'var(--tspp-paper)' } : {}}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
 
-          <div className="flex items-center gap-3">
-            <button type="button" className="rounded-full border border-[#d7c9b4] bg-white px-4 py-2 text-sm font-medium text-[#1d2430]">
-              Invite school
-            </button>
-            <button type="button" className="inline-flex items-center gap-2 rounded-full bg-[#1d2430] px-4 py-2 text-sm font-medium text-white">
-              Launch hiring <ArrowRight size={16} />
-            </button>
-          </div>
+        <div className="tspp-actions">
+          <button type="button" className="tspp-btn tspp-btn-ghost">Invite school</button>
+          <button type="button" className="tspp-btn tspp-btn-amber">
+            Launch hiring <ArrowRight size={16} />
+          </button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl space-y-7 px-5 pb-12 pt-2 sm:px-6 lg:px-8">
-        <section className="grid gap-4 md:grid-cols-[1.7fr_1fr]">
-          <div className="rounded-[28px] border border-[#e1d4bb] bg-[#fffdf9] p-6 shadow-[0_18px_50px_rgba(29,36,48,0.04)]">
-            <div className="mb-5 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-[#6d7c6b]">
-              <Sparkles size={14} />
-              Platform dashboard
+      <main className="tspp-section" style={{ padding: '2rem 0', maxWidth: '1200px' }}>
+        <section className="tspp-card" style={{ display: 'grid', gridTemplateColumns: '1.7fr 1fr', gap: '1.5rem', alignItems: 'center' }}>
+          <div>
+            <div className="tspp-section-heading" style={{ marginBottom: 0, maxWidth: '100%' }}>
+              <p className="tspp-kicker"><Sparkles size={14} /> {tabs.find(t => t.id === activeTab)?.label ?? 'Platform dashboard'}</p>
+              <h2>{content.headline}</h2>
+              <p style={{ marginTop: '1rem', color: 'var(--tspp-slate)', fontSize: '1.06rem' }}>{content.description}</p>
             </div>
-            <h1 className="max-w-xl text-4xl font-semibold tracking-[-0.04em] text-[#1d2430] md:text-5xl">{content.headline}</h1>
-            <p className="mt-4 max-w-xl text-base leading-7 text-[#4f5a55]">{content.description}</p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button type="button" className="inline-flex items-center gap-2 rounded-full bg-[#1d2430] px-4 py-2.5 text-sm font-medium text-white">
+            <div className="tspp-cta-row" style={{ marginTop: '1.5rem' }}>
+              <button type="button" className="tspp-btn tspp-btn-primary">
                 Review shortlist <ChevronRight size={16} />
               </button>
-              <button type="button" className="rounded-full border border-[#d9cab1] bg-[#f5efe8] px-4 py-2.5 text-sm font-medium text-[#1d2430]">
-                Manage school profile
-              </button>
+              <button type="button" className="tspp-btn tspp-btn-ghost">Manage school profile</button>
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-[#e4d9c3] bg-[#1d2430] p-5 text-white shadow-[0_20px_60px_rgba(29,36,48,0.2)]">
-            <div className="mb-4 flex items-center justify-between text-sm text-[#d9e3d3]">
+          <div className="tspp-card-dark" style={{ boxShadow: 'var(--tspp-shadow-strong)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.75)' }}>
               <span>School health</span>
-              <span className="rounded-full bg-white/10 px-2 py-1">Live</span>
+              <span style={{ backgroundColor: 'rgba(26,127,102,0.14)', border: '1px solid rgba(26,127,102,0.3)', borderRadius: '999px', padding: '0.2rem 0.6rem', color: 'var(--tspp-mint-light)' }}>Live</span>
             </div>
-            <div className="space-y-4">
-              <div>
-                <p className="text-3xl font-semibold">89%</p>
-                <p className="mt-1 text-sm text-[#d0d8d3]">Hiring momentum across six active vacancies</p>
+
+            <div style={{ marginTop: '1rem' }}>
+              <p style={{ fontSize: '2.25rem', fontWeight: 600, margin: 0, color: 'var(--tspp-paper)' }}>89%</p>
+              <p style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.8)' }}>Hiring momentum across six active vacancies</p>
+            </div>
+
+            <div style={{ height: '0.625rem', overflow: 'hidden', borderRadius: '999px', backgroundColor: 'rgba(255,255,255,0.1)', marginTop: '1.25rem' }}>
+              <div style={{ width: '89%', height: '100%', borderRadius: '999px', backgroundColor: 'var(--tspp-amber)' }} />
+            </div>
+
+            <div className="tspp-cta-row" style={{ marginTop: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '1rem', padding: '0.85rem' }}>
+                <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)' }}>Top fit</p>
+                <p style={{ marginTop: '0.35rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--tspp-paper)' }}>96%</p>
               </div>
-              <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
-                <div className="h-full w-[89%] rounded-full bg-[#cfae71]" />
-              </div>
-              <div className="grid grid-cols-2 gap-3 pt-2 text-sm text-[#ebf0ea]">
-                <div className="rounded-2xl bg-white/5 p-3">
-                  <p className="text-[#d2c4a6]">Top fit</p>
-                  <p className="mt-2 font-semibold">96%</p>
-                </div>
-                <div className="rounded-2xl bg-white/5 p-3">
-                  <p className="text-[#d2c4a6]">Offers</p>
-                  <p className="mt-2 font-semibold">11</p>
-                </div>
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '1rem', padding: '0.85rem' }}>
+                <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)' }}>Offers</p>
+                <p style={{ marginTop: '0.35rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--tspp-paper)' }}>11</p>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-4">
+        <section className="tspp-metrics">
           {metrics.map((metric) => (
-            <div key={metric.label} className="rounded-[24px] border border-[#e7dcc2] bg-white p-4 shadow-sm">
-              <div className={`mb-4 inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-[#1d2430] ${metric.tone}`}>
-                {metric.label}
-              </div>
-              <p className="text-3xl font-semibold text-[#1d2430]">{metric.value}</p>
-              <p className="mt-2 text-sm text-[#5c685d]">{metric.change}</p>
+            <div key={metric.label} className="tspp-metric">
+              <p style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--tspp-slate)', marginBottom: '1rem' }}>{metric.label}</p>
+              <p style={{ fontSize: '1.75rem', fontWeight: 700, color: metric.color }}>{metric.value}</p>
+              <p style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: 'var(--tspp-slate)' }}>{metric.change}</p>
             </div>
           ))}
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[1.35fr_0.9fr]">
-          <div className="rounded-[28px] border border-[#e7dcc2] bg-[#fffdf9] p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-[#687c6f]">Hiring pipeline</p>
-                <h2 className="mt-2 text-2xl font-semibold">School roles and status</h2>
-              </div>
-              <button type="button" className="inline-flex items-center gap-2 rounded-full bg-[#f5efe8] px-3 py-2 text-sm text-[#1d2430]">
-                <LayoutDashboard size={15} /> Dashboard
-              </button>
+        <section className="tspp-feature-grid" style={{ gridTemplateColumns: '1.35fr 0.9fr', gap: '1.5rem' }}>
+          <div className="tspp-card">
+            <div className="tspp-section-heading" style={{ marginBottom: '1.5rem', maxWidth: '100%' }}>
+              <p className="tspp-kicker">Hiring pipeline</p>
+              <h2>School roles and status</h2>
             </div>
 
-            <div className="space-y-3">
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
               {pipeline.map((entry) => (
-                <div key={entry.title} className="flex items-center justify-between rounded-2xl border border-[#ebdfc9] bg-[#fbf8f3] p-3">
-                  <div className="flex items-center gap-3">
-                    <span className={`inline-flex h-10 w-10 items-center justify-center rounded-xl text-sm font-semibold text-white ${entry.accent}`}>
-                      {entry.title[0]}
-                    </span>
+                <div key={entry.title} className="tspp-card-warm" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{ display: 'grid', placeItems: 'center', width: '40px', height: '40px', borderRadius: '0.6rem', backgroundColor: entry.color, color: 'var(--tspp-paper)', fontSize: '1rem', fontWeight: 600 }}>{entry.title[0]}</span>
                     <div>
-                      <p className="font-medium text-[#1d2430]">{entry.title}</p>
-                      <p className="text-sm text-[#5b675d]">{entry.status}</p>
+                      <p style={{ fontWeight: 600, color: 'var(--tspp-navy)', margin: 0 }}>{entry.title}</p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--tspp-slate)' }}>{entry.status}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-semibold text-[#1d2430]">{entry.count}</p>
-                    <p className="text-xs uppercase tracking-[0.18em] text-[#6f7d72]">applicants</p>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--tspp-navy)' }}>{entry.count}</p>
+                    <p style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.16em', color: 'var(--tspp-slate-light)' }}>applicants</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-[#e7dcc2] bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#65756b]">
-              <Briefcase size={14} />
-              Actions
+          <div className="tspp-card">
+            <div className="tspp-section-heading" style={{ marginBottom: '1.5rem', maxWidth: '100%' }}>
+              <p className="tspp-kicker"><Briefcase size={14} /> Actions</p>
+              <h2>Quick actions</h2>
             </div>
-            <div className="space-y-3">
+
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
               {tasks.map((task) => (
-                <div key={task} className="flex items-start gap-3 rounded-2xl bg-[#f7f3ed] p-3 text-[#24302e]">
-                  <CheckCircle2 size={18} className="mt-0.5 text-[#1a6f5c]" />
-                  <p className="text-sm leading-6">{task}</p>
+                <div key={task} className="tspp-card-warm" style={{ display: 'flex', gap: '0.75rem', padding: '0.85rem' }}>
+                  <CheckCircle2 size={18} style={{ marginTop: '0.15rem', color: 'var(--tspp-mint)' }} />
+                  <p style={{ fontSize: '0.85rem', color: 'var(--tspp-navy)' }}>{task}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-[28px] border border-[#e7dcc2] bg-[#fffdf9] p-5 shadow-sm">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-[#6d7d70]">Teachers</p>
-                <h2 className="mt-2 text-2xl font-semibold">Verified candidates</h2>
-              </div>
-              <button type="button" className="rounded-full bg-[#f5efe8] px-3 py-2 text-sm text-[#1d2430]">
-                View all
-              </button>
+        <section className="tspp-feature-grid" style={{ gridTemplateColumns: '1.2fr 0.8fr', gap: '1.5rem' }}>
+          <div className="tspp-card">
+            <div className="tspp-section-heading" style={{ marginBottom: '1.5rem', maxWidth: '100%' }}>
+              <p className="tspp-kicker">Teachers</p>
+              <h2>Verified candidates</h2>
             </div>
 
-            <div className="space-y-3">
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
               {talent.map((person) => (
-                <div key={person.name} className="flex flex-col gap-3 rounded-2xl border border-[#ebdfc9] bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1d2430] text-sm font-semibold text-white">
-                      {person.name.split(' ').map((part) => part[0]).slice(0, 2).join('')}
-                    </div>
+                <div key={person.name} className="tspp-card-warm" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <div className="tspp-avatar tspp-avatar-sm">{person.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}</div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-[#1d2430]">{person.name}</p>
-                        <span className="rounded-full bg-[#e7efe9] px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-[#1a6f5c]">{person.label}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <p style={{ fontWeight: 600, color: 'var(--tspp-navy)', margin: 0 }}>{person.name}</p>
+                        <span style={{ backgroundColor: 'rgba(26,127,102,0.08)', color: person.tagColor, fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', padding: '0.15rem 0.45rem', borderRadius: '999px' }}>{person.label}</span>
                       </div>
-                      <p className="text-sm text-[#586a62]">{person.focus}</p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--tspp-slate)' }}>{person.focus}</p>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-[#44514b]">
-                    <div className="rounded-full bg-[#f7f3ed] px-3 py-1.5 font-medium text-[#1d2430]">Match {person.score}</div>
-                    <div className="inline-flex items-center gap-2 text-[#4d5d58]">
-                      <Clock3 size={15} />
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', color: 'var(--tspp-slate)' }}>
+                    <div style={{ backgroundColor: 'rgba(185,148,69,0.08)', borderRadius: '999px', padding: '0.35rem 0.7rem', fontWeight: 600, color: 'var(--tspp-navy)' }}>Match {person.score}</div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Clock3 size={14} />
                       {person.availability}
                     </div>
                   </div>
@@ -248,27 +231,28 @@ const TsppAdmin: React.FC = () => {
             </div>
           </div>
 
-          <div className="rounded-[28px] border border-[#e7dcc2] bg-[#1d2430] p-5 text-white shadow-sm">
-            <div className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-[#d1d7d0]">
-              <ShieldCheck size={14} />
-              Trust layer
+          <div className="tspp-card-dark" style={{ boxShadow: 'var(--tspp-shadow)' }}>
+            <div className="tspp-section-heading" style={{ marginBottom: '1.5rem', maxWidth: '100%' }}>
+              <p className="tspp-kicker" style={{ color: 'rgba(255,255,255,0.65)' }}><ShieldCheck size={14} /> Trust layer</p>
+              <h2 style={{ color: 'var(--tspp-paper)' }}>School trust checks</h2>
             </div>
-            <h2 className="text-2xl font-semibold">School trust checks</h2>
-            <div className="mt-5 space-y-3">
-              <div className="rounded-2xl bg-white/5 p-3">
-                <p className="text-sm text-[#dfeae2]">Safeguarding verification</p>
-                <p className="mt-2 text-xl font-semibold">96% complete</p>
+
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '1rem', padding: '0.85rem' }}>
+                <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.75)' }}>Safeguarding verification</p>
+                <p style={{ marginTop: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--tspp-paper)' }}>96% complete</p>
               </div>
-              <div className="rounded-2xl bg-white/5 p-3">
-                <p className="text-sm text-[#dfeae2]">Reference compliance</p>
-                <p className="mt-2 text-xl font-semibold">12 pending</p>
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '1rem', padding: '0.85rem' }}>
+                <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.75)' }}>Reference compliance</p>
+                <p style={{ marginTop: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--tspp-paper)' }}>12 pending</p>
               </div>
-              <div className="rounded-2xl bg-white/5 p-3">
-                <p className="text-sm text-[#dfeae2]">Interviews scheduled</p>
-                <p className="mt-2 text-xl font-semibold">9 slots</p>
+              <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '1rem', padding: '0.85rem' }}>
+                <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.75)' }}>Interviews scheduled</p>
+                <p style={{ marginTop: '0.5rem', fontSize: '1.25rem', fontWeight: 600, color: 'var(--tspp-paper)' }}>9 slots</p>
               </div>
             </div>
-            <button type="button" className="mt-5 inline-flex items-center gap-2 rounded-full bg-[#cfae71] px-4 py-2.5 text-sm font-medium text-[#1d2430]">
+
+            <button type="button" className="tspp-btn tspp-btn-amber" style={{ marginTop: '1.25rem' }}>
               Review compliance <MessageSquareText size={15} />
             </button>
           </div>

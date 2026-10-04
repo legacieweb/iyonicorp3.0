@@ -385,7 +385,8 @@ export const authAPI = {
     subdomain?: string;
     shopType?: 'product' | 'service' | 'payment';
     managerId?: string;
-    sellerId?: string; // For customer signup in a specific store
+    sellerId?: string;
+    themeId?: string;
   }): Promise<User> {
     const response = await api.post('/auth/register', data);
     const { user, token } = response.data;

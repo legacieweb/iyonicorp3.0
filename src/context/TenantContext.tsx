@@ -81,7 +81,7 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const isValidSubdomain = (subdomain: string | null): boolean => {
     if (!subdomain) return false;
-    const reserved = ['www', 'localhost', 'web', 'api', 'admin', 'shop', 'store', 'app', ''];
+    const reserved = ['www', 'localhost', 'web', 'api', 'admin', 'shop', 'store', 'app', 'iyonicweb', 'iyonicorp', ''];
     if (reserved.includes(subdomain.toLowerCase())) return false;
     if (subdomain.length < 2) return false;
     // Existing stores may contain apostrophes from their generated store slug.
@@ -217,7 +217,7 @@ const shopSubdomain = (path.startsWith('/shop/')
       subdomain = isValidSubdomain(extractedSubdomain) ? extractedSubdomain : null;
     }
 
-    if (!subdomain || hostname === 'localhost') {
+    if (!subdomain || hostname === 'localhost' || hostname === '127.0.0.1') {
       setIsMainPlatform(true);
       setTenant(null);
       setIsLoading(false);
