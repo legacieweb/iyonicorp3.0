@@ -3,7 +3,8 @@
 # This file defines the services needed to deploy IyoniCorp on Coolify.
 # 
 # Deployment approach:
-# - Single Node.js container runs both Express backend + serves built React frontend
+# - Frontend serves the production Vite build on port 4000
+# - Express API runs on port 2823
 # - Uses PostgreSQL database
 #
 # Quick Deploy (recommended):
@@ -23,13 +24,28 @@
 version: "3.8"
 
 services:
-  app:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_URL: ${FRONTEND_API_URL:-https://api.iyonicorp.com/api}
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    depends_on:
+      - backend
+    networks:
+      - iyonicorp-network
+
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+      - PORT=2823
       - DATABASE_URL=postgresql://${POSTGRES_USER:-iyonicorp}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-iyonicorp}
       - JWT_SECRET=${JWT_SECRET}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://iyonicorp.com,https://www.iyonicorp.com}
@@ -37,7 +53,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "5000:5000"
+      - "2823:2823"
     networks:
       - iyonicorp-network
 

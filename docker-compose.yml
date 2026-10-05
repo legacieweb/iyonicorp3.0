@@ -1,37 +1,58 @@
 services:
-  app:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_URL: ${FRONTEND_API_URL:-https://api.iyonicorp.com/api}
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    depends_on:
+      - backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.iyonicorp-frontend.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`) || HostRegexp(`{seller:[a-z0-9-]+}.${DOMAIN}`)"
+      - "traefik.http.routers.iyonicorp-frontend.entrypoints=websecure"
+      - "traefik.http.routers.iyonicorp-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.iyonicorp-frontend.service=iyonicorp-frontend"
+      - "traefik.http.services.iyonicorp-frontend.loadbalancer.server.port=4000"
+
+  backend:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     environment:
-      - PORT=5000
-      - DATABASE_URL=postgresql://postgres:postgres_password@db:5432/shopright
+      - NODE_ENV=production
+      - PORT=2823
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres_password}@db:5432/${POSTGRES_DB:-shopright}
       - JWT_SECRET=${JWT_SECRET:-@7Switched}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://iyonicorp.com,https://www.iyonicorp.com}
-      - VITE_APP_URL=${VITE_APP_URL}
-      - VITE_API_URL=${VITE_API_URL}
     ports:
-      - "5000:5000"
+      - "2823:2823"
     depends_on:
       db:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.iyonicorp.rule=Host(`${DOMAIN}`) || Host(`api.${DOMAIN}`) || HostRegexp(`{seller:[a-z0-9-]+}.${DOMAIN}`)"
-      - "traefik.http.routers.iyonicorp.entrypoints=websecure"
-      - "traefik.http.routers.iyonicorp.tls.certresolver=letsencrypt"
-      - "traefik.http.services.iyonicorp.loadbalancer.server.port=5000"
+      - "traefik.http.routers.iyonicorp-api.rule=Host(`api.${DOMAIN}`)"
+      - "traefik.http.routers.iyonicorp-api.entrypoints=websecure"
+      - "traefik.http.routers.iyonicorp-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.iyonicorp-api.service=iyonicorp-api"
+      - "traefik.http.services.iyonicorp-api.loadbalancer.server.port=2823"
 
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      - POSTGRES_DB=shopright
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres_password
+      - POSTGRES_DB=${POSTGRES_DB:-shopright}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d shopright"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-shopright}"]
       interval: 5s
       timeout: 5s
       retries: 5

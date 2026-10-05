@@ -34,7 +34,7 @@ COPY --from=builder /app/server ./server
 COPY --from=builder /app/public ./public
 
 # Expose the application port
-EXPOSE 5000
+EXPOSE 2823
 
 # Set environment to production
 ENV NODE_ENV=production

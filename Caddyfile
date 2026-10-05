@@ -1,3 +1,8 @@
+https://api.iyonicorp.test {
+    tls internal
+    reverse_proxy localhost:2823
+}
+
 https://iyonicorp.test, https://*.iyonicorp.test, https://sellermuutu.test {
     # Force Caddy to use internal self-signed local SSL certificates
     tls internal
