@@ -7,6 +7,7 @@ services:
       - PORT=5000
       - DATABASE_URL=postgresql://postgres:postgres_password@db:5432/shopright
       - JWT_SECRET=${JWT_SECRET:-@7Switched}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://iyonicorp.com,https://www.iyonicorp.com}
       - VITE_APP_URL=${VITE_APP_URL}
       - VITE_API_URL=${VITE_API_URL}
     ports:

@@ -65,7 +65,7 @@ const app = express();
 const PORT = process.env.PORT || 2823;
 const JWT_SECRET = process.env.JWT_SECRET || 'iyonicorp_secret_key';
 const additionalCorsOrigins = new Set(
-  (process.env.CORS_ORIGINS || '')
+  (process.env.CORS_ORIGINS || 'https://iyonicorp.com,https://www.iyonicorp.com')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean)
@@ -195,16 +195,9 @@ const corsOptions = {
   optionsSuccessStatus: 204
 };
 
+// Respond to preflight requests before any route or authentication middleware.
+app.options(/.*/, cors(corsOptions));
 app.use(cors(corsOptions));
-
-// Explicitly handle browser preflight requests
-app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    cors(corsOptions)(req, res, next);
-  } else {
-    next();
-  }
-});
 
 app.use(express.json());
 
