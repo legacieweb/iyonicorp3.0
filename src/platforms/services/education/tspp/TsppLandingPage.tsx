@@ -1,21 +1,21 @@
 import React from 'react';
-import { ArrowRight, BadgeCheck, Briefcase, Building2, CheckCircle2, Clock, GraduationCap, ShieldCheck, Sparkles, Star, Users } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Briefcase, Building2, CheckCircle2, GraduationCap, ShieldCheck, Sparkles, Star, Trophy, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../../../../components/SEO';
 import './tspp-theme.css';
 
 const features = [
-  { icon: <Building2 size={20} />, title: 'School profiles', desc: 'Showcase your school identity, values, and recruitment brand in a polished employer hub.' },
-  { icon: <Users size={20} />, title: 'Verified talent', desc: 'Attract qualified teachers with trust signals, credential checks, and structured profiles.' },
-  { icon: <Briefcase size={20} />, title: 'Hiring workflows', desc: 'Manage shortlists, interviews, candidate notes, and offer stages in one place.' },
-  { icon: <GraduationCap size={20} />, title: 'Curriculum fit', desc: 'Filter applicants by subject, age group, location, and culture to match the right teacher.' },
+  { icon: <Building2 size={22} />, title: 'School profiles', desc: 'Showcase your school identity, values, and recruitment brand in a polished employer hub.' },
+  { icon: <Users size={22} />, title: 'Verified talent', desc: 'Attract qualified teachers with trust signals, credential checks, and structured profiles.' },
+  { icon: <Briefcase size={22} />, title: 'Hiring workflows', desc: 'Manage shortlists, interviews, candidate notes, and offer stages in one place.' },
+  { icon: <GraduationCap size={22} />, title: 'Curriculum fit', desc: 'Filter applicants by subject, age group, location, and culture to match the right teacher.' },
 ];
 
 const processSteps = [
-  { step: '01', title: 'Create a profile', desc: 'Choose a role and add location, skills, experience, photo, and a short description.' },
-  { step: '02', title: 'Submit documents', desc: 'Upload a government ID and certificates to verify your identity (KYC).' },
-  { step: '03', title: 'Get verified', desc: 'Our team reviews your documents. Once approved, your profile becomes visible to schools.' },
-  { step: '04', title: 'Connect and hire', desc: 'Schools message, call, and video interview you directly through TSPP. Report back after each interview.' },
+  { step: '01', icon: <Building2 size={20} />, title: 'Create a profile', desc: 'Choose a role and add location, skills, experience, photo, and a short description.' },
+  { step: '02', icon: <ShieldCheck size={20} />, title: 'Submit documents', desc: 'Upload a government ID and certificates to verify your identity (KYC).' },
+  { step: '03', icon: <CheckCircle2 size={20} />, title: 'Get verified', desc: 'Our team reviews your documents. Once approved, your profile becomes visible to schools.' },
+  { step: '04', icon: <Users size={20} />, title: 'Connect and hire', desc: 'Schools message, call, and video interview you directly through TSPP. Report back after each interview.' },
 ];
 
 const testimonials = [
@@ -24,40 +24,42 @@ const testimonials = [
 ];
 
 const TsppLandingPage: React.FC = () => (
-  <main className="tspp-landing-page">
+  <div className="tspp-landing-page">
     <SEO
       title="TSPP | Verified hiring for private schools"
       description="TSPP connects private schools with verified teachers and school staff. Post jobs, search verified candidates, and interview — all in one trusted platform."
       keywords="private schools, teacher hiring, school recruitment, education platform, verified teachers, kyc hiring"
     />
 
-    <div className="tspp-topbar-inner">
-      <div className="tspp-brand" aria-label="TSPP home">
-        <span className="tspp-brand-mark">T</span>
-        <div className="tspp-brand-text">
-          <strong>TSPP</strong>
-          <small>Teachers &amp; Private Schools</small>
+    <header className="tspp-topbar">
+      <div className="tspp-topbar-inner">
+        <Link to="/tspp" className="tspp-brand" aria-label="TSPP home">
+          <span className="tspp-brand-mark">T</span>
+          <div className="tspp-brand-text">
+            <strong>TSPP</strong>
+            <small>Teachers &amp; Private Schools</small>
+          </div>
+        </Link>
+
+        <nav className="tspp-nav" aria-label="TSPP navigation">
+          <a href="#platform">Platform</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#testimonials">Testimonials</a>
+          <Link to="/themes">Themes</Link>
+        </nav>
+
+        <div className="tspp-actions">
+          <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fadmin" className="tspp-btn tspp-btn-ghost">School sign in</Link>
+          <Link to="/register?theme=tspp&role=seller&redirect=%2Ftspp%2Fadmin" className="tspp-btn tspp-btn-primary">
+            Book a demo <ArrowRight size={16} />
+          </Link>
         </div>
       </div>
+    </header>
 
-      <nav className="tspp-nav" aria-label="TSPP navigation">
-        <a href="#platform">Platform</a>
-        <a href="#how-it-works">How it works</a>
-        <a href="#pricing">Pricing</a>
-        <a href="#testimonials">Testimonials</a>
-        <Link to="/themes">Themes</Link>
-      </nav>
-
-      <div className="tspp-actions">
-        <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fadmin" className="tspp-btn tspp-btn-ghost">School sign in</Link>
-        <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-ghost">Teacher sign in</Link>
-        <Link to="/register?theme=tspp&role=seller&redirect=%2Ftspp%2Fadmin" className="tspp-btn tspp-btn-primary">
-          Book a demo <ArrowRight size={16} />
-        </Link>
-      </div>
-    </div>
-
-    <section className="tspp-hero" style={{ paddingTop: '4rem', paddingBottom: '3rem' }}>
+    <main>
+    <section className="tspp-hero tspp-hero-shell">
       <div className="tspp-hero-copy">
         <div className="tspp-kicker">
           <span className="tspp-badge tspp-badge-premium"><Sparkles size={14} /> Verified hiring platform</span>
@@ -118,9 +120,9 @@ const TsppLandingPage: React.FC = () => (
           </div>
 
           <ul className="tspp-list">
-            <li><BadgeCheck size={14} className="text-tspp-mint" /> 7+ years teaching primary science</li>
-            <li><BadgeCheck size={14} className="text-tspp-mint" /> IB and British curriculum experience</li>
-            <li><BadgeCheck size={14} className="text-tspp-mint" /> Available for full-time and contract roles</li>
+            <li><BadgeCheck size={14} className="text-tspp-success" /> 7+ years teaching primary science</li>
+            <li><BadgeCheck size={14} className="text-tspp-success" /> IB and British curriculum experience</li>
+            <li><BadgeCheck size={14} className="text-tspp-success" /> Available for full-time and contract roles</li>
           </ul>
 
           <div className="tspp-card-footer">
@@ -128,20 +130,20 @@ const TsppLandingPage: React.FC = () => (
               <small>School match score</small>
               <strong>96%</strong>
             </div>
-            <button type="button" className="tspp-btn tspp-btn-mini">View profile</button>
+            <Link to="/tspp/client" className="tspp-btn tspp-btn-mini">View profile</Link>
           </div>
         </div>
       </div>
     </section>
 
-    <section className="tspp-section tspp-feature-band" id="platform">
+    <section className="tspp-section" id="platform">
       <div className="tspp-section-heading">
         <p className="tspp-kicker">A PREMIUM HIRING EXPERIENCE</p>
         <h2>Everything private schools need — nothing noisy.</h2>
         <p>No more sifting through unverified applications. TSPP brings structure, trust, and brand to every step of the hiring journey.</p>
       </div>
 
-      <div className="tspp-feature-grid">
+      <div className="tspp-feature-grid tspp-four-column-grid">
         {features.map((feature) => (
           <article key={feature.title} className="tspp-feature-card">
             <div className="tspp-icon-wrap">{feature.icon}</div>
@@ -163,7 +165,7 @@ const TsppLandingPage: React.FC = () => (
         {processSteps.map((step) => (
           <article key={step.step} className="tspp-step">
             <span className="tspp-step-number">{step.step}</span>
-            <div className="tspp-step-icon">{step.step === '01' ? <Building2 size={19} /> : step.step === '02' ? <ShieldCheck size={19} /> : step.step === '03' ? <CheckCircle2 size={19} /> : <Users size={19} />}</div>
+            <div className="tspp-step-icon">{step.icon}</div>
             <h3>{step.title}</h3>
             <p>{step.desc}</p>
           </article>
@@ -177,20 +179,23 @@ const TsppLandingPage: React.FC = () => (
         <h2>Hiring that schools love — and teachers trust.</h2>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem' }}>
+      <div className="tspp-feature-grid tspp-two-column-grid">
         {testimonials.map((t) => (
           <div key={t.name} className="tspp-card">
-            <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem' }}>
-              {Array.from({ length: t.rating }).map((_, i) => (
-                <Star key={i} size={16} fill="currentColor" style={{ color: 'var(--tspp-amber)' }} />
-              ))}
+            <div className="tspp-card-topline" style={{ marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                {Array.from({ length: t.rating }).map((_, i) => (
+                  <Star key={i} size={16} fill="currentColor" style={{ color: 'var(--tspp-accent)' }} />
+                ))}
+              </div>
+              <span className="tspp-pill tspp-pill-muted"><Trophy size={12} /> Featured story</span>
             </div>
-            <p style={{ fontStyle: 'italic', color: 'var(--tspp-slate)', marginBottom: '1rem', lineHeight: 1.7 }}>"{t.quote}"</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <p style={{ fontStyle: 'italic', color: 'var(--tspp-ink-muted)', lineHeight: 1.7 }}>"{t.quote}"</p>
+            <div className="tspp-card-footer" style={{ borderTopColor: 'var(--tspp-line-dark)' }}>
               <div className="tspp-avatar tspp-avatar-sm">{t.name.split(' ').map((n) => n[0]).join('')}</div>
-              <div>
-                <strong style={{ fontSize: '0.95rem', color: 'var(--tspp-navy)' }}>{t.name}</strong>
-                <p style={{ fontSize: '0.8rem', color: 'var(--tspp-slate-light)' }}>{t.role}</p>
+              <div style={{ textAlign: 'left' }}>
+                <strong style={{ fontSize: '0.95rem', color: 'var(--tspp-primary)' }}>{t.name}</strong>
+                <p style={{ fontSize: '0.8rem', color: 'var(--tspp-slate)' }}>{t.role}</p>
               </div>
             </div>
           </div>
@@ -205,41 +210,47 @@ const TsppLandingPage: React.FC = () => (
         <p>All plans renew automatically every six months. Cancel or upgrade anytime from your account.</p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
-        <div className="tspp-card">
-          <p className="tspp-price-label">Other school staff</p>
-          <h3>$50</h3>
-          <p className="tspp-price-note">For librarians, cooks, carpenters, maintenance, and other non-teaching staff.</p>
-          <ul className="tspp-price-features">
-            <li><CheckCircle2 size={16} className="text-tspp-mint" /> Profile creation and KYC upload</li>
-            <li><CheckCircle2 size={16} className="text-tspp-mint" /> Verification status tracking</li>
-            <li><CheckCircle2 size={16} className="text-tspp-mint" /> Messaging with schools</li>
-            <li><CheckCircle2 size={16} className="text-tspp-mint" /> 6-month access</li>
-          </ul>
+      <div className="tspp-feature-grid tspp-three-column-grid">
+        <div className="tspp-card tspp-price-card">
+          <div>
+            <p className="tspp-price-label">Other school staff</p>
+            <h3>$50</h3>
+            <p className="tspp-price-note">For librarians, cooks, carpenters, maintenance, and other non-teaching staff.</p>
+            <ul className="tspp-price-features">
+              <li><CheckCircle2 size={16} className="text-tspp-success" /> Profile creation and KYC upload</li>
+              <li><CheckCircle2 size={16} className="text-tspp-success" /> Verification status tracking</li>
+              <li><CheckCircle2 size={16} className="text-tspp-success" /> Messaging with schools</li>
+              <li><CheckCircle2 size={16} className="text-tspp-success" /> 6-month access</li>
+            </ul>
+          </div>
         </div>
 
-        <div className="tspp-card tspp-card-dark">
-          <p className="tspp-price-label" style={{ color: 'rgba(255,255,255,0.75)' }}>Teachers</p>
-          <h3 style={{ color: 'var(--tspp-paper)' }}>$100</h3>
-          <p className="tspp-price-note" style={{ color: 'rgba(255,255,255,0.8)' }}>For nursery, primary, and secondary teachers applying for teaching roles.</p>
-          <ul className="tspp-price-features" style={{ color: 'var(--tspp-paper)' }}>
-            <li><CheckCircle2 size={16} className="text-tspp-amber" /> Priority placement in search results</li>
-            <li><CheckCircle2 size={16} className="text-tspp-amber" /> Full profile with credential showcase</li>
-            <li><CheckCircle2 size={16} className="text-tspp-amber" /> Interview scheduling and reviews</li>
-            <li><CheckCircle2 size={16} className="text-tspp-amber" /> 6-month access</li>
-          </ul>
+        <div className="tspp-card tspp-card-dark tspp-price-card">
+          <div>
+            <p className="tspp-price-label">Teachers</p>
+            <h3>$100</h3>
+            <p className="tspp-price-note">For nursery, primary, and secondary teachers applying for teaching roles.</p>
+            <ul className="tspp-price-features">
+              <li><CheckCircle2 size={16} className="text-tspp-accent" /> Priority placement in search results</li>
+              <li><CheckCircle2 size={16} className="text-tspp-accent" /> Full profile with credential showcase</li>
+              <li><CheckCircle2 size={16} className="text-tspp-accent" /> Interview scheduling and reviews</li>
+              <li><CheckCircle2 size={16} className="text-tspp-accent" /> 6-month access</li>
+            </ul>
+          </div>
         </div>
 
-        <div className="tspp-card">
-          <p className="tspp-price-label">Schools</p>
-          <h3>$500</h3>
-          <p className="tspp-price-note">For private schools to post unlimited adverts, search verified candidates, and interview.</p>
-          <ul className="tspp-price-features">
-            <li><CheckCircle2 size={16} className="text-tspp-mint" /> Unlimited job adverts</li>
-            <li><CheckCircle2 size={16} className="text-tspp-mint" /> Search verified talent pool</li>
-            <li><CheckCircle2 size={16} className="text-tspp-mint" /> Built-in messaging and video calls</li>
-            <li><CheckCircle2 size={16} className="text-tspp-mint" /> Auto-renews every 6 months</li>
-          </ul>
+        <div className="tspp-card tspp-price-card">
+          <div>
+            <p className="tspp-price-label">Schools</p>
+            <h3>$500</h3>
+            <p className="tspp-price-note">For private schools to post unlimited adverts, search verified candidates, and interview.</p>
+            <ul className="tspp-price-features">
+              <li><CheckCircle2 size={16} className="text-tspp-success" /> Unlimited job adverts</li>
+              <li><CheckCircle2 size={16} className="text-tspp-success" /> Search verified talent pool</li>
+              <li><CheckCircle2 size={16} className="text-tspp-success" /> Built-in messaging and video calls</li>
+              <li><CheckCircle2 size={16} className="text-tspp-success" /> Auto-renews every 6 months</li>
+            </ul>
+          </div>
         </div>
       </div>
     </section>
@@ -254,7 +265,44 @@ const TsppLandingPage: React.FC = () => (
         <Link to="/register?theme=tspp&role=customer&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-ghost-light">Apply as a teacher</Link>
       </div>
     </section>
-  </main>
+
+    </main>
+    <footer className="tspp-site-footer">
+      <div className="tspp-footer-inner">
+        <div className="tspp-footer-brand">
+          <Link to="/tspp" className="tspp-brand" aria-label="TSPP home">
+            <span className="tspp-brand-mark">T</span>
+            <span className="tspp-brand-text">
+              <strong>TSPP</strong>
+              <small>Teachers &amp; Private Schools</small>
+            </span>
+          </Link>
+          <p>Verified teachers and trusted schools, brought together with confidence.</p>
+        </div>
+
+        <nav className="tspp-footer-links" aria-label="TSPP footer navigation">
+          <div>
+            <h2>Explore</h2>
+            <a href="#platform">The platform</a>
+            <a href="#how-it-works">How it works</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#testimonials">Testimonials</a>
+          </div>
+          <div>
+            <h2>Get started</h2>
+            <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fadmin">School sign in</Link>
+            <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fclient">Teacher sign in</Link>
+            <Link to="/register?theme=tspp&role=seller&redirect=%2Ftspp%2Fadmin">For schools</Link>
+            <Link to="/register?theme=tspp&role=customer&redirect=%2Ftspp%2Fclient">For teachers</Link>
+          </div>
+        </nav>
+      </div>
+      <div className="tspp-footer-bottom">
+        <span>© {new Date().getFullYear()} TSPP · Teachers &amp; Private Schools</span>
+        <Link to="/themes">Explore themes</Link>
+      </div>
+    </footer>
+  </div>
 );
 
 export default TsppLandingPage;

@@ -138,9 +138,9 @@ const VIP_AUTH_THEMES: Record<string, VipAuthTheme> = {
   tspp: {
     id: 'tspp',
     name: 'TSPP',
-    primary: '#b99445',
-    secondary: '#0f214a',
-    surface: '#f8f6f2',
+    primary: '#a87a2a',
+    secondary: '#0a2633',
+    surface: '#f8fafc',
     headline: 'Verified teachers. Trusted schools.',
     description: 'Sign in to your TSPP workspace and manage verified hiring, shortlists, and interviews.'
   },

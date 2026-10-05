@@ -1,12 +1,12 @@
 import React from 'react';
-import { ArrowRight, BadgeCheck, Building2, CheckCircle2, GraduationCap, MapPin, Search, ShieldCheck, Sparkles, Star, Upload } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Building2, CheckCircle2, Clock3, GraduationCap, MapPin, Search, ShieldCheck, Sparkles, Star, Trophy, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import './tspp-theme.css';
 
 const nearbyOpenings = [
-  { id: 1, school: 'Oak Crest Academy', location: 'Lagos, Nigeria', role: 'Primary Science Teacher', badge: 'Verified', match: 94 },
-  { id: 2, school: 'Greenfield College', location: 'Abuja, Nigeria', role: 'Biology (IGCSE)', badge: 'Verified', match: 88 },
-  { id: 3, school: 'Nile Heights Academy', location: 'Lagos, Nigeria', role: 'Head of Early Years', badge: 'Verified', match: 82 },
+  { id: 1, school: 'Oak Crest Academy', location: 'Lagos, Nigeria', role: 'Primary Science Teacher', badge: 'Verified', match: 94, icon: <GraduationCap size={16} /> },
+  { id: 2, school: 'Greenfield College', location: 'Abuja, Nigeria', role: 'Biology (IGCSE)', badge: 'Verified', match: 88, icon: <GraduationCap size={16} /> },
+  { id: 3, school: 'Nile Heights Academy', location: 'Lagos, Nigeria', role: 'Head of Early Years', badge: 'Verified', match: 82, icon: <GraduationCap size={16} /> },
 ];
 
 const savedSearches = [
@@ -15,34 +15,42 @@ const savedSearches = [
   { id: 3, label: 'Head of Department', active: false },
 ];
 
+const verificationItems = [
+  { label: 'KYC documents', status: 'Verified', icon: <BadgeCheck size={14} /> },
+  { label: 'Teaching credentials', status: 'Verified', icon: <BadgeCheck size={14} /> },
+  { label: 'Reference check', status: 'Pending', icon: <Clock3 size={14} /> },
+];
+
 const TsppClient: React.FC = () => (
-  <div className="tspp-client" style={{ minHeight: '100vh', backgroundColor: 'var(--tspp-cream)' }}>
-    <header className="tspp-topbar-inner">
-      <div className="tspp-brand" aria-label="TSPP home">
-        <span className="tspp-brand-mark">T</span>
-        <div className="tspp-brand-text">
-          <strong>TSPP</strong>
-          <small>Teachers &amp; Private Schools</small>
-        </div>
-      </div>
-
-      <nav className="tspp-nav" aria-label="TSPP navigation">
-        <a href="#openings">Openings</a>
-        <a href="#profile">My profile</a>
-        <a href="#saved">Saved searches</a>
-        <Link to="/themes">Themes</Link>
-      </nav>
-
-      <div className="tspp-actions">
-        <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-ghost">Sign in</Link>
-        <Link to="/register?theme=tspp&role=customer&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-amber">
-          Create teacher profile <ArrowRight size={16} />
+  <div className="tspp-client" style={{ minHeight: '100vh', backgroundColor: 'var(--tspp-paper-cool)' }}>
+    <header className="tspp-topbar">
+      <div className="tspp-topbar-inner">
+        <Link to="/tspp" className="tspp-brand">
+          <span className="tspp-brand-mark">T</span>
+          <div className="tspp-brand-text">
+            <strong>TSPP</strong>
+            <small>Teachers &amp; Private Schools</small>
+          </div>
         </Link>
+
+        <nav className="tspp-nav" aria-label="TSPP navigation">
+          <a href="#openings">Openings</a>
+          <a href="#profile">My profile</a>
+          <a href="#saved">Saved searches</a>
+          <Link to="/themes">Themes</Link>
+        </nav>
+
+        <div className="tspp-actions">
+          <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-ghost">Sign in</Link>
+          <Link to="/register?theme=tspp&role=customer&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-primary">
+            Create teacher profile <ArrowRight size={16} />
+          </Link>
+        </div>
       </div>
     </header>
 
-    <main className="tspp-section" style={{ padding: '2rem 0' }}>
-      <section className="tspp-hero" style={{ paddingTop: '2.5rem', paddingBottom: '2.5rem' }}>
+    <main className="tspp-section tspp-client-content">
+      <section className="tspp-hero tspp-hero-shell">
         <div className="tspp-hero-copy">
           <div className="tspp-kicker">
             <span className="tspp-badge tspp-badge-premium"><Sparkles size={14} /> Verified and visible</span>
@@ -57,9 +65,7 @@ const TsppClient: React.FC = () => (
             <Link to="/register?theme=tspp&role=customer&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-primary tspp-btn-primary-large">
               Create your teacher profile <ArrowRight size={16} />
             </Link>
-            <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-ghost">
-              Teacher sign in
-            </Link>
+            <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-ghost">Teacher sign in</Link>
           </div>
 
           <div className="tspp-proof-row">
@@ -85,10 +91,10 @@ const TsppClient: React.FC = () => (
             <span className="tspp-dot" />
           </div>
 
-          <div className="tspp-panel-card" style={{ padding: '1.5rem' }}>
+          <div className="tspp-panel-card">
             <div className="tspp-card-topline">
               <span className="tspp-badge tspp-badge-live">You're verified</span>
-              <span className="tspp-pill">6 months active</span>
+              <span className="tspp-pill"><Trophy size={12} /> 6 months active</span>
             </div>
 
             <div className="tspp-card-main">
@@ -100,9 +106,9 @@ const TsppClient: React.FC = () => (
             </div>
 
             <ul className="tspp-list">
-              <li><BadgeCheck size={14} style={{ color: 'var(--tspp-mint)' }} /> Appear in school searches</li>
-              <li><BadgeCheck size={14} style={{ color: 'var(--tspp-mint)' }} /> See openings near you</li>
-              <li><BadgeCheck size={14} style={{ color: 'var(--tspp-mint)' }} /> Message and interview schools</li>
+              <li><BadgeCheck size={14} style={{ color: 'var(--tspp-success)' }} /> Appear in school searches</li>
+              <li><BadgeCheck size={14} style={{ color: 'var(--tspp-success)' }} /> See openings near you</li>
+              <li><BadgeCheck size={14} style={{ color: 'var(--tspp-success)' }} /> Message and interview schools</li>
             </ul>
 
             <div className="tspp-card-footer">
@@ -118,18 +124,18 @@ const TsppClient: React.FC = () => (
 
       <section id="openings" className="tspp-section" style={{ paddingTop: 0 }}>
         <div className="tspp-section-heading">
-          <p className="tspp-kicker">OPENINGS NEAR YOU</p>
+          <p className="tspp-kicker"><Search size={14} /> OPENINGS NEAR YOU</p>
           <h2>Recent roles from verified schools</h2>
           <p>These schools are actively hiring and match your verified profile.</p>
         </div>
 
-        <div className="tspp-feature-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.25rem' }}>
+        <div className="tspp-feature-grid tspp-three-column-grid">
           {nearbyOpenings.map((opening) => (
-            <article key={opening.id} className="tspp-card" style={{ paddingTop: '1.25rem' }}>
+            <article key={opening.id} className="tspp-card">
               <div className="tspp-card-topline" style={{ marginBottom: '1rem' }}>
-                <span className="tspp-pill">{opening.badge}</span>
-                <span className="tspp-pill tspp-pill-muted">
-                  <Star size={12} fill="currentColor" style={{ color: 'var(--tspp-amber)' }} />
+                <span className="tspp-pill tspp-pill-muted">{opening.badge}</span>
+                <span className="tspp-pill">
+                  <Star size={12} fill="currentColor" style={{ color: 'var(--tspp-accent)' }} />
                   {opening.match}% match
                 </span>
               </div>
@@ -137,12 +143,12 @@ const TsppClient: React.FC = () => (
               <h3 style={{ fontSize: '1.25rem', margin: '0 0 0.5rem' }}>{opening.role}</h3>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                <Building2 size={16} style={{ color: 'var(--tspp-navy)' }} />
-                <strong style={{ fontSize: '1rem' }}>{opening.school}</strong>
+                <Building2 size={16} style={{ color: 'var(--tspp-primary)' }} />
+                <strong style={{ fontSize: '1rem', color: 'var(--tspp-primary)' }}>{opening.school}</strong>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                <MapPin size={14} style={{ color: 'var(--tspp-slate-light)' }} />
+                <MapPin size={14} style={{ color: 'var(--tspp-slate)' }} />
                 <span style={{ fontSize: '0.9rem', color: 'var(--tspp-slate)' }}>{opening.location}</span>
               </div>
 
@@ -154,43 +160,39 @@ const TsppClient: React.FC = () => (
         </div>
       </section>
 
-      <section className="tspp-section" style={{ paddingTop: 0, display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-        <div className="tspp-card" style={{ flex: '1', minWidth: '300px' }}>
+      <section className="tspp-client-panels">
+        <div className="tspp-card">
           <div className="tspp-section-heading" style={{ marginBottom: '1.5rem', maxWidth: '100%' }}>
-            <p className="tspp-kicker">YOUR PROFILE</p>
+            <p className="tspp-kicker"><ShieldCheck size={14} /> YOUR PROFILE</p>
             <h2>Verification status</h2>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'var(--tspp-soft)', borderRadius: '0.75rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--tspp-navy)' }}>KYC documents</span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', color: 'var(--tspp-mint)' }}><CheckCircle2 size={14} /> Verified</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'var(--tspp-soft)', borderRadius: '0.75rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--tspp-navy)' }}>Teaching credentials</span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', color: 'var(--tspp-mint)' }}><CheckCircle2 size={14} /> Verified</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: 'var(--tspp-soft-2)', borderRadius: '0.75rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--tspp-navy)' }}>Reference check</span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--tspp-amber-deep)' }}>Pending</span>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {verificationItems.map((item) => (
+              <div key={item.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.85rem', backgroundColor: 'var(--tspp-paper-cool)', borderRadius: 'var(--tspp-radius-sm)', border: '1px solid var(--tspp-line)' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--tspp-primary)' }}>{item.label}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', color: item.status === 'Verified' ? 'var(--tspp-success)' : 'var(--tspp-warning)' }}>
+                  {item.icon} {item.status}
+                </span>
+              </div>
+            ))}
             <button type="button" className="tspp-btn tspp-btn-ghost" style={{ width: '100%', marginTop: '0.5rem' }}>
               <Upload size={15} /> Upload more documents
             </button>
           </div>
         </div>
 
-        <div className="tspp-card" style={{ flex: '1', minWidth: '300px' }}>
+        <div className="tspp-card">
           <div className="tspp-section-heading" style={{ marginBottom: '1.5rem', maxWidth: '100%' }}>
-            <p className="tspp-kicker">SAVED SEARCHES</p>
+            <p className="tspp-kicker"><Search size={14} /> SAVED SEARCHES</p>
             <h2>Your saved searches</h2>
           </div>
 
-          <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gap: '0.6rem' }}>
             {savedSearches.map((search) => (
-              <div key={search.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem', borderRadius: '0.75rem', backgroundColor: search.active ? 'rgba(185, 148, 69, 0.08)' : 'var(--tspp-paper-warm)', border: '1px solid var(--tspp-line)' }}>
-                <span style={{ fontSize: '0.9rem', fontWeight: search.active ? 600 : 400, color: 'var(--tspp-navy)' }}>{search.label}</span>
-                {search.active && <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--tspp-amber)' }} />}
+              <div key={search.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.8rem', borderRadius: 'var(--tspp-radius-sm)', backgroundColor: search.active ? 'rgba(196,148,74,0.06)' : 'var(--tspp-paper-cool)', border: '1px solid var(--tspp-line)' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: search.active ? 600 : 400, color: 'var(--tspp-primary)' }}>{search.label}</span>
+                {search.active && <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--tspp-accent)' }} />}
               </div>
             ))}
           </div>

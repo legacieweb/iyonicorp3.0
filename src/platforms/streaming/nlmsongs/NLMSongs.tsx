@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Library,
   LogIn,
+  Loader2,
   LogOut,
   Music2,
   Palette,
@@ -114,6 +115,7 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
   const [search, setSearch] = useState('');
   const audioRef = useRef<HTMLAudioElement>(null);
   const lyricsCloseRef = useRef<HTMLButtonElement>(null);
+  const isSubmittingRef = useRef(false);
   const isAdminMode = mode === 'admin' || user?.role === 'manager_admin';
   const openAccount = () => navigate(user?.role === 'manager_admin'
     ? '/admin/dashboard'
@@ -281,7 +283,11 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
 
   const handleAddTrack = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setFormError('');
+    setIsLoading(true);
+    try {
     if (!isAdminMode) {
       setFormError('Admin access is required to publish a song to the catalogue.');
       return;
@@ -309,7 +315,6 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
       return;
     }
 
-    try {
       const formData = new FormData();
       formData.append('title', title.trim());
       formData.append('artist', artist.trim());
@@ -340,6 +345,9 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
     } catch (error: any) {
       console.error('Could not publish track:', error);
       setFormError(error?.response?.data?.message || 'This song could not be published. Please try again.');
+    } finally {
+      isSubmittingRef.current = false;
+      setIsLoading(false);
     }
   };
 
@@ -590,7 +598,7 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
                       <div className="nlm-lyrics-mode"><span><strong>Sync lyrics to audio</strong><small>{syncLyrics ? 'Add a timestamp to every line.' : 'Plain lyrics, one line at a time.'}</small></span><label className="nlm-switch"><input type="checkbox" checked={syncLyrics} onChange={(event) => setSyncLyrics(event.target.checked)} /><span aria-hidden="true" /></label></div>
                       <label className="nlm-lyrics-field">Lyrics <span>OPTIONAL</span><textarea value={lyricsText} onChange={(event) => setLyricsText(event.target.value)} placeholder={syncLyrics ? '[00:12] The city wakes in gold\n[00:18] A new day unfolds' : 'The city wakes in gold\nA new day unfolds'} rows={4} /></label>
                       {formError && <p className="nlm-form-error" role="alert">{formError}</p>}
-                      <div className="nlm-form-actions"><p>{isLoading ? 'Publishing to the platform…' : 'Saved to the live catalogue.'}</p><button type="submit" className="nlm-submit-button" disabled={isLoading}><Plus size={15} /> Add to library</button></div>
+                      <div className="nlm-form-actions"><p>{isLoading ? 'Publishing to the platform…' : 'Saved to the live catalogue.'}</p><button type="submit" className="nlm-submit-button" disabled={isLoading}>{isLoading ? <Loader2 size={15} className="nlm-spinner" /> : <Plus size={15} />} Add to library</button></div>
                     </form>
                   </section>
                 )}
