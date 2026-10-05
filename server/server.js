@@ -64,6 +64,29 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const app = express();
 const PORT = process.env.PORT || 2823;
 const JWT_SECRET = process.env.JWT_SECRET || 'iyonicorp_secret_key';
+const RESERVED_STORE_SUBDOMAINS = new Set([
+  'admin', 'api', 'app', 'demo', 'iyonicorp', 'iyonicweb', 'localhost', 'shop', 'store', 'web', 'www'
+]);
+
+const normalizeStoreSubdomain = (value) => String(value || '').trim().toLowerCase();
+const isValidStoreSubdomain = (subdomain) => (
+  subdomain.length >= 2
+  && subdomain.length <= 63
+  && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(subdomain)
+  && !RESERVED_STORE_SUBDOMAINS.has(subdomain)
+);
+const generateStoreSubdomain = (storeName) => {
+  const storeSlug = String(storeName || 'store')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48)
+    .replace(/-+$/g, '') || 'store';
+  const suffix = nanoid(8).toLowerCase().replace(/[^a-z0-9]/g, '') || Date.now().toString(36);
+  return `${storeSlug}-${suffix}`;
+};
 
 // Helper to format price
 const formatPrice = (amount, currency = 'USD') => {
@@ -362,6 +385,13 @@ app.post('/api/auth/register', async (req, res) => {
   const { name, email, password, role, storeName, subdomain, shopType, firstName, lastName, phoneNumber, username, sellerId: requestSellerId } = req.body;
 
   try {
+    const requestedSubdomain = normalizeStoreSubdomain(subdomain);
+    if (role === 'seller' && requestedSubdomain && !isValidStoreSubdomain(requestedSubdomain)) {
+      return res.status(400).json({
+        message: 'Choose a valid subdomain using letters, numbers, and hyphens only.'
+      });
+    }
+
     const userCheck = await db.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userCheck.rows.length > 0) {
       const existingUser = userCheck.rows[0];
@@ -418,7 +448,7 @@ app.post('/api/auth/register', async (req, res) => {
       }
 
       if (role === 'seller') {
-        const generatedSubdomain = subdomain || (storeName ? storeName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now() : 'store-' + Date.now());
+        const generatedSubdomain = requestedSubdomain || generateStoreSubdomain(storeName);
         console.log('Generated subdomain:', generatedSubdomain);
         
         let initialPlan = 'starter';
@@ -527,11 +557,11 @@ await client.query(
     }
   } catch (err) {
     console.error('Registration Error:', err);
+    if (err.code === '23505' && err.constraint === 'sellers_subdomain_key') {
+      return res.status(409).json({ message: 'That subdomain is already in use. Choose another one.' });
+    }
     res.status(500).json({ 
       message: 'Server error during registration', 
-      error: err.message,
-      stack: err.stack,
-      details: err
     });
   }
 });
@@ -1182,7 +1212,7 @@ app.patch('/api/sellers/me', authenticateToken, async (req, res) => {
     store_name, storeName, 
     description, logo, theme, 
     shop_type, shopType, 
-    requested_subdomain, requestedSubdomain,
+    subdomain, requested_subdomain, requestedSubdomain,
     shipping_policy, shippingPolicy,
     return_policy, returnPolicy,
     privacy_policy, privacyPolicy,
@@ -1202,7 +1232,14 @@ app.patch('/api/sellers/me', authenticateToken, async (req, res) => {
   const finalLogo = logo;
   const finalTheme = theme !== undefined ? JSON.stringify(theme) : undefined;
   const finalShopType = shop_type !== undefined ? shop_type : shopType;
-  const finalSubdomain = requested_subdomain !== undefined ? requested_subdomain : requestedSubdomain;
+  const rawSubdomain = subdomain !== undefined
+    ? subdomain
+    : requested_subdomain !== undefined
+      ? requested_subdomain
+      : requestedSubdomain;
+  const finalSubdomain = rawSubdomain !== undefined && rawSubdomain !== null
+    ? normalizeStoreSubdomain(rawSubdomain)
+    : undefined;
   const finalShippingPolicy = shipping_policy !== undefined ? shipping_policy : shippingPolicy;
   const finalReturnPolicy = return_policy !== undefined ? return_policy : returnPolicy;
   const finalPrivacyPolicy = privacy_policy !== undefined ? privacy_policy : privacyPolicy;
@@ -1216,6 +1253,15 @@ app.patch('/api/sellers/me', authenticateToken, async (req, res) => {
   const finalSubscription = subscription !== undefined ? JSON.stringify(subscription) : undefined;
 
   try {
+    if (finalSubdomain !== undefined && !isValidStoreSubdomain(finalSubdomain)) {
+      const currentSeller = await db.query('SELECT subdomain FROM sellers WHERE user_id = $1', [req.user.id]);
+      if (normalizeStoreSubdomain(currentSeller.rows[0]?.subdomain) !== finalSubdomain) {
+        return res.status(400).json({
+          message: 'Choose a valid subdomain using letters, numbers, and hyphens only.'
+        });
+      }
+    }
+
     const selectedThemeId = (theme && typeof theme === 'object' && theme.selectedTheme) || req.body.themeId;
     if (VIP_THEME_IDS.has(selectedThemeId)) {
       const ownership = await db.query('SELECT acquired_themes, theme FROM sellers WHERE user_id = $1', [req.user.id]);
@@ -1233,7 +1279,9 @@ app.patch('/api/sellers/me', authenticateToken, async (req, res) => {
         logo = COALESCE($3, logo), 
         theme = COALESCE($4::jsonb, theme),
         shop_type = COALESCE($5, shop_type),
-        requested_subdomain = COALESCE($6, requested_subdomain),
+        subdomain = COALESCE($6, subdomain),
+        requested_subdomain = NULL,
+        is_live = CASE WHEN $6 IS NOT NULL AND subdomain IS DISTINCT FROM $6 THEN TRUE ELSE is_live END,
         shipping_policy = COALESCE($7, shipping_policy),
         return_policy = COALESCE($8, return_policy),
         privacy_policy = COALESCE($9, privacy_policy),
@@ -1334,6 +1382,9 @@ if (updatedSeller.manager_id) {
     res.json(toCamel(updatedSeller));
   } catch (err) {
     console.error('Update Seller Error:', err);
+    if (err.code === '23505' && err.constraint === 'sellers_subdomain_key') {
+      return res.status(409).json({ message: 'That subdomain is already in use. Choose another one.' });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -1971,31 +2022,6 @@ app.delete('/api/messages/:id', authenticateToken, async (req, res) => {
   try {
     await db.query('DELETE FROM messages WHERE id = $1', [req.params.id]);
     res.json({ message: 'Message deleted' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// Approve Subdomain (Manager only)
-app.post('/api/sellers/:id/approve-subdomain', authenticateToken, async (req, res) => {
-  const { subdomain } = req.body;
-  try {
-    if (req.user.role !== 'seller_manager' && req.user.role !== 'manager_admin') {
-      return res.status(403).json({ message: 'Unauthorized' });
-    }
-    
-    const sellerRes = await db.query(
-      `UPDATE sellers SET 
-        subdomain = $1, 
-        is_live = TRUE,
-        updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $2 RETURNING *`,
-      [subdomain, req.params.id]
-    );
-    
-    if (sellerRes.rows.length === 0) return res.status(404).json({ message: 'Seller not found' });
-    res.json(toCamel(sellerRes.rows[0]));
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -3784,6 +3810,217 @@ app.delete('/api/nlmsongs/:id', authenticateToken, requireNlmAdmin, async (req, 
   } catch (err) {
     console.error('NLMSongs delete error:', err);
     res.status(500).json({ message: 'Could not remove this song.' });
+  }
+});
+
+app.get('/api/nlmsongs/search', async (req, res) => {
+  try {
+    const query = req.query.q;
+    const limit = parseInt(String(req.query.limit), 10) || 20;
+    if (!query || typeof query !== 'string') return res.json([]);
+    const result = await db.query(`SELECT id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, is_active, created_at FROM nlm_songs
+      WHERE is_active = TRUE
+      AND (title ILIKE $1 OR artist ILIKE $1 OR genre ILIKE $1 OR description ILIKE $1)
+      ORDER BY created_at DESC LIMIT $2`, [`%${query}%`, limit]);
+    res.json(toCamel(result.rows));
+  } catch (err) {
+    console.error('NLMSongs search error:', err);
+    res.status(500).json({ message: 'Could not search the catalogue.' });
+  }
+});
+
+const requireNlmUser = (req, res, next) => {
+  if (req.user?.role === 'manager_admin') return next();
+  if (req.user?.role === 'seller' || req.user?.role === 'seller_manager' || req.user?.role === 'customer') return next();
+  return res.status(403).json({ message: 'Authentication required.' });
+};
+
+app.get('/api/nlmsongs/playlists', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const result = await db.query(`SELECT p.id, p.user_id as "userId", p.name, p.description, p.cover_url as "coverUrl", p.is_public as "isPublic", p.track_count as "trackCount", p.created_at as "createdAt", p.updated_at as "updatedAt"
+      FROM nlm_playlists p WHERE p.user_id = $1 ORDER BY p.created_at DESC`, [req.user.id]);
+    res.json(toCamel(result.rows));
+  } catch (err) {
+    console.error('NLM playlists list error:', err);
+    res.status(500).json({ message: 'Could not load playlists.' });
+  }
+});
+
+app.get('/api/nlmsongs/playlists/:id', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const result = await db.query(`SELECT p.id, p.user_id as "userId", p.name, p.description, p.cover_url as "coverUrl", p.is_public as "isPublic", p.track_count as "trackCount", p.created_at as "createdAt", p.updated_at as "updatedAt"
+      FROM nlm_playlists p WHERE p.id = $1 AND p.user_id = $2`, [req.params.id, req.user.id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Playlist not found.' });
+    const playlist = result.rows[0];
+    const items = await db.query(`SELECT pi.id, pi.playlist_id as "playlistId", pi.track_id as "trackId", pi.position, pi.added_at as "addedAt"
+      FROM nlm_playlist_items pi WHERE pi.playlist_id = $1 ORDER BY pi.position`, [req.params.id]);
+    playlist.items = toCamel(items.rows);
+    res.json(toCamel(playlist));
+  } catch (err) {
+    console.error('NLM playlist get error:', err);
+    res.status(500).json({ message: 'Could not load playlist.' });
+  }
+});
+
+app.post('/api/nlmsongs/playlists', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const { name, description = '', isPublic = false } = req.body;
+    const result = await db.query(`INSERT INTO nlm_playlists (user_id, seller_id, name, description, is_public)
+      VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id as "userId", name, description, cover_url as "coverUrl", is_public as "isPublic", track_count as "trackCount", created_at as "createdAt", updated_at as "updatedAt"`,
+      [req.user.id, req.user.sellerId || null, name, description, isPublic]);
+    res.status(201).json(toCamel(result.rows[0]));
+  } catch (err) {
+    console.error('NLM playlist create error:', err);
+    res.status(500).json({ message: 'Could not create playlist.' });
+  }
+});
+
+app.patch('/api/nlmsongs/playlists/:id', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const { name, description, isPublic, coverUrl } = req.body;
+    const updates = [];
+    const values = [];
+    let i = 1;
+    if (name !== undefined) { updates.push(`name = $${i++}`); values.push(name); }
+    if (description !== undefined) { updates.push(`description = $${i++}`); values.push(description); }
+    if (isPublic !== undefined) { updates.push(`is_public = $${i++}`); values.push(isPublic); }
+    if (coverUrl !== undefined) { updates.push(`cover_url = $${i++}`); values.push(coverUrl); }
+    if (updates.length === 0) return res.json({ message: 'No changes.' });
+    values.push(req.params.id, req.user.id);
+    const result = await db.query(`UPDATE nlm_playlists SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${i++} AND user_id = $${i++} RETURNING id, user_id as "userId", name, description, cover_url as "coverUrl", is_public as "isPublic", track_count as "trackCount", created_at as "createdAt", updated_at as "updatedAt"`, values);
+    if (!result.rows.length) return res.status(404).json({ message: 'Playlist not found.' });
+    res.json(toCamel(result.rows[0]));
+  } catch (err) {
+    console.error('NLM playlist update error:', err);
+    res.status(500).json({ message: 'Could not update playlist.' });
+  }
+});
+
+app.delete('/api/nlmsongs/playlists/:id', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const result = await db.query('DELETE FROM nlm_playlists WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (!result.rowCount) return res.status(404).json({ message: 'Playlist not found.' });
+    res.json({ message: 'Playlist removed.' });
+  } catch (err) {
+    console.error('NLM playlist delete error:', err);
+    res.status(500).json({ message: 'Could not remove playlist.' });
+  }
+});
+
+app.post('/api/nlmsongs/playlists/:id/tracks', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const { trackId } = req.body;
+    if (!trackId) return res.status(400).json({ message: 'trackId is required.' });
+    const check = await db.query('SELECT 1 FROM nlm_songs WHERE id = $1', [trackId]);
+    if (!check.rows.length) return res.status(404).json({ message: 'Track not found.' });
+    const ownership = await db.query('SELECT 1 FROM nlm_playlists WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (!ownership.rows.length) return res.status(404).json({ message: 'Playlist not found.' });
+    const posResult = await db.query('SELECT COALESCE(MAX(position), 0) + 1 as pos FROM nlm_playlist_items WHERE playlist_id = $1', [req.params.id]);
+    const position = posResult.rows[0].pos;
+    await db.query('INSERT INTO nlm_playlist_items (playlist_id, track_id, position) VALUES ($1, $2, $3)', [req.params.id, trackId, position]);
+    await db.query('UPDATE nlm_playlists SET track_count = track_count + 1, updated_at = CURRENT_TIMESTAMP WHERE id = $1', [req.params.id]);
+    res.status(201).json({ message: 'Track added to playlist.' });
+  } catch (err) {
+    console.error('NLM playlist add track error:', err);
+    res.status(500).json({ message: 'Could not add track to playlist.' });
+  }
+});
+
+app.delete('/api/nlmsongs/playlists/:id/tracks/:trackId', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    await db.query('DELETE FROM nlm_playlist_items WHERE playlist_id = $1 AND track_id = $2', [req.params.id, req.params.trackId]);
+    await db.query('UPDATE nlm_playlists SET track_count = GREATEST(track_count - 1, 0), updated_at = CURRENT_TIMESTAMP WHERE id = $1', [req.params.id]);
+    res.json({ message: 'Track removed from playlist.' });
+  } catch (err) {
+    console.error('NLM playlist remove track error:', err);
+    res.status(500).json({ message: 'Could not remove track from playlist.' });
+  }
+});
+
+app.patch('/api/nlmsongs/playlists/:id/reorder', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const { trackIds } = req.body;
+    if (!Array.isArray(trackIds)) return res.status(400).json({ message: 'trackIds must be an array.' });
+    const ownership = await db.query('SELECT 1 FROM nlm_playlists WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (!ownership.rows.length) return res.status(404).json({ message: 'Playlist not found.' });
+    for (let i = 0; i < trackIds.length; i++) {
+      await db.query('UPDATE nlm_playlist_items SET position = $1 WHERE playlist_id = $2 AND track_id = $3', [i, req.params.id, trackIds[i]]);
+    }
+    res.json({ message: 'Playlist reordered.' });
+  } catch (err) {
+    console.error('NLM playlist reorder error:', err);
+    res.status(500).json({ message: 'Could not reorder playlist.' });
+  }
+});
+
+app.get('/api/nlmsongs/history', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const limit = parseInt(String(req.query.limit), 10) || 50;
+    const result = await db.query(`SELECT h.id, h.user_id as "userId", h.seller_id as "sellerId", h.track_id as "trackId", h.played_seconds as "playedSeconds", h.duration, h.created_at as "createdAt"
+      FROM nlm_listening_history h WHERE h.user_id = $1 ORDER BY h.created_at DESC LIMIT $2`, [req.user.id, limit]);
+    const history = toCamel(result.rows);
+    const trackIds = history.map((h) => h.trackId);
+    if (trackIds.length) {
+      const tracksResult = await db.query(`SELECT id, title, artist, description, genre, tags, lyrics, audio_url as "audioUrl", thumbnail_url as "thumbnailUrl", is_active as "isActive", created_at as "createdAt", updated_at as "updatedAt" FROM nlm_songs WHERE id = ANY($1)`, [trackIds]);
+      const tracksById = Object.fromEntries(tracksResult.rows.map((t) => [t.id, toCamel(t)]));
+      history.forEach((h) => { h.track = tracksById[h.trackId] || null; });
+    }
+    res.json(history);
+  } catch (err) {
+    console.error('NLM history error:', err);
+    res.status(500).json({ message: 'Could not load history.' });
+  }
+});
+
+app.post('/api/nlmsongs/history', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const { trackId, playedSeconds, duration } = req.body;
+    if (!trackId) return res.status(400).json({ message: 'trackId is required.' });
+    const trackCheck = await db.query('SELECT seller_id FROM nlm_songs WHERE id = $1', [trackId]);
+    const sellerId = trackCheck.rows[0]?.seller_id || req.user.sellerId || null;
+    await db.query(`INSERT INTO nlm_listening_history (user_id, seller_id, track_id, played_seconds, duration)
+      VALUES ($1, $2, $3, $4, $5)`, [req.user.id, sellerId, trackId, playedSeconds || 0, duration || 0]);
+
+    const today = new Date().toISOString().split('T')[0];
+    const existing = await db.query('SELECT id FROM nlm_play_counts WHERE user_id = $1 AND track_id = $2 AND play_date = $3', [req.user.id, trackId, today]);
+    if (existing.rows.length) {
+      await db.query('UPDATE nlm_play_counts SET count = count + 1 WHERE id = $1', [existing.rows[0].id]);
+    } else {
+      await db.query('INSERT INTO nlm_play_counts (user_id, seller_id, track_id, play_date, count) VALUES ($1, $2, $3, $4, 1)', [req.user.id, sellerId, trackId, today]);
+    }
+    res.status(201).json({ message: 'Play recorded.' });
+  } catch (err) {
+    console.error('NLM history record error:', err);
+    res.status(500).json({ message: 'Could not record play.' });
+  }
+});
+
+app.delete('/api/nlmsongs/history', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    await db.query('DELETE FROM nlm_listening_history WHERE user_id = $1', [req.user.id]);
+    res.json({ message: 'History cleared.' });
+  } catch (err) {
+    console.error('NLM history clear error:', err);
+    res.status(500).json({ message: 'Could not clear history.' });
+  }
+});
+
+app.get('/api/nlmsongs/history/playcounts', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const { trackId } = req.query;
+    if (trackId) {
+      const result = await db.query(`SELECT pc.id, pc.user_id as "userId", pc.seller_id as "sellerId", pc.track_id as "trackId", pc.play_date as "playDate", pc.count, pc.created_at as "createdAt"
+        FROM nlm_play_counts pc WHERE pc.user_id = $1 AND pc.track_id = $2 ORDER BY pc.play_date DESC`, [req.user.id, trackId]);
+      res.json(toCamel(result.rows));
+    } else {
+      const result = await db.query(`SELECT pc.id, pc.user_id as "userId", pc.seller_id as "sellerId", pc.track_id as "trackId", pc.play_date as "playDate", pc.count, pc.created_at as "createdAt"
+        FROM nlm_play_counts pc WHERE pc.user_id = $1 ORDER BY pc.play_date DESC`, [req.user.id]);
+      res.json(toCamel(result.rows));
+    }
+  } catch (err) {
+    console.error('NLM playcounts error:', err);
+    res.status(500).json({ message: 'Could not load play counts.' });
   }
 });
 

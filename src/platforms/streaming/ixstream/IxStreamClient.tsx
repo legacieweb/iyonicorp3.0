@@ -7,9 +7,10 @@ import { useAuth } from '../../../context/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ixstreamAPI, type IXStreamContent, type IXStreamSubscription } from '../../../services/api';
 import { openIxStreamWatchMode } from './watchMode';
+import { getApiOrigin } from '../../../utils/apiUrl';
 import './ixstream.css';
 
-const API_ORIGIN = new URL(import.meta.env.VITE_API_URL || 'http://localhost:2823/api', window.location.origin).origin;
+const API_ORIGIN = getApiOrigin();
 
 const IxStreamClient = () => {
   const { user, logout } = useAuth();

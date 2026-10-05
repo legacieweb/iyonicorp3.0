@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/AuthContext';
 import { Order, ordersAPI, Product, productsAPI, Seller, sellersAPI, employeesAPI } from '../../../../services/api';
+import { getApiBaseUrl } from '../../../../utils/apiUrl';
 import {
   calculateGrandTotal,
   createDemoApexMenu,
@@ -150,7 +151,7 @@ const ApexPosSite: React.FC<{ seller?: Seller; products?: Product[] }> = ({ sell
           verificationError = 'Incorrect PIN. Please try again.';
         }
       } else {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:2823/api'}/pos/employees/verify-pin`, {
+        const response = await fetch(`${getApiBaseUrl()}/pos/employees/verify-pin`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

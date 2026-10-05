@@ -154,7 +154,7 @@ export const APIReference: React.FC = () => (
       <div className="max-w-4xl">
         <section>
           <SectionHeading eyebrow="Getting connected" title="Requests, authentication, and responses">
-            The web client sends JSON requests to the API base URL configured with <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">VITE_API_URL</code>. When unset in local development, the client uses <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">http://localhost:2823/api</code>.
+            The web client sends JSON requests to the API base URL configured with <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">VITE_API_URL</code>. When unset, local development uses <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">http://localhost:2823/api</code> and production uses the current host's <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">/api</code> endpoint.
           </SectionHeading>
           <div className="grid gap-6 border-y border-gray-200 py-6 sm:grid-cols-2">
             <div><h2 className="font-bold text-gray-950">Content type</h2><p className="mt-2 text-sm leading-6 text-gray-600">Send JSON with <code>Content-Type: application/json</code> for standard requests.</p></div>

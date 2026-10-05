@@ -93,11 +93,11 @@ const VIP_AUTH_THEMES: Record<string, VipAuthTheme> = {
   nlmsongs: {
     id: 'nlmsongs',
     name: 'NLM Songs',
-    primary: '#c9f75a',
-    secondary: '#151710',
-    surface: '#f3f0e7',
-    headline: 'Your room. Your sound.',
-    description: 'Sign in to return to your music, library, and listening space.'
+    primary: '#d7b78a',
+    secondary: '#191814',
+    surface: '#f6f2eb',
+    headline: 'A quieter kind of luxury.',
+    description: 'Sign in to your private listening room, curated favorites, and elegant playlists.'
   },
   restaurant: {
     id: 'restaurant',

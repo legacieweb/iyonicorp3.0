@@ -81,10 +81,9 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const isValidSubdomain = (subdomain: string | null): boolean => {
     if (!subdomain) return false;
-    const reserved = ['www', 'localhost', 'web', 'api', 'admin', 'shop', 'store', 'app', 'iyonicweb', 'iyonicorp', ''];
+    const reserved = ['www', 'localhost', 'web', 'api', 'admin', 'shop', 'store', 'app', 'demo', 'iyonicweb', 'iyonicorp', ''];
     if (reserved.includes(subdomain.toLowerCase())) return false;
-    if (subdomain.length < 2) return false;
-    // Existing stores may contain apostrophes from their generated store slug.
+    if (subdomain.length < 2 || subdomain.length > 63) return false;
     if (!/^[a-zA-Z0-9][a-zA-Z0-9'_-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$/.test(subdomain)) return false;
     return true;
   };
@@ -211,13 +210,21 @@ const shopSubdomain = (path.startsWith('/shop/')
     const urlParams = new URLSearchParams(window.location.search);
     const storeParam = urlParams.get('store');
     
-    let subdomain = storeParam;
+    let subdomain = storeParam?.trim().toLowerCase() || null;
     if (!subdomain) {
-      const extractedSubdomain = parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost' ? parts[0] : null;
+      const platformRootDomains = ['iyonicorp.com', 'iyonicorp.test', 'iyonicweb.com', 'sellermuutu.test'];
+      const isPlatformRootDomain = platformRootDomains.includes(hostname);
+      const extractedSubdomain = parts.length > 1
+        && parts[0] !== 'www'
+        && parts[0] !== 'localhost'
+        && !isPlatformRootDomain
+        ? parts[0].toLowerCase()
+        : null;
       subdomain = isValidSubdomain(extractedSubdomain) ? extractedSubdomain : null;
     }
 
-    if (!subdomain || hostname === 'localhost' || hostname === '127.0.0.1') {
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    if (!subdomain || (isLocalhost && !storeParam)) {
       setIsMainPlatform(true);
       setTenant(null);
       setIsLoading(false);

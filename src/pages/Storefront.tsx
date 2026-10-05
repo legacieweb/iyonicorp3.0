@@ -7,6 +7,7 @@ import axios from 'axios';
 import BotWidget from '../components/BotWidget';
 import { uploadAPI, productsAPI, botsAPI } from '../services/api';
 import { normalizeThemeId } from '../utils/themeDashboard';
+import { getApiBaseUrl } from '../utils/apiUrl';
 import EventoSite from '../platforms/services/events/evento/EventoSite';
 import { 
   Edit3, 
@@ -43,7 +44,7 @@ const PosSite = lazy(() => import('../platforms/services/pos/point-of-sale/PosSi
 const ApexPosSite = lazy(() => import('../platforms/services/pos/apex-pos/ApexPosSite'));
 const InstagramVipRestaurant = lazy(() => import('../themes/instagram-vip/InstagramVipRestaurant'));
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:2823/api';
+const API_URL = getApiBaseUrl();
 
 const EDITABLE_SECTIONS = [
   { id: 'header', label: 'Header', hideKey: 'hideHeader', fields: [{ key: 'headerLabel', label: 'Brand label' }, { key: 'headerShopLabel', label: 'Shop link' }, { key: 'headerStoryLabel', label: 'Story link' }, { key: 'headerContactLabel', label: 'Contact link' }, { key: 'headerWishlistLabel', label: 'Wishlist label' }, { key: 'headerAccountLabel', label: 'Account label' }, { key: 'headerCartLabel', label: 'Cart label' }] },

@@ -601,12 +601,14 @@ export const Register: React.FC<RegisterProps> = ({
                   className="bg-white border-gray-200 rounded-xl"
                 />
                 <Input
-                  label="Subdomain"
+                  label="Preferred subdomain (optional)"
                   type="text"
                   placeholder="mystore"
                   value={formData.subdomain}
                   onChange={(e) => setFormData({ ...formData, subdomain: e.target.value })}
-                  helperText={`URL: ${formData.subdomain || 'mystore'}.iyonicorp.com`}
+                  helperText={formData.subdomain
+                    ? `Your store URL: ${formData.subdomain}.iyonicorp.com`
+                    : "Leave blank and we'll assign a live store URL automatically."}
                   className="bg-white border-gray-200 rounded-xl"
                 />
               </div>

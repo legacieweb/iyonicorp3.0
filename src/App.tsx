@@ -37,6 +37,8 @@ const EventoAdmin = lazy(() => import('./platforms/services/events/evento/Evento
 const EventoClient = lazy(() => import('./platforms/services/events/evento/EventoClient'));
 const EventoServicePage = lazy(() => import('./platforms/services/events/evento/EventoServicePage'));
 const NLMSongs = lazy(() => import('./platforms/streaming/nlmsongs/NLMSongs'));
+const NLMSongsSite = lazy(() => import('./platforms/streaming/nlmsongs/NLMSongsSite'));
+const NLMSongsAdmin = lazy(() => import('./platforms/streaming/nlmsongs/NLMSongsAdmin'));
 const IxStreamSite = lazy(() => import('./platforms/streaming/ixstream/IxStreamSite'));
 const IxStreamAdmin = lazy(() => import('./platforms/streaming/ixstream/IxStreamAdmin'));
 const EssayMeLanding = lazy(() => import('./platforms/services/education/essayme/EssayMeLanding'));
@@ -361,10 +363,11 @@ const AppContent: React.FC = () => {
 
       <Route path="/nlmsongs/dashboard" element={
         <ProtectedRoute allowedRoles={['seller']}>
-          <LicensedPlatformRoute themeId="nlmsongs"><NLMSongs mode="admin" /></LicensedPlatformRoute>
+          <LicensedPlatformRoute themeId="nlmsongs"><NLMSongsAdmin /></LicensedPlatformRoute>
         </ProtectedRoute>
       } />
-      <Route path="/nlmsongs/*" element={<NLMSongs />} />
+      <Route path="/nlmsongs/track/:trackId/*" element={<NLMSongs />} />
+      <Route path="/nlmsongs/*" element={<NLMSongsSite />} />
 
       <Route path="/ixstream/dashboard" element={
         <ProtectedRoute allowedRoles={['seller']}>

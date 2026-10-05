@@ -6,9 +6,10 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { ixstreamAPI, type IXStreamContent, type IXStreamSubscriptionPlan, type IXStreamSeason, type IXStreamEpisode } from '../../../services/api';
+import { getApiOrigin } from '../../../utils/apiUrl';
 import './ixstream.css';
 
-const API_ORIGIN = new URL(import.meta.env.VITE_API_URL || 'http://localhost:2823/api', window.location.origin).origin;
+const API_ORIGIN = getApiOrigin();
 
 type Tab = 'content' | 'seasons' | 'episodes' | 'plans' | 'subscriptions';
 

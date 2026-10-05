@@ -8,9 +8,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ixstreamAPI, type IXStreamContent } from '../../../services/api';
 import { DEMO_STREAMING_CATALOG } from './demoCatalog';
 import { openIxStreamWatchMode } from './watchMode';
+import { getApiOrigin } from '../../../utils/apiUrl';
 import './ixstream.css';
 
-const API_ORIGIN = new URL(import.meta.env.VITE_API_URL || 'http://localhost:2823/api', window.location.origin).origin;
+const API_ORIGIN = getApiOrigin();
 
 type View = 'Home' | 'Movies' | 'Series' | 'My List';
 

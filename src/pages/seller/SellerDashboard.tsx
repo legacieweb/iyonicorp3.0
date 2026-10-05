@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { isAxiosError } from 'axios';
 import { useNavigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -6,6 +7,7 @@ import { useTenant } from '../../context/TenantContext';
 import { useToast } from '../../context/ToastContext';
 import { formatPrice } from '../../utils/currency';
 import { getThemeDashboardRoute, normalizeThemeId } from '../../utils/themeDashboard';
+import { getStorefrontUrl } from '../../utils/storefrontUrl';
 import ThemeLaunchOverlay, { ThemeLaunchState } from '../../components/ThemeLaunchOverlay';
 import { isVipTheme } from '../../utils/vipThemes';
 import { defaultHomeworkerSettings, HomeworkerSettings, getHomeworkerSettings } from '../../platforms/services/education/homeworker/homeworkerTypes';
@@ -1453,7 +1455,7 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
         storeName: seller.storeName || '',
         description: seller.description || '',
         logo: seller.logo || '',
-        subdomain: seller.subdomain || '',
+        subdomain: seller.requestedSubdomain || seller.subdomain || '',
         shippingPolicy: seller.shippingPolicy || '',
         returnPolicy: seller.returnPolicy || '',
         privacyPolicy: seller.privacyPolicy || '',
@@ -1769,7 +1771,7 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
   };
 
   const updateSection = async (section: string, updates: any) => {
-    if (!sellerId) return;
+    if (!sellerId) return false;
     setSavingSection(section);
     try {
       await updateSeller(sellerId, updates);
@@ -1778,9 +1780,12 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
       setSavedSection(section);
       showToast(`${section} updated successfully`, 'success');
       setTimeout(() => setSavedSection(null), 3000);
+      return true;
     } catch (error) {
       console.error(`Error updating ${section}:`, error);
-      showToast(`Failed to update ${section}. Please try again.`, 'error');
+      const message = isAxiosError<{ message?: string }>(error) ? error.response?.data?.message : undefined;
+      showToast(message || `Failed to update ${section}. Please try again.`, 'error');
+      return false;
     } finally {
       setSavingSection(null);
     }
@@ -1806,17 +1811,13 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
       }
     }
 
-    const isSubdomainChanging = settingsForm.subdomain !== seller?.subdomain && settingsForm.subdomain !== seller?.requestedSubdomain;
-    updateSection('storeInfo', {
+    await updateSection('storeInfo', {
       storeName: settingsForm.storeName,
       description: settingsForm.description,
       logo: finalLogo,
-      requestedSubdomain: settingsForm.subdomain,
+      subdomain: settingsForm.subdomain,
       currency: settingsForm.currency
     });
-    if (isSubdomainChanging) {
-      showToast('Subdomain request sent to manager for approval!', 'info');
-    }
   };
 
   const handleUpdateShippingPolicy = () => {
@@ -1871,13 +1872,11 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
 
   const handleUpdateSettings = async () => {
     if (!sellerId) return;
-    const isSubdomainChanging = settingsForm.subdomain !== seller?.subdomain && settingsForm.subdomain !== seller?.requestedSubdomain;
-    
     // Save theme ID both as direct field and inside theme object for compatibility
-    await updateSeller(sellerId, {
+    const updated = await updateSection('Settings', {
       storeName: settingsForm.storeName,
       description: settingsForm.description,
-      requestedSubdomain: settingsForm.subdomain,
+      subdomain: settingsForm.subdomain,
       shippingPolicy: settingsForm.shippingPolicy,
       returnPolicy: settingsForm.returnPolicy,
       privacyPolicy: settingsForm.privacyPolicy,
@@ -1891,17 +1890,10 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
       deliveryLocations: settingsForm.deliveryLocations,
       paymentTerms: settingsForm.paymentTerms
     });
-    
-    // Refresh local data state
-    await refreshData();
-    await refreshTenant();
-    
+    if (!updated) return;
+
     setSettingsSaved(true);
-    showToast('Settings updated successfully', 'success');
     setTimeout(() => setSettingsSaved(false), 5000);
-    if (isSubdomainChanging) {
-      showToast('Settings updated and subdomain request sent to manager!', 'info');
-    }
   };
 
   const handleUpdateHomeworkerSettings = () => {
@@ -3288,14 +3280,23 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-black text-slate-500 uppercase tracking-widest">Store URL Status</span>
                             <Badge variant={seller?.isLive ? 'success' : 'warning'}>
-                              {seller?.isLive ? 'Live' : 'Pending Approval'}
+                              {seller?.isLive ? 'Live' : 'Not live'}
                             </Badge>
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-400">
                               <ExternalLink className="w-4 h-4" />
                             </div>
-                            <p className="text-sm font-bold text-slate-900">{seller?.subdomain}.iyonicorp.com</p>
+                            {seller && (
+                              <a
+                                href={getStorefrontUrl(seller.subdomain)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-bold text-slate-900 hover:text-purple-600"
+                              >
+                                {seller.subdomain}.iyonicorp.com
+                              </a>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -3308,11 +3309,11 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
                           rows={4} 
                         />
                         <Input 
-                          label="Request New Subdomain" 
+                          label="Store subdomain"
                           placeholder="new-store-name"
                           value={settingsForm.subdomain} 
                           onChange={(e) => setSettingsForm({ ...settingsForm, subdomain: e.target.value })}
-                          helperText="Changing your subdomain requires manager approval." 
+                          helperText="Changes go live as soon as they are saved. Use letters, numbers, and hyphens."
                         />
                       </div>
                     </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
 import { useToast } from '../../context/ToastContext';
+import { getStorefrontUrl } from '../../utils/storefrontUrl';
 import { Card, CardHeader, Button, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Popup, ConfirmPopup, Input, Select, Textarea } from '../../components/ui';
 import { 
   Users, Store, DollarSign, TrendingUp, Plus, Eye, Settings, LogOut, BarChart3, Shield,
@@ -165,8 +166,6 @@ export const SellerManagerDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [approvingSeller, setApprovingSeller] = useState<any>(null);
-  const [approvalSubdomain, setApprovalSubdomain] = useState('');
   const [showAssignPopup, setShowAssignPopup] = useState(false);
   const [showPricingEditor, setShowPricingEditor] = useState(false);
   const [editingSlug, setEditingSlug] = useState(false);
@@ -256,28 +255,6 @@ export const SellerManagerDashboard: React.FC = () => {
       }
     }
   }, [manager]);
-
-  const handleApproveSubdomain = async () => {
-    if (!approvingSeller) return;
-    
-    // Check expiration
-    if (isExpired && manager.subscription?.plan !== 'starter') {
-      showToast('Your subscription has expired. Please renew to manage sellers.', 'error');
-      setActiveTab('billing');
-      return;
-    }
-
-    try {
-      const { sellersAPI } = await import('../../services/api');
-      await sellersAPI.approveSubdomain(approvingSeller.id, approvalSubdomain);
-      setApprovingSeller(null);
-      showToast('Subdomain approved successfully', 'success');
-      refreshData();
-    } catch (err) {
-      console.error(err);
-      showToast('Failed to approve subdomain', 'error');
-    }
-  };
 
   const handleAssignSeller = async (sellerId: string) => {
     // Check expiration
@@ -714,12 +691,14 @@ export const SellerManagerDashboard: React.FC = () => {
                       <TableCell>
                         <div>
                           <p className="font-medium text-gray-900">{seller.storeName}</p>
-                          <p className="text-sm text-gray-500">{seller.subdomain}.iyonicorp.com</p>
-                          {seller.requestedSubdomain && !seller.isLive && (
-                            <Badge variant="warning" className="mt-1">
-                              Pending: {seller.requestedSubdomain}
-                            </Badge>
-                          )}
+                          <a
+                            href={getStorefrontUrl(seller.subdomain)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-gray-500 hover:text-purple-600"
+                          >
+                            {seller.subdomain}.iyonicorp.com
+                          </a>
                         </div>
                       </TableCell>
                       <TableCell>{getPlanBadge(seller.subscription?.plan || 'starter')}</TableCell>
@@ -729,17 +708,8 @@ export const SellerManagerDashboard: React.FC = () => {
                       <TableCell>{getStatusBadge(seller.subscription?.status || 'active')}</TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
-                          {seller.requestedSubdomain && !seller.isLive && (
-                            <button 
-                              onClick={() => { setApprovingSeller(seller); setApprovalSubdomain(seller.requestedSubdomain || ''); }}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Approve Domain"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </button>
-                          )}
                           <a 
-                            href={`#/shop/${seller.subdomain}`}
+                            href={getStorefrontUrl(seller.subdomain)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
@@ -1189,28 +1159,6 @@ export const SellerManagerDashboard: React.FC = () => {
         )}
       </main>
 
-      {/* Approve Subdomain Popup */}
-      <Popup isOpen={!!approvingSeller} onClose={() => setApprovingSeller(null)} title="Approve Subdomain Request" size="md">
-        <div className="space-y-4">
-          <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
-            <p className="text-sm font-medium text-purple-900 mb-1">Store Name</p>
-            <p className="font-bold text-purple-900">{approvingSeller?.storeName}</p>
-          </div>
-          <Input
-            label="Assign Subdomain"
-            value={approvalSubdomain}
-            onChange={(e) => setApprovalSubdomain(e.target.value)}
-            helperText="The subdomain requested by the seller is shown above."
-          />
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button variant="outline" onClick={() => setApprovingSeller(null)}>Cancel</Button>
-            <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleApproveSubdomain}>
-              Approve & Go Live
-            </Button>
-          </div>
-        </div>
-      </Popup>
-
       {/* Assign Seller Popup */}
       <Popup isOpen={showAssignPopup} onClose={() => setShowAssignPopup(false)} title="Assign Seller" size="lg">
         <div className="space-y-4">
@@ -1223,7 +1171,14 @@ export const SellerManagerDashboard: React.FC = () => {
                 <div key={seller.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                   <div>
                     <p className="font-medium text-gray-900">{seller.storeName}</p>
-                    <p className="text-xs text-gray-500">{seller.subdomain}.iyonicorp.com</p>
+                    <a
+                      href={getStorefrontUrl(seller.subdomain)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-gray-500 hover:text-purple-600"
+                    >
+                      {seller.subdomain}.iyonicorp.com
+                    </a>
                   </div>
                   <Button size="sm" onClick={() => handleAssignSeller(seller.id)}>
                     <UserPlus className="w-4 h-4 mr-1" /> Assign

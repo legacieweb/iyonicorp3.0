@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { io, Socket } from 'socket.io-client';
+import { getApiOrigin } from '../../../../../utils/apiUrl';
 import type { Order, Product, Seller } from '../../../../../services/api';
 import type {
   CartItem,
@@ -91,7 +92,7 @@ const getSocketBaseUrl = (): string => {
     }
   }
 
-  return 'ws://localhost:2823';
+  return getApiOrigin().replace(/^http/, 'ws');
 };
 
 const connectWebSocketImpl = (sellerId: string) => {

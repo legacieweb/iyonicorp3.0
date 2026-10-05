@@ -658,6 +658,57 @@ CREATE TABLE IF NOT EXISTS nlm_songs (
 
 CREATE INDEX IF NOT EXISTS idx_nlm_songs_active_created ON nlm_songs(is_active, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS nlm_playlists (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    cover_url TEXT,
+    is_public BOOLEAN NOT NULL DEFAULT FALSE,
+    track_count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_nlm_playlists_user ON nlm_playlists(user_id);
+
+CREATE TABLE IF NOT EXISTS nlm_playlist_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    playlist_id UUID REFERENCES nlm_playlists(id) ON DELETE CASCADE NOT NULL,
+    track_id UUID REFERENCES nlm_songs(id) ON DELETE CASCADE NOT NULL,
+    position INTEGER NOT NULL,
+    added_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_nlm_playlist_items_playlist ON nlm_playlist_items(playlist_id, position);
+CREATE INDEX IF NOT EXISTS idx_nlm_playlist_items_track ON nlm_playlist_items(track_id);
+
+CREATE TABLE IF NOT EXISTS nlm_listening_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+    track_id UUID REFERENCES nlm_songs(id) ON DELETE CASCADE,
+    played_seconds NUMERIC(10,2) DEFAULT 0,
+    duration NUMERIC(10,2) DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_nlm_history_user_created ON nlm_listening_history(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_nlm_history_track ON nlm_listening_history(track_id);
+
+CREATE TABLE IF NOT EXISTS nlm_play_counts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+    track_id UUID REFERENCES nlm_songs(id) ON DELETE CASCADE,
+    play_date DATE NOT NULL,
+    count INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_nlm_play_counts_track_date ON nlm_play_counts(track_id, play_date);
+
 CREATE TABLE IF NOT EXISTS ixstream_content (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,

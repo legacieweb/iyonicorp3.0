@@ -1,6 +1,7 @@
 import axios from 'axios';
+import { getApiBaseUrl } from '../utils/apiUrl';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:2823/api';
+const API_URL = getApiBaseUrl();
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -463,11 +464,6 @@ export const sellersAPI = {
     return response.data;
   },
 
-  async approveSubdomain(id: string, subdomain: string): Promise<Seller> {
-    const response = await api.post(`/sellers/${id}/approve-subdomain`, { subdomain });
-    return response.data;
-  },
-
   async getPublicById(id: string): Promise<Seller> {
     const response = await api.get(`/sellers/${id}/public`);
     return response.data;
@@ -712,6 +708,108 @@ export const nlmsongsAPI = {
   async remove(id: string): Promise<void> {
     await api.delete(`/nlmsongs/${id}`);
   }
+};
+
+export interface NLMPlaylist {
+  id: string;
+  userId: string;
+  name: string;
+  description: string;
+  coverUrl: string | null;
+  isPublic: boolean;
+  trackCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NLMPlaylistItem {
+  id: string;
+  playlistId: string;
+  trackId: string;
+  position: number;
+  addedAt: string;
+}
+
+export interface NLMListeningHistory {
+  id: string;
+  userId: string;
+  trackId: string;
+  track: NLMSong;
+  playedAt: number;
+  duration: number;
+  createdAt: string;
+}
+
+export interface NLMPlayCount {
+  id: string;
+  userId: string;
+  trackId: string;
+  playDate: string;
+  count: number;
+}
+
+export const playlistsAPI = {
+  async getAll(): Promise<NLMPlaylist[]> {
+    const response = await api.get('/nlmsongs/playlists');
+    return response.data;
+  },
+
+  async getById(id: string): Promise<NLMPlaylist> {
+    const response = await api.get(`/nlmsongs/playlists/${id}`);
+    return response.data;
+  },
+
+  async create(data: { name: string; description?: string; isPublic?: boolean }): Promise<NLMPlaylist> {
+    const response = await api.post('/nlmsongs/playlists', data);
+    return response.data;
+  },
+
+  async update(id: string, updates: { name?: string; description?: string; isPublic?: boolean; coverUrl?: string | null }): Promise<NLMPlaylist> {
+    const response = await api.patch(`/nlmsongs/playlists/${id}`, updates);
+    return response.data;
+  },
+
+  async delete(id: string): Promise<void> {
+    await api.delete(`/nlmsongs/playlists/${id}`);
+  },
+
+  async addTrack(playlistId: string, trackId: string): Promise<void> {
+    await api.post(`/nlmsongs/playlists/${playlistId}/tracks`, { trackId });
+  },
+
+  async removeTrack(playlistId: string, trackId: string): Promise<void> {
+    await api.delete(`/nlmsongs/playlists/${playlistId}/tracks/${trackId}`);
+  },
+
+  async reorder(playlistId: string, trackIds: string[]): Promise<void> {
+    await api.patch(`/nlmsongs/playlists/${playlistId}/reorder`, { trackIds });
+  },
+};
+
+export const historyAPI = {
+  async getHistory(limit = 50): Promise<NLMListeningHistory[]> {
+    const response = await api.get('/nlmsongs/history', { params: { limit } });
+    return response.data;
+  },
+
+  async recordPlay(trackId: string, playedSeconds: number, duration: number): Promise<void> {
+    await api.post('/nlmsongs/history', { trackId, playedSeconds, duration });
+  },
+
+  async clearHistory(): Promise<void> {
+    await api.delete('/nlmsongs/history');
+  },
+
+  async getPlayCounts(trackId?: string): Promise<NLMPlayCount[]> {
+    const params = trackId ? { trackId } : undefined;
+    const response = await api.get('/nlmsongs/history/playcounts', { params });
+    return response.data;
+  },
+
+  async search(query: string, limit = 20): Promise<NLMSong[]> {
+    const response = await api.get('/nlmsongs/search', { params: { q: query, limit } });
+    return response.data;
+  },
 };
 
 export const messagesAPI = {
@@ -1653,6 +1751,8 @@ export default {
   tables: tablesAPI,
   shifts: shiftsAPI,
   inventory: inventoryAPI,
-  kitchen: kitchenAPI,
-  loyalty: loyaltyAPI,
+   kitchen: kitchenAPI,
+   loyalty: loyaltyAPI,
+   playlists: playlistsAPI,
+   history: historyAPI,
 };

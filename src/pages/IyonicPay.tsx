@@ -6,6 +6,7 @@ import { Button, Input, Card, Popup, ConfirmPopup, Badge } from '../components/u
 import { useToast } from '../context/ToastContext';
 import { authAPI, api, sellersAPI, Seller } from '../services/api';
 import { formatPrice } from '../utils/currency';
+import { getApiBaseUrl } from '../utils/apiUrl';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProductFooter from '../components/ProductFooter';
 import jsPDF from 'jspdf';
@@ -994,7 +995,7 @@ const IyonicPay: React.FC = () => {
     if (document.getElementById('iyonicpay-checkout-script')) return;
     const script = document.createElement('script');
     script.id = 'iyonicpay-checkout-script';
-    script.src = `${(import.meta.env.VITE_API_URL || 'http://localhost:2823/api').replace('/api', '')}/checkout.js`;
+    script.src = `${getApiBaseUrl().replace('/api', '')}/checkout.js`;
     script.async = true;
     document.body.appendChild(script);
   };
@@ -3395,7 +3396,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                           <div className="bg-gray-900 rounded-[2rem] p-8 text-indigo-300 font-mono text-xs overflow-hidden relative">
                             <pre className="overflow-x-auto pb-4">
 {`<!-- Add this to your website -->
-<script src="${(import.meta.env.VITE_API_URL || 'http://localhost:2823/api').replace('/api', '')}/checkout.js"></script>
+<script src="${getApiBaseUrl().replace('/api', '')}/checkout.js"></script>
 
 <!-- Payment Button -->
 <button 
@@ -3410,7 +3411,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                             </pre>
                             <button 
                               onClick={() => copyToClipboard(`<!-- Add this to your website -->
-<script src="${(import.meta.env.VITE_API_URL || 'http://localhost:2823/api').replace('/api', '')}/checkout.js"></script>
+<script src="${getApiBaseUrl().replace('/api', '')}/checkout.js"></script>
 
 <!-- Payment Button -->
 <button 

@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, Bot as BotIcon, Zap, Terminal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
+import { getApiBaseUrl } from '../utils/apiUrl';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:2823/api';
+const API_URL = getApiBaseUrl();
 
 interface Message {
   id: string;

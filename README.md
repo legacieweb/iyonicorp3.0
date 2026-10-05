@@ -33,6 +33,7 @@ A comprehensive, scalable multi-tenant e-commerce platform that surpasses Shopif
 
 ### Multi-Tenant Architecture
 - **Subdomain-based Tenancy**: Each seller gets a unique subdomain (e.g., `storename.iyonicorp.com`)
+- **Automatic Store URLs**: Seller subdomains are activated at signup and changes go live as soon as they are saved
 - **Isolated Data**: Each tenant has isolated product, order, and customer data
 - **Custom Branding**: Sellers can customize colors, fonts, and store appearance
 - **Scalable Infrastructure**: Built to handle thousands of concurrent sellers
@@ -54,6 +55,8 @@ A comprehensive, scalable multi-tenant e-commerce platform that surpasses Shopif
 - **Utilities**: clsx, tailwind-merge
 
 ## 📦 Installation
+
+For deployed seller URLs to resolve, configure a wildcard DNS record (`*.<DOMAIN>`) pointing to the same server as `<DOMAIN>`. The included Traefik rule routes seller subdomains to the app; the TLS resolver must be able to issue certificates for those hosts.
 
 ```bash
 # Clone the repository
