@@ -28,60 +28,47 @@ export const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
   const allItemsComplete = items.length > 0 && items.every((item) => completedItems.has(`${order.id}-${item.productId || item.productName}`));
 
   return (
-    <div
-      className="apex-pos__menu-item"
-      style={{
-        border: `2px solid ${urgencyColor}`,
-        borderRadius: '12px',
-        padding: '12px',
-        marginBottom: '10px',
-        background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.96))',
-      }}
+    <article
+      className="apex-kitchen-order"
+      style={{ '--kitchen-urgency': urgencyColor } as React.CSSProperties}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+      <div className="apex-kitchen-order__header">
         <div>
-          <div style={{ fontSize: '11px', color: '#94a3b8' }}>Order #{order.id.slice(0, 8)}</div>
-          <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc' }}>
+          <div className="apex-kitchen-order__number">Order #{order.id.slice(0, 8)}</div>
+          <div className="apex-kitchen-order__customer">
             {order.customerName || 'Walk-in'}
           </div>
-          <div style={{ fontSize: '11px', color: '#64748b' }}>
+          <div className="apex-kitchen-order__time">
             {formatTime(orderTime)} · {minutesAgo}m ago
           </div>
         </div>
         {allItemsComplete && (
-          <span style={{ fontSize: '10px', background: 'rgba(34,197,94,0.2)', color: '#4ade80', padding: '2px 8px', borderRadius: '12px' }}>
+          <span className="apex-kitchen-order__ready">
             READY
           </span>
         )}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div className="apex-kitchen-order__items">
         {items.map((item: any) => {
           const key = `${order.id}-${item.productId || item.productName}`;
           const isComplete = completedItems.has(key);
           return (
             <div
               key={key}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '4px 0',
-                textDecoration: isComplete ? 'line-through' : 'none',
-                opacity: isComplete ? 0.5 : 1,
-              }}
+              className={`apex-kitchen-order__item${isComplete ? ' is-complete' : ''}`}
             >
               <input
                 type="checkbox"
                 checked={isComplete}
                 onChange={() => onItemComplete(order.id, item.productId || item.productName)}
-                style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                aria-label={`Mark ${item.productName || 'item'} ${isComplete ? 'incomplete' : 'complete'}`}
               />
-              <span style={{ fontSize: '12px', fontWeight: 600, flex: 1 }}>
+              <span className="apex-kitchen-order__item-name">
                 {item.quantity}x {item.productName || `Item #${item.productId?.slice(0, 6)}`}
               </span>
               {item.productId && (
-                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                <span className="apex-kitchen-order__item-detail">
                   {item.productName || getCategoryName('default')}
                 </span>
               )}
@@ -89,7 +76,7 @@ export const KitchenOrderCard: React.FC<KitchenOrderCardProps> = ({
           );
         })}
       </div>
-    </div>
+    </article>
   );
 };
 
@@ -108,7 +95,7 @@ export const KitchenOrderQueue: React.FC<KitchenOrderQueueProps> = ({
 }) => {
   if (orders.length === 0) {
     return (
-      <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+      <div className="apex-kitchen-empty">
         <p>No orders in the kitchen.</p>
         <p style={{ fontSize: '12px', marginTop: '8px' }}>New orders will appear here.</p>
       </div>
@@ -116,7 +103,7 @@ export const KitchenOrderQueue: React.FC<KitchenOrderQueueProps> = ({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '12px' }}>
+    <div className="apex-kitchen-queue">
       {orders.map((order) => (
         <KitchenOrderCard
           key={order.id}

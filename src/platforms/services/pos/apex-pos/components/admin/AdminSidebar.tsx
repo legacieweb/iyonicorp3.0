@@ -51,6 +51,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             key={item.id}
             onClick={() => onSelectSection(item.id)}
             className={`apex-admin__nav-btn ${section === item.id ? 'active' : ''}`}
+            aria-current={section === item.id ? 'page' : undefined}
           >
             {item.icon}
             {item.label}

@@ -255,7 +255,7 @@ const ApexPosAdmin: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="pos-terminal">
+      <div className="pos-terminal apex-pos-app apex-pos-app--admin">
         <div style={{ padding: '60px', textAlign: 'center' }}>
           <div className="button-spinner" />
           <p>Loading Apex POS dashboard…</p>
@@ -266,7 +266,7 @@ const ApexPosAdmin: React.FC = () => {
 
   if (!seller) {
     return (
-      <div className="pos-terminal">
+      <div className="pos-terminal apex-pos-app apex-pos-app--admin">
         <div style={{ padding: '60px', textAlign: 'center' }} role="alert">
           {error || 'This POS workspace is unavailable.'}
         </div>
@@ -287,7 +287,7 @@ const ApexPosAdmin: React.FC = () => {
   };
 
   return (
-    <div className="pos-terminal" style={{ '--apex-primary': primaryColor } as React.CSSProperties}>
+    <div className="pos-terminal apex-pos-app apex-pos-app--admin" style={{ '--apex-primary': primaryColor } as React.CSSProperties}>
       <div className="pos-terminal__body">
         <AdminSidebar
           storeName={seller.storeName}
@@ -519,9 +519,16 @@ const ApexPosAdmin: React.FC = () => {
                 <div className="pos-admin__card">
                   <div className="apex-pos__tables-grid">
                     {tables.map((table) => (
-                      <div
+                      <button
+                        type="button"
                         key={table.id}
                         className={`apex-pos__table-card ${table.status}`}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            event.currentTarget.click();
+                          }
+                        }}
                         onClick={async () => {
                           const newStatus: TableStatus =
                             table.status === 'available'
@@ -542,23 +549,23 @@ const ApexPosAdmin: React.FC = () => {
                           }
                         }}
                       >
-                        <div
+                        <span
                           className="apex-pos__table-card--number"
                           style={{ color: getTableStatusColor(table.status) }}
                         >
                           {table.tableNumber}
-                        </div>
-                        <div className="apex-pos__table-card--status">
+                        </span>
+                        <span className="apex-pos__table-card--status">
                           {table.status}
-                        </div>
+                        </span>
                         {table.notes && (
-                          <div
+                          <span
                             style={{ fontSize: '9px', color: '#64748b', marginTop: '2px' }}
                           >
                             {table.notes}
-                          </div>
+                          </span>
                         )}
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>

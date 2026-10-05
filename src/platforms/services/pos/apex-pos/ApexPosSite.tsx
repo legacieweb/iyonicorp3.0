@@ -246,7 +246,7 @@ const ApexPosSite: React.FC<{ seller?: Seller; products?: Product[] }> = ({ sell
 
   if (effectiveSettings.enableEmployeeLogin && !currentEmployee) {
     return (
-      <div className="pos-terminal" style={{ '--apex-primary': primaryColor } as React.CSSProperties}>
+      <div className="pos-terminal apex-pos-app apex-pos-app--terminal" style={{ '--apex-primary': primaryColor } as React.CSSProperties}>
         <PinEntry
           employees={employees.length ? employees : createDemoEmployees(seller.id || '')}
           currentEmployee={currentEmployee}
@@ -260,7 +260,7 @@ const ApexPosSite: React.FC<{ seller?: Seller; products?: Product[] }> = ({ sell
   }
 
   return (
-    <div className="pos-terminal" style={{ '--apex-primary': primaryColor } as React.CSSProperties}>
+    <div className="pos-terminal apex-pos-app apex-pos-app--terminal" style={{ '--apex-primary': primaryColor } as React.CSSProperties}>
       <TerminalHeader
         storeName={seller.storeName || seller.subdomain}
         primaryColor={primaryColor}

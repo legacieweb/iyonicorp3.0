@@ -3674,14 +3674,15 @@ app.post('/api/nlmsongs', authenticateToken, requireNlmAdmin, handleNlmSongUploa
   const genre = String(req.body.genre || '').trim();
   const lyrics = String(req.body.lyrics || '').trim();
   const tags = cleanNlmTags(req.body.tags);
-  if (!title || !artist || !audio) {
+  if (!title || !audio) {
     await removeNlmFiles([nlmFileUrl(audio), nlmFileUrl(thumbnail)]);
     return res.status(400).json({ message: 'Track title and audio file are required.' });
   }
+  const finalArtist = artist || 'NLM Studio';
   try {
     const result = await db.query(`INSERT INTO nlm_songs (seller_id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, is_active, created_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-    [req.user.role === 'seller' ? req.user.sellerId : null, title.slice(0, 255), artist.slice(0, 255), description, genre.slice(0, 100), tags, lyrics, nlmFileUrl(audio), nlmFileUrl(thumbnail), req.body.isActive !== 'false', req.user.id]);
+    [req.user.role === 'seller' ? req.user.sellerId : null, title.slice(0, 255), finalArtist.slice(0, 255), description, genre.slice(0, 100), tags, lyrics, nlmFileUrl(audio), nlmFileUrl(thumbnail), req.body.isActive !== 'false', req.user.id]);
     res.status(201).json(toCamel(result.rows[0]));
   } catch (err) {
     await removeNlmFiles([nlmFileUrl(audio), nlmFileUrl(thumbnail)]);

@@ -64,7 +64,7 @@ const KitchenDisplay: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="pos-terminal" style={{ '--apex-primary': primaryColor } as React.CSSProperties}>
+      <div className="pos-terminal apex-pos-app apex-pos-app--kitchen" style={{ '--apex-primary': primaryColor } as React.CSSProperties}>
         <div style={{ padding: '60px', textAlign: 'center' }}>
           <div className="button-spinner" />
           <p>Loading Kitchen Display…</p>
@@ -74,7 +74,7 @@ const KitchenDisplay: React.FC = () => {
   }
 
   return (
-    <div className="pos-terminal" style={{ '--apex-primary': primaryColor } as React.CSSProperties}>
+    <div className="pos-terminal apex-pos-app apex-pos-app--kitchen" style={{ '--apex-primary': primaryColor } as React.CSSProperties}>
       <div className="apex-admin__topbar" style={{ padding: '12px 20px', justifyContent: 'space-between' }}>
         <h1 style={{ fontSize: '18px', fontWeight: 600 }}>
           Kitchen Display — {seller?.storeName || 'Apex POS'}

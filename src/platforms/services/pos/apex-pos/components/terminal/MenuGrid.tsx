@@ -15,9 +15,17 @@ export const MenuGrid: React.FC<MenuGridProps> = ({ items, settings, onItemSelec
       {items.length ? (
         items.map((item) => (
           <div
+            role="button"
+            tabIndex={0}
             key={item.id}
             className="apex-pos__menu-item"
             onClick={() => onItemSelect(item)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                onItemSelect(item);
+              }
+            }}
           >
             {settings.showImages && item.images && item.images[0] ? (
               <img

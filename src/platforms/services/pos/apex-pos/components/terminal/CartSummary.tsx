@@ -45,7 +45,7 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
       <div className="apex-pos__cart-header">
         <h2>New Order</h2>
         {selectedTable && (
-          <span className="apex-pos__cart-header .apex-pos__table-badge">
+          <span className="apex-pos__table-badge">
             Table {selectedTable}
           </span>
         )}
