@@ -113,17 +113,93 @@ const formatPrice = (amount, currency = 'USD') => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
 };
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || isPlatformOrigin(origin) || additionalCorsOrigins.has(origin)) {
-      callback(null, true);
-      return;
+    // Allow requests with no Origin header
+    // (server-to-server requests, curl, health checks, etc.)
+    if (!origin) {
+      return callback(null, true);
     }
-    callback(null, false);
+
+    // Explicitly configured additional origins
+    if (additionalCorsOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    try {
+      const { protocol, hostname } = new URL(origin);
+
+      if (protocol !== 'http:' && protocol !== 'https:') {
+        return callback(null, false);
+      }
+
+      const host = hostname.toLowerCase();
+
+      // Local development
+      const isLocalhost =
+        host === 'localhost' ||
+        host === '127.0.0.1';
+
+      // Main Iyonicorp domains and ALL seller subdomains
+      const isIyonicorpDomain =
+        host === 'iyonicorp.com' ||
+        host === 'www.iyonicorp.com' ||
+        host.endsWith('.iyonicorp.com');
+
+      // Iyonicweb domains
+      const isIyonicwebDomain =
+        host === 'iyonicweb.com' ||
+        host === 'www.iyonicweb.com' ||
+        host.endsWith('.iyonicweb.com');
+
+      // Development domains
+      const isDevelopmentDomain =
+        host === 'iyonicorp.test' ||
+        host.endsWith('.iyonicorp.test') ||
+        host === 'sellermuutu.test';
+
+      if (
+        isLocalhost ||
+        isIyonicorpDomain ||
+        isIyonicwebDomain ||
+        isDevelopmentDomain
+      ) {
+        return callback(null, true);
+      }
+
+      console.warn(`Blocked CORS origin: ${origin}`);
+      return callback(null, false);
+
+    } catch (error) {
+      console.warn(`Invalid CORS origin: ${origin}`);
+      return callback(null, false);
+    }
   },
-  methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
-}));
+
+  methods: [
+    'GET',
+    'HEAD',
+    'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
+    'OPTIONS'
+  ],
+
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'x-auth-token'
+  ],
+
+  optionsSuccessStatus: 204
+};
+
+app.use(cors(corsOptions));
+
+// Explicitly handle browser preflight requests
+app.options('*', cors(corsOptions));
+
 app.use(express.json());
 
 // Special CORS for embed endpoints
