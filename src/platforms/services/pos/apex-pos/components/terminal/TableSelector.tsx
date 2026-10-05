@@ -23,21 +23,30 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
     >
       <div className="pos-modal" style={{ maxWidth: '640px' }}>
         <div className="pos-modal__header">
+          <div>
           <h3 className="pos-modal__title">Select Table</h3>
+          <p className="apex-table-selector__hint">Choose a floor seat for this order</p>
+          </div>
           <button onClick={onClose} className="pos-modal__close">
             ✕
           </button>
         </div>
         <div className="pos-modal__content">
+          <div className="apex-table-legend" aria-label="Table availability">
+            <span><i className="is-available" /> Available</span>
+            <span><i className="is-reserved" /> Reserved</span>
+            <span><i className="is-occupied" /> In service</span>
+          </div>
           <div className="apex-pos__tables-grid">
             {tables
               .slice()
               .sort((a, b) => Number(a.tableNumber) - Number(b.tableNumber))
               .map((table) => {
                 const isAssigned = assignedTable === table.id;
-                const isSelectable = table.status !== 'occupied' && table.status !== 'seated' && table.status !== 'ordering';
+                const isSelectable = !['occupied', 'seated', 'ordering'].includes(table.status);
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={table.id}
                     className={`apex-pos__table-card ${table.status} ${
                       isAssigned ? 'assigned' : ''
@@ -49,20 +58,21 @@ export const TableSelector: React.FC<TableSelectorProps> = ({
                       '--table-color': getTableStatusColor(table.status),
                     } as React.CSSProperties}
                     aria-disabled={!isSelectable && !isAssigned}
+                    disabled={!isSelectable && !isAssigned}
                   >
-                    <div
+                    <span
                       className="apex-pos__table-card--number"
                       style={{ color: getTableStatusColor(table.status) }}
                     >
                       {table.tableNumber}
-                    </div>
-                    <div className="apex-pos__table-card--status">{table.status}</div>
+                    </span>
+                    <span className="apex-pos__table-card--status">{table.status}</span>
                     {table.seats && (
-                      <div style={{ fontSize: '9px', color: '#64748b', marginTop: '2px' }}>
+                      <span style={{ fontSize: '9px', color: '#64748b', marginTop: '2px' }}>
                         {table.seats} seats
-                      </div>
+                      </span>
                     )}
-                  </div>
+                  </button>
                 );
               })}
           </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   LayoutDashboard, Package, ShoppingBag, Table, Users,
-  BarChart3, Settings, ShoppingCart, LogOut,
+  BarChart3, Settings, UtensilsCrossed, LogOut,
 } from 'lucide-react';
 
 export type AdminSection = 'dashboard' | 'menu' | 'orders' | 'tables' | 'employees' | 'analytics' | 'inventory' | 'settings' | 'shifts';
@@ -41,9 +41,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     <aside className="apex-admin__sidebar">
       <div className="apex-admin__brand">
         <div className="apex-admin__brand-name">
-          <ShoppingCart size={18} />
+          <UtensilsCrossed size={18} />
           {storeName} POS
         </div>
+        <div className="apex-admin__brand-note">RESTAURANT OPERATIONS</div>
       </div>
       <nav className="apex-admin__nav">
         {items.map((item) => (

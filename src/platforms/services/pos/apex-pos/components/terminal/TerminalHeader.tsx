@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogOut, Users, Clock } from 'lucide-react';
+import { LogOut, Users, Clock, UtensilsCrossed } from 'lucide-react';
 import { PosEmployee, getRoleLabel, formatTime, PosShift } from '../../apexTypes';
 
 interface TerminalHeaderProps {
@@ -29,19 +29,30 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
       style={{ '--apex-primary': primaryColor } as React.CSSProperties}
     >
       <div className="apex-pos__topbar-left">
-        <div className="apex-pos__terminal-name">{storeName}</div>
+        <div className="apex-pos__terminal-brand">
+          <span className="apex-pos__terminal-mark"><UtensilsCrossed size={15} /></span>
+          <div>
+            <div className="apex-pos__terminal-name">{storeName}</div>
+            <div className="apex-pos__terminal-kicker">SERVICE STATION</div>
+          </div>
+        </div>
         <div className="apex-pos__status">
           <span className="apex-pos__status-dot" />
-          <span>Ready</span>
+          <span>Taking orders</span>
         </div>
       </div>
       <div className="apex-pos__topbar-left">
         {currentEmployee && (
-          <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-            {currentEmployee.name} (Tap to switch)
-          </span>
+          <button className="apex-pos__staff-cue" onClick={onSwitchEmployee}>
+            <span className="apex-pos__staff-avatar">{currentEmployee.name.charAt(0)}</span>
+            <span className="apex-pos__staff-copy">
+              <strong>{currentEmployee.name}</strong>
+              <small>{getRoleLabel(currentEmployee.role)}</small>
+            </span>
+          </button>
         )}
         <button
+          className="apex-pos__staff-switch"
           onClick={onSwitchEmployee}
           style={{
             background: 'none',
@@ -56,6 +67,7 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
         </button>
         {activeShift ? (
           <button
+            className="apex-pos__shift-action apex-pos__shift-action--close"
             onClick={onCloseShift}
             style={{
               background: 'none',
@@ -71,6 +83,7 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
           </button>
         ) : (
           <button
+            className="apex-pos__shift-action apex-pos__shift-action--open"
             onClick={onOpenShift}
             style={{
               background: 'none',
@@ -86,6 +99,7 @@ export const TerminalHeader: React.FC<TerminalHeaderProps> = ({
           </button>
         )}
         <button
+          className="apex-pos__logout"
           aria-label="Sign out"
           onClick={onLogout}
           style={{

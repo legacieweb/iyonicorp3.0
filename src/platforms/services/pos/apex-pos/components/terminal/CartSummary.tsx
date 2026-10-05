@@ -7,6 +7,8 @@ interface CartSummaryProps {
   cart: CartItem[];
   settings: PosSettings;
   selectedTable: string | null;
+  selectedTableLabel?: string | null;
+  availableTableCount?: number;
   subtotal: number;
   tax: number;
   serviceFee: number;
@@ -26,6 +28,8 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
   cart,
   settings,
   selectedTable,
+  selectedTableLabel,
+  availableTableCount = 0,
   subtotal,
   tax,
   serviceFee,
@@ -46,7 +50,7 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
         <h2>New Order</h2>
         {selectedTable && (
           <span className="apex-pos__table-badge">
-            Table {selectedTable}
+            <TableIcon size={13} /> {selectedTableLabel || `Table ${selectedTable}`}
           </span>
         )}
         {!selectedTable && settings.enableTableManagement && (
@@ -62,7 +66,8 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
               borderRadius: '6px',
             }}
           >
-            <TableIcon size={12} /> Tables
+            <TableIcon size={14} /> <span>Assign table</span>
+            <small>{availableTableCount} available</small>
           </button>
         )}
       </div>

@@ -297,6 +297,10 @@ const ApexPosSite: React.FC<{ seller?: Seller; products?: Product[] }> = ({ sell
           cart={cart}
           settings={effectiveSettings}
           selectedTable={selectedTable}
+          selectedTableLabel={tables.find((table) => table.id === selectedTable)?.tableNumber || null}
+          availableTableCount={tables.filter((table) =>
+            ['available', 'reserved'].includes(table.status)
+          ).length}
           subtotal={subtotal}
           tax={tax}
           serviceFee={serviceFee}

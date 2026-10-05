@@ -43,7 +43,7 @@ export const Register: React.FC<RegisterProps> = ({
     email: '',
     password: '',
     confirmPassword: '',
-    role: (isShopSignup || isUtormeStudentSignup || isTsppTeacherSignup
+    role: (isShopSignup || isUtormeStudentSignup || isTsppTeacherSignup || preselectedRole === 'customer'
       ? 'customer'
       : managerSlug
         ? 'seller'
@@ -481,7 +481,7 @@ export const Register: React.FC<RegisterProps> = ({
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Role Selection Tabs */}
-            {!isShopSignup && !managerSlug && !isInvitation && !isUtormeSignup && !isTsppSignup && (
+            {!isShopSignup && !managerSlug && !isInvitation && !isUtormeSignup && !isTsppSignup && preselectedRole !== 'customer' && (
               <div className="bg-gray-100 p-1 rounded-2xl flex max-w-lg mx-auto md:mx-0">
                 <button
                   type="button"

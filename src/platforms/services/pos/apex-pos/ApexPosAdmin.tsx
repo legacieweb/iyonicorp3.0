@@ -295,7 +295,7 @@ const ApexPosAdmin: React.FC = () => {
           pendingCount={pendingOrders.length}
           lowStockCount={lowStockItems.length}
           onSelectSection={(sec) => setSection(sec)}
-          onOpenTerminal={() => window.open('/pos/apex-pos?theme=apex-pos', '_blank')}
+          onOpenTerminal={() => window.open('/#/pos/apex-pos?theme=apex-pos', '_blank')}
           onLogout={logout}
         />
 

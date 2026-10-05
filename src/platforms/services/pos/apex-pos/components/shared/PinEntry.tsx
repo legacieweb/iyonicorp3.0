@@ -68,7 +68,7 @@ export const PinEntry: React.FC<PinEntryProps> = ({
           <h2 style={{ margin: 0, fontSize: '18px' }}>Employee Login</h2>
         </div>
 
-        <div className="apex-pos__employee-list" style={{ maxHeight: '140px', marginBottom: '16px' }}>
+        <div className="apex-pos__employee-list" style={{ marginBottom: '16px' }}>
           {employees.filter((e) => e.active).map((emp) => (
             <div
               key={emp.id}

@@ -1,7 +1,6 @@
 import React from 'react';
-import { ShoppingCart } from 'lucide-react';
-import { Product, PosSettings, formatCurrency } from '../../apexTypes';
-import { CartItem } from '../../types/order';
+import { ChefHat, ShoppingCart } from 'lucide-react';
+import { Product, PosSettings, formatCurrency, getCategoryName } from '../../apexTypes';
 
 interface MenuGridProps {
   items: Product[];
@@ -28,35 +27,17 @@ export const MenuGrid: React.FC<MenuGridProps> = ({ items, settings, onItemSelec
             }}
           >
             {settings.showImages && item.images && item.images[0] ? (
-              <img
-                src={item.images[0]}
-                alt={item.name}
-                className="apex-pos__cart-item-img"
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '6px',
-                  objectFit: 'cover',
-                  marginBottom: '6px',
-                }}
-              />
+              <div className="apex-pos__menu-item-image">
+                <img src={item.images[0]} alt="" />
+              </div>
             ) : (
-              <div
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '6px',
-                  background: '#0f172a',
-                  marginBottom: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#64748b',
-                }}
-              >
-                <ShoppingCart size={20} />
+              <div className="apex-pos__menu-item-image apex-pos__menu-item-image--empty">
+                <ChefHat size={22} aria-hidden="true" />
               </div>
             )}
+            <div className="apex-pos__menu-item-category">
+              {getCategoryName(item.category)}
+            </div>
             <div className="apex-pos__menu-item-name">{item.name}</div>
             {item.description && (
               <div className="apex-pos__menu-item-desc">{item.description}</div>
