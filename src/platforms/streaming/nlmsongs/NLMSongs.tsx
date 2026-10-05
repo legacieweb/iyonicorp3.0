@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
   Disc3,
   Download,
+  Heart,
+  Share2,
   Captions,
   FileAudio2,
   Headphones,
@@ -108,6 +110,12 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
   const [volume, setVolume] = useState(0.78);
   const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [showDetails, setShowDetails] = useState(false);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('nlm-favorites') || '[]'); } catch { return []; }
+  });
+  const [copied, setCopied] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const lyricsCloseRef = useRef<HTMLButtonElement>(null);
   const isSubmittingRef = useRef(false);
@@ -140,15 +148,19 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
   const selectedTrack = tracks.find((track) => track.id === selectedId) ?? null;
   const filteredTracks = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return tracks;
-    return tracks.filter((track) => [
+    let result = tracks;
+    if (showFavoritesOnly && user) {
+      result = result.filter((track) => favorites.includes(track.id));
+    }
+    if (!query) return result;
+    return result.filter((track) => [
       track.title,
       track.artist,
       track.genre,
       track.description,
       ...track.tags,
     ].some((value) => String(value).toLowerCase().includes(query)));
-  }, [search, tracks]);
+  }, [search, tracks, showFavoritesOnly, favorites, user]);
   const featuredTrack = filteredTracks[0] ?? tracks[0] ?? null;
   const highlightedLyric = useMemo(
     () => selectedTrack ? activeLyricIndex(selectedTrack.lyrics, currentTime) : -1,
@@ -183,6 +195,20 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
       window.removeEventListener('keydown', closeOnEscape);
     };
   }, [showLyrics]);
+
+  useEffect(() => {
+    if (!showDetails) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowDetails(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [showDetails]);
 
   useEffect(() => {
     setIsPlaying(false);
@@ -363,6 +389,10 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
 
   const downloadTrack = () => {
     if (!selectedTrack || !selectedTrack.audioUrl) return;
+    if (!user) {
+      openSignIn();
+      return;
+    }
     const url = resolveAssetUrl(selectedTrack.audioUrl);
     const extension = selectedTrack.audioUrl.split('.').pop() || 'mp3';
     const filename = `${selectedTrack.artist} - ${selectedTrack.title}.${extension}`;
@@ -373,6 +403,45 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
+  };
+
+  const toggleFavorite = (track?: Track) => {
+    const target = track ?? selectedTrack;
+    if (!target) return;
+    if (!user) {
+      openSignIn();
+      return;
+    }
+    const trackId = target.id;
+    setFavorites((current) => {
+      const isFav = current.includes(trackId);
+      const updated = isFav ? current.filter((id) => id !== trackId) : [...current, trackId];
+      localStorage.setItem('nlm-favorites', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const isFavorite = (trackId: string) => favorites.includes(trackId);
+
+  const shareTrack = async () => {
+    if (!selectedTrack) return;
+    const shareData = {
+      title: selectedTrack.title,
+      text: `Listen to ${selectedTrack.title} by ${selectedTrack.artist} on NLM Songs`,
+      url: `${window.location.origin}/nlmsongs`,
+    };
+    if (navigator.share) {
+      try { await navigator.share(shareData); } catch {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareData.url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    }
   };
 
   const selectTrack = (track: Track) => {
@@ -550,7 +619,8 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
 
             <>
                 <section className="nlm-track-section" aria-label="Your local tracks">
-                  <div className="nlm-section-head"><div><span className="nlm-eyebrow">{isAdminMode ? 'CATALOGUE' : 'LIBRARY'}</span><h2>{view === 'Your Library' ? 'Your tracks' : 'Recently added'}</h2></div><span className="nlm-track-count">{filteredTracks.length.toString().padStart(2, '0')} TRACKS</span></div>
+                   <div className="nlm-section-head"><div><span className="nlm-eyebrow">{isAdminMode ? 'CATALOGUE' : 'LIBRARY'}</span><h2>{view === 'Your Library' ? 'Your tracks' : 'Recently added'}</h2></div><span className="nlm-track-count">{filteredTracks.length.toString().padStart(2, '0')} TRACKS</span></div>
+                   {user && (<button className={`nlm-favorites-toggle ${showFavoritesOnly ? 'is-active' : ''}`} onClick={() => setShowFavoritesOnly(!showFavoritesOnly)} aria-pressed={showFavoritesOnly}><Heart size={14} fill={showFavoritesOnly ? 'currentColor' : 'none'} /><span>{showFavoritesOnly ? 'All tracks' : 'Favorites only'}</span></button>)}
                   {filteredTracks.length ? (
                     <div className="nlm-track-list">
                       <div className="nlm-track-columns"><span>TRACK</span><span>ARTIST</span><span>ACTIONS</span></div>
@@ -562,7 +632,7 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
                             <span className="nlm-track-title"><strong>{track.title}</strong><small>{track.lyrics.length ? `${track.lyrics.length} lyric lines` : 'No lyrics added'}</small></span>
                           </button>
                           <span className="nlm-track-artist">{track.artist}</span>
-                          <span className="nlm-track-actions"><button className="nlm-row-play" onClick={() => selectedId === track.id ? void togglePlayback() : selectTrack(track)} aria-label={`${selectedId === track.id && isPlaying ? 'Pause' : 'Play'} ${track.title}`}>{selectedId === track.id && isPlaying ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}</button><button className="nlm-row-lyrics" onClick={() => showTrackLyrics(track)} aria-label={`Show lyrics for ${track.title}`} title={`Lyrics for ${track.title}`}><Captions size={16} /></button>{isAdminMode && <button className="nlm-remove-track" onClick={() => void removeTrack(track)} aria-label={`Remove ${track.title}`} title="Remove track"><Trash2 size={15} /></button>}</span>
+                          <span className="nlm-track-actions">{user && (<button className={`nlm-row-favorite ${isFavorite(track.id) ? 'is-fav' : ''}`} onClick={() => toggleFavorite(track)} aria-label={isFavorite(track.id) ? 'Remove from favorites' : 'Add to favorites'} title={isFavorite(track.id) ? 'Remove from favorites' : 'Add to favorites'}><Heart size={12} fill={isFavorite(track.id) ? 'currentColor' : 'none'} /></button>)}<button className="nlm-row-play" onClick={() => selectedId === track.id ? void togglePlayback() : selectTrack(track)} aria-label={`${selectedId === track.id && isPlaying ? 'Pause' : 'Play'} ${track.title}`}>{selectedId === track.id && isPlaying ? <Pause size={15} /> : <Play size={15} fill="currentColor" />}</button><button className="nlm-row-lyrics" onClick={() => showTrackLyrics(track)} aria-label={`Show lyrics for ${track.title}`} title={`Lyrics for ${track.title}`}><Captions size={16} /></button>{isAdminMode && <button className="nlm-remove-track" onClick={() => void removeTrack(track)} aria-label={`Remove ${track.title}`} title="Remove track"><Trash2 size={15} /></button>}</span>
                         </article>
                       ))}
                     </div>
@@ -627,13 +697,37 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
 
         {playerError && <p className="nlm-player-error" role="alert">{playerError}<button onClick={() => setPlayerError('')} aria-label="Dismiss playback message"><X size={14} /></button></p>}
 
+        {showDetails && selectedTrack && <div className="nlm-details-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowDetails(false); }}>
+          <section className="nlm-details-modal" role="dialog" aria-modal="true" aria-labelledby="nlm-details-title" aria-describedby="nlm-details-artist">
+            <button className="nlm-details-close" onClick={() => setShowDetails(false)} aria-label="Close details"><X size={20} /></button>
+            <div className="nlm-details-art">{selectedTrack.coverUrl ? <img src={resolveAssetUrl(selectedTrack.coverUrl)} alt={selectedTrack.title} /> : <div className="nlm-details-art-fallback"><Music2 size={72} /></div>}</div>
+            <div className="nlm-details-meta">
+              <h2 id="nlm-details-title">{selectedTrack.title}</h2>
+              <p id="nlm-details-artist" className="nlm-details-artist">{selectedTrack.artist}</p>
+              {selectedTrack.genre && <span className="nlm-details-genre">{selectedTrack.genre}</span>}
+              {selectedTrack.description && <p className="nlm-details-description">{selectedTrack.description}</p>}
+              {selectedTrack.tags.length > 0 && <div className="nlm-details-tags">{selectedTrack.tags.map((tag) => <span key={tag} className="nlm-details-tag">{tag}</span>)}</div>}
+            </div>
+            <div className="nlm-details-controls">
+              <button className="nlm-details-play" onClick={() => void togglePlayback()} aria-label={isPlaying ? 'Pause' : 'Play'}>{isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}</button>
+              <div className="nlm-details-seek"><span>{formatTime(currentTime)}</span><input type="range" min="0" max={duration || 0} step="0.1" value={Math.min(currentTime, duration || 0)} onChange={(event) => { const nextTime = Number(event.target.value); setCurrentTime(nextTime); if (audioRef.current) audioRef.current.currentTime = nextTime; }} aria-label="Seek through track" style={{ '--seek-progress': `${duration ? currentTime / duration * 100 : 0}%` } as React.CSSProperties} /><span>{formatTime(duration)}</span></div>
+            </div>
+            <div className="nlm-details-actions">
+              <button className={`nlm-details-favorite ${isFavorite(selectedTrack.id) ? 'is-fav' : ''}`} onClick={toggleFavorite} aria-label={isFavorite(selectedTrack.id) ? 'Remove from favorites' : 'Add to favorites'} title={isFavorite(selectedTrack.id) ? 'Remove from favorites' : 'Add to favorites'}><Heart size={18} fill={isFavorite(selectedTrack.id) ? 'currentColor' : 'none'} /><span>{isFavorite(selectedTrack.id) ? 'Favorited' : 'Add to favorites'}</span></button>
+              <button className="nlm-details-download" onClick={downloadTrack} aria-label={`Download ${selectedTrack.title}`} title={user ? 'Download track' : 'Sign in to download'}><Download size={16} /><span>Download</span></button>
+              <button className="nlm-details-share" onClick={shareTrack} aria-label="Share track" title="Share track"><Share2 size={16} /><span>{copied ? 'Copied!' : 'Share'}</span></button>
+            </div>
+            {selectedTrack.lyrics.length > 0 && <div className="nlm-details-lyrics"><h3>Lyrics</h3><div className={`nlm-lyric-lines ${selectedTrack.syncLyrics ? 'is-synced' : 'is-plain'}`}>{selectedTrack.lyrics.map((line, index) => (<p key={`${line.time ?? 'plain'}-${index}`} className={selectedTrack.syncLyrics ? index === highlightedLyric ? 'is-current' : index < highlightedLyric ? 'is-past' : '' : ''}>{line.text}</p>))}</div></div>}
+          </section>
+        </div>}
+
         <footer className="nlm-player" aria-label="Audio player">
-          <div className="nlm-now-playing"><span className="nlm-player-cover">{selectedTrack?.coverUrl ? <img src={resolveAssetUrl(selectedTrack.coverUrl)} alt="" /> : <Music2 size={18} />}</span><span><strong>{selectedTrack?.title || 'Nothing playing'}</strong><small>{selectedTrack?.artist || 'Choose a track from your library'}</small></span></div>
+          <div className="nlm-now-playing" onClick={() => selectedTrack && setShowDetails(true)} style={{ cursor: selectedTrack ? 'pointer' : 'default' }}><span className="nlm-player-cover">{selectedTrack?.coverUrl ? <img src={resolveAssetUrl(selectedTrack.coverUrl)} alt="" /> : <Music2 size={18} />}</span><span><strong>{selectedTrack?.title || 'Nothing playing'}</strong><small>{selectedTrack?.artist || 'Choose a track from your library'}</small></span>{selectedTrack && (<button className={`nlm-player-favorite ${isFavorite(selectedTrack.id) ? 'is-fav' : ''}`} onClick={() => toggleFavorite()} aria-label={isFavorite(selectedTrack.id) ? 'Remove from favorites' : 'Add to favorites'} title={isFavorite(selectedTrack.id) ? 'Remove from favorites' : 'Add to favorites'}><Heart size={14} fill={isFavorite(selectedTrack.id) ? 'currentColor' : 'none'} /></button>)}</div>
           <div className="nlm-playback">
             <div className="nlm-transport"><button className="nlm-transport-skip" onClick={() => { if (audioRef.current) audioRef.current.currentTime = 0; }} disabled={!selectedTrack} aria-label="Restart track"><SkipBack size={16} fill="currentColor" /></button><button className="nlm-play-button" onClick={() => void togglePlayback()} disabled={!selectedTrack} aria-label={isPlaying ? 'Pause' : 'Play'}>{isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}</button><button className="nlm-transport-skip" onClick={() => { if (audioRef.current && duration) audioRef.current.currentTime = Math.min(audioRef.current.currentTime + 10, duration); }} disabled={!selectedTrack} aria-label="Skip forward 10 seconds"><SkipForward size={16} fill="currentColor" /></button></div>
             <div className="nlm-seek-row"><span>{formatTime(currentTime)}</span><input type="range" min="0" max={duration || 0} step="0.1" value={Math.min(currentTime, duration || 0)} onChange={(event) => { const nextTime = Number(event.target.value); setCurrentTime(nextTime); if (audioRef.current) audioRef.current.currentTime = nextTime; }} disabled={!selectedTrack || !duration} aria-label="Seek through track" style={{ '--seek-progress': `${duration ? currentTime / duration * 100 : 0}%` } as React.CSSProperties} /><span>{formatTime(duration)}</span></div>
           </div>
-          <div className="nlm-player-tools">{user && (<button className="nlm-player-download" onClick={downloadTrack} disabled={!selectedTrack} aria-label={`Download ${selectedTrack?.title || 'track'}`} title="Download track"><Download size={16} /><span>Download</span></button>)}<button className={`nlm-player-lyrics ${showLyrics ? 'is-open' : ''}`} onClick={() => selectedTrack && setShowLyrics((open) => !open)} disabled={!selectedTrack} aria-pressed={showLyrics} aria-label={showLyrics ? 'Hide lyrics' : `Show lyrics for ${selectedTrack?.title || 'current track'}`}><Captions size={16} /><span>Lyrics</span></button><div className="nlm-volume"><button onClick={() => setVolume((current) => current === 0 ? 0.78 : 0)} aria-label={volume === 0 ? 'Turn sound on' : 'Mute'}>{volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}</button><input type="range" min="0" max="1" step="0.01" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Volume" style={{ '--seek-progress': `${volume * 100}%` } as React.CSSProperties} /></div></div>
+          <div className="nlm-player-tools"><button className="nlm-player-download" onClick={downloadTrack} disabled={!selectedTrack} aria-label={`Download ${selectedTrack?.title || 'track'}`} title={user ? 'Download track' : 'Sign in to download'}><Download size={16} /><span>Download</span></button><button className={`nlm-player-lyrics ${showLyrics ? 'is-open' : ''}`} onClick={() => selectedTrack && setShowLyrics((open) => !open)} disabled={!selectedTrack} aria-pressed={showLyrics} aria-label={showLyrics ? 'Hide lyrics' : `Show lyrics for ${selectedTrack?.title || 'current track'}`}><Captions size={16} /><span>Lyrics</span></button><div className="nlm-volume"><button onClick={() => setVolume((current) => current === 0 ? 0.78 : 0)} aria-label={volume === 0 ? 'Turn sound on' : 'Mute'}>{volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}</button><input type="range" min="0" max="1" step="0.01" value={volume} onChange={(event) => setVolume(Number(event.target.value))} aria-label="Volume" style={{ '--seek-progress': `${volume * 100}%` } as React.CSSProperties} /></div></div>
         </footer>
       </main>
     </div>

@@ -36,7 +36,7 @@ export const getRoleLabel = (role: EmployeeRole): string => {
 };
 
 export const createDemoEmployees = (sellerId: string): PosEmployee[] => [
-  { id: 'emp-1', sellerId, name: 'Alex Morgan', role: 'owner', pin: '1234', active: true, hoursThisWeek: 32, totalSales: 0 },
+  { id: 'emp-1', sellerId, name: 'Alex Morgan', role: 'owner', pin: '0000', active: true, hoursThisWeek: 32, totalSales: 0 },
   { id: 'emp-2', sellerId, name: 'Jamie Chen', role: 'cashier', pin: '5678', active: true, hoursThisWeek: 28, totalSales: 0 },
   { id: 'emp-3', sellerId, name: 'Taylor Reed', role: 'kitchen', pin: '9012', active: true, hoursThisWeek: 24, totalSales: 0 },
 ];

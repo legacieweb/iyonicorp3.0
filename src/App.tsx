@@ -481,6 +481,7 @@ const RegisterWrapper: React.FC = () => {
   const roleParam = searchParams.get('role') as 'seller' | 'seller_manager' | 'customer' | null;
   const managerSlug = searchParams.get('manager');
   const sellerId = searchParams.get('shop');
+  const redirectParam = searchParams.get('redirect');
   
   return (
     <Register 
@@ -488,7 +489,7 @@ const RegisterWrapper: React.FC = () => {
         const params = new URLSearchParams(searchParams.toString());
         navigate(`/login?${params.toString()}`);
       }}
-      onBackToHomepage={() => navigate('/')}
+      onBackToHomepage={() => navigate(redirectParam || '/')}
       preselectedRole={roleParam}
       managerSlug={managerSlug}
       sellerId={sellerId}

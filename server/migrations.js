@@ -231,6 +231,15 @@ async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_pos_event_log_seller ON pos_event_log(seller_id);
     `);
 
+    // Add audio/thumbnail bytea columns to nlm_songs for database-stored media
+    await db.query(`
+      ALTER TABLE nlm_songs
+        ADD COLUMN IF NOT EXISTS audio_data BYTEA,
+        ADD COLUMN IF NOT EXISTS audio_mime_type TEXT,
+        ADD COLUMN IF NOT EXISTS thumbnail_data BYTEA,
+        ADD COLUMN IF NOT EXISTS thumbnail_mime_type TEXT;
+    `);
+
     console.log('✅ Migrations completed successfully');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

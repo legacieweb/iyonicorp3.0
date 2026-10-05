@@ -105,14 +105,8 @@ const upload = multer({
 
 const nlmAudioExtensions = new Set(['.mp3', '.wav', '.m4a']);
 const nlmImageExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
-const nlmUpload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      const uploadDir = path.join(__dirname, 'public/uploads');
-      fs.mkdir(uploadDir, { recursive: true }, (error) => cb(error, uploadDir));
-    },
-    filename: (req, file, cb) => cb(null, `nlm-${nanoid(20)}${path.extname(file.originalname).toLowerCase()}`)
-  }),
+const nlmUploadMemory = multer({
+  storage: multer.memoryStorage(),
   limits: { fileSize: 200 * 1024 * 1024, files: 2 },
   fileFilter: (req, file, cb) => {
     const extension = path.extname(file.originalname).toLowerCase();
@@ -122,8 +116,7 @@ const nlmUpload = multer({
     cb(allowed ? null : new Error('Choose a supported audio file and an image thumbnail.'), allowed);
   }
 });
-const nlmSongUpload = nlmUpload.fields([{ name: 'audio', maxCount: 1 }, { name: 'thumbnail', maxCount: 1 }]);
-const handleNlmSongUpload = (req, res, next) => nlmSongUpload(req, res, (error) => {
+ const handleNlmSongUpload = (req, res, next) => nlmUploadMemory.fields([{ name: 'audio', maxCount: 1 }, { name: 'thumbnail', maxCount: 1 }])(req, res, (error) => {
   if (error) return res.status(400).json({ message: error.message });
   next();
 });
@@ -3633,14 +3626,6 @@ const cleanNlmTags = (value) => [...new Set(parseNlmTags(value)
   .map((tag) => String(tag).trim().slice(0, 50))
   .filter(Boolean))].slice(0, 20);
 
-const nlmFileUrl = (file) => file ? `/uploads/${file.filename}` : null;
-const removeNlmFiles = async (urls) => {
-  for (const url of urls.filter(Boolean)) {
-    const filename = path.basename(String(url).split('?')[0]);
-    if (!filename.startsWith('nlm-')) continue;
-    await fs.promises.unlink(path.join(__dirname, 'public/uploads', filename)).catch(() => {});
-  }
-};
 
 app.get('/api/nlmsongs', async (req, res) => {
   try {
@@ -3656,8 +3641,8 @@ app.get('/api/nlmsongs', async (req, res) => {
 app.get('/api/nlmsongs/admin', authenticateToken, requireNlmAdmin, async (req, res) => {
   try {
     const songs = req.user.role === 'manager_admin'
-      ? await db.query('SELECT * FROM nlm_songs ORDER BY created_at DESC')
-      : await db.query('SELECT * FROM nlm_songs WHERE seller_id = $1 ORDER BY created_at DESC', [req.user.sellerId]);
+      ? await db.query('SELECT id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, audio_mime_type, thumbnail_mime_type, is_active, created_by, created_at FROM nlm_songs ORDER BY created_at DESC')
+      : await db.query('SELECT id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, audio_mime_type, thumbnail_mime_type, is_active, created_by, created_at FROM nlm_songs WHERE seller_id = $1 ORDER BY created_at DESC', [req.user.sellerId]);
     res.json(toCamel(songs.rows));
   } catch (err) {
     console.error('NLMSongs admin catalogue error:', err);
@@ -3675,19 +3660,62 @@ app.post('/api/nlmsongs', authenticateToken, requireNlmAdmin, handleNlmSongUploa
   const lyrics = String(req.body.lyrics || '').trim();
   const tags = cleanNlmTags(req.body.tags);
   if (!title || !audio) {
-    await removeNlmFiles([nlmFileUrl(audio), nlmFileUrl(thumbnail)]);
     return res.status(400).json({ message: 'Track title and audio file are required.' });
   }
   const finalArtist = artist || 'NLM Studio';
   try {
-    const result = await db.query(`INSERT INTO nlm_songs (seller_id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, is_active, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-    [req.user.role === 'seller' ? req.user.sellerId : null, title.slice(0, 255), finalArtist.slice(0, 255), description, genre.slice(0, 100), tags, lyrics, nlmFileUrl(audio), nlmFileUrl(thumbnail), req.body.isActive !== 'false', req.user.id]);
-    res.status(201).json(toCamel(result.rows[0]));
+    const result = await db.query(`INSERT INTO nlm_songs (seller_id, title, artist, description, genre, tags, lyrics, audio_data, audio_mime_type, thumbnail_data, thumbnail_mime_type, is_active, created_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, audio_mime_type, thumbnail_mime_type, is_active, created_by, created_at,
+    [req.user.role === 'seller' ? req.user.sellerId : null, title.slice(0, 255), finalArtist.slice(0, 255), description, genre.slice(0, 100), tags, lyrics, audio.buffer, audio.mimetype, thumbnail ? thumbnail.buffer : null, thumbnail ? thumbnail.mimetype : null, req.body.isActive !== 'false', req.user.id]);
+    const trackId = result.rows[0].id;
+    const audioUrl = `/api/nlmsongs/${trackId}/stream`;
+    const thumbnailUrl = thumbnail ? `/api/nlmsongs/${trackId}/thumbnail-stream` : null;
+    await db.query('UPDATE nlm_songs SET audio_url = $1, thumbnail_url = COALESCE($2, thumbnail_url) WHERE id = $3', [audioUrl, thumbnailUrl, trackId]);
+    res.status(201).json(toCamel({ ...result.rows[0], audio_url: audioUrl, thumbnail_url: thumbnailUrl }));
   } catch (err) {
-    await removeNlmFiles([nlmFileUrl(audio), nlmFileUrl(thumbnail)]);
     console.error('NLMSongs create error:', err);
     res.status(500).json({ message: 'Could not publish this song.' });
+  }
+});
+
+app.get('/api/nlmsongs/:id/stream', async (req, res) => {
+  try {
+    const result = await db.query('SELECT audio_data, audio_mime_type FROM nlm_songs WHERE id = $1 AND is_active = TRUE', [req.params.id]);
+    if (!result.rows.length || !result.rows[0].audio_data) return res.status(404).json({ message: 'Track not found.' });
+    const { audio_data, audio_mime_type } = result.rows[0];
+    res.setHeader('Content-Type', audio_mime_type || 'application/octet-stream');
+    res.setHeader('Content-Length', audio_data.length);
+    res.setHeader('Accept-Ranges', 'bytes');
+    const range = req.headers.range;
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : audio_data.length - 1;
+      const chunkSize = end - start + 1;
+      res.status(206);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${audio_data.length}`);
+      res.setHeader('Content-Length', chunkSize);
+      res.end(audio_data.slice(start, end + 1));
+    } else {
+      res.end(audio_data);
+    }
+  } catch (err) {
+    console.error('NLMSongs stream error:', err);
+    res.status(500).json({ message: 'Could not stream this track.' });
+  }
+});
+
+app.get('/api/nlmsongs/:id/thumbnail-stream', async (req, res) => {
+  try {
+    const result = await db.query('SELECT thumbnail_data, thumbnail_mime_type FROM nlm_songs WHERE id = $1 AND is_active = TRUE', [req.params.id]);
+    if (!result.rows.length || !result.rows[0].thumbnail_data) return res.status(404).end();
+    const { thumbnail_data, thumbnail_mime_type } = result.rows[0];
+    res.setHeader('Content-Type', thumbnail_mime_type || 'application/octet-stream');
+    res.setHeader('Content-Length', thumbnail_data.length);
+    res.end(thumbnail_data);
+  } catch (err) {
+    console.error('NLMSongs thumbnail error:', err);
+    res.status(500).end();
   }
 });
 
@@ -3696,35 +3724,43 @@ app.patch('/api/nlmsongs/:id', authenticateToken, requireNlmAdmin, handleNlmSong
   const thumbnail = req.files?.thumbnail?.[0];
   try {
     const current = req.user.role === 'manager_admin'
-      ? await db.query('SELECT * FROM nlm_songs WHERE id = $1', [req.params.id])
-      : await db.query('SELECT * FROM nlm_songs WHERE id = $1 AND seller_id = $2', [req.params.id, req.user.sellerId]);
+      ? await db.query('SELECT id, tags, audio_url, thumbnail_url FROM nlm_songs WHERE id = $1', [req.params.id])
+      : await db.query('SELECT id, tags, audio_url, thumbnail_url FROM nlm_songs WHERE id = $1 AND seller_id = $2', [req.params.id, req.user.sellerId]);
     if (!current.rows.length) {
-      await removeNlmFiles([nlmFileUrl(audio), nlmFileUrl(thumbnail)]);
       return res.status(404).json({ message: 'Song not found.' });
     }
     const oldSong = current.rows[0];
+    const trackId = oldSong.id;
     const nextTags = req.body.tags === undefined ? oldSong.tags : cleanNlmTags(req.body.tags);
+    const audioUrl = audio ? `/api/nlmsongs/${trackId}/stream` : null;
+    const thumbnailUrl = thumbnail ? `/api/nlmsongs/${trackId}/thumbnail-stream` : null;
     const result = await db.query(`UPDATE nlm_songs SET
       title = COALESCE($1, title), artist = COALESCE($2, artist), description = COALESCE($3, description),
       genre = COALESCE($4, genre), tags = COALESCE($5, tags), lyrics = COALESCE($6, lyrics),
-      audio_url = COALESCE($7, audio_url), thumbnail_url = CASE WHEN $8::boolean THEN $9 ELSE thumbnail_url END,
-      is_active = COALESCE($10, is_active), updated_at = CURRENT_TIMESTAMP
-      WHERE id = $11 AND ($12::boolean OR seller_id = $13) RETURNING *`, [
+      audio_url = COALESCE($7, audio_url), audio_data = COALESCE($8, audio_data), audio_mime_type = COALESCE($9, audio_mime_type),
+      thumbnail_url = CASE WHEN $10::boolean THEN $11 ELSE thumbnail_url END,
+      thumbnail_data = CASE WHEN $10::boolean THEN $12 ELSE thumbnail_data END,
+      thumbnail_mime_type = CASE WHEN $10::boolean THEN $13 ELSE thumbnail_mime_type END,
+      is_active = COALESCE($14, is_active), updated_at = CURRENT_TIMESTAMP
+      WHERE id = $15 AND ($16::boolean OR seller_id = $17) RETURNING id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, audio_mime_type, thumbnail_mime_type, is_active, created_by, created_at`, [
       req.body.title === undefined ? null : String(req.body.title).trim().slice(0, 255),
       req.body.artist === undefined ? null : String(req.body.artist).trim().slice(0, 255),
       req.body.description === undefined ? null : String(req.body.description).trim(),
       req.body.genre === undefined ? null : String(req.body.genre).trim().slice(0, 100),
       req.body.tags === undefined ? null : nextTags,
       req.body.lyrics === undefined ? null : String(req.body.lyrics).trim(),
-      nlmFileUrl(audio), Boolean(req.body.removeThumbnail === 'true' || thumbnail),
-      req.body.removeThumbnail === 'true' ? null : nlmFileUrl(thumbnail),
+      audioUrl,
+      audio ? audio.buffer : null,
+      audio ? audio.mimetype : null,
+      Boolean(req.body.removeThumbnail === 'true' || thumbnail),
+      thumbnailUrl,
+      thumbnail ? thumbnail.buffer : null,
+      thumbnail ? thumbnail.mimetype : null,
       req.body.isActive === undefined ? null : req.body.isActive === 'true', req.params.id,
       req.user.role === 'manager_admin', req.user.sellerId || null
     ]);
-    await removeNlmFiles([audio ? oldSong.audio_url : null, thumbnail || req.body.removeThumbnail === 'true' ? oldSong.thumbnail_url : null]);
     res.json(toCamel(result.rows[0]));
   } catch (err) {
-    await removeNlmFiles([nlmFileUrl(audio), nlmFileUrl(thumbnail)]);
     console.error('NLMSongs update error:', err);
     res.status(500).json({ message: 'Could not update this song.' });
   }
@@ -3733,10 +3769,9 @@ app.patch('/api/nlmsongs/:id', authenticateToken, requireNlmAdmin, handleNlmSong
 app.delete('/api/nlmsongs/:id', authenticateToken, requireNlmAdmin, async (req, res) => {
   try {
     const result = req.user.role === 'manager_admin'
-      ? await db.query('DELETE FROM nlm_songs WHERE id = $1 RETURNING audio_url, thumbnail_url', [req.params.id])
-      : await db.query('DELETE FROM nlm_songs WHERE id = $1 AND seller_id = $2 RETURNING audio_url, thumbnail_url', [req.params.id, req.user.sellerId]);
-    if (!result.rows.length) return res.status(404).json({ message: 'Song not found.' });
-    await removeNlmFiles([result.rows[0].audio_url, result.rows[0].thumbnail_url]);
+      ? await db.query('DELETE FROM nlm_songs WHERE id = $1', [req.params.id])
+      : await db.query('DELETE FROM nlm_songs WHERE id = $1 AND seller_id = $2', [req.params.id, req.user.sellerId]);
+    if (!result.rowCount) return res.status(404).json({ message: 'Song not found.' });
     res.json({ message: 'Song removed from the catalogue.' });
   } catch (err) {
     console.error('NLMSongs delete error:', err);
