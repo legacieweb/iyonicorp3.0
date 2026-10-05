@@ -136,6 +136,7 @@ const ApexPosSite: React.FC<{ seller?: Seller; products?: Product[] }> = ({ sell
 
   const handleVerifyPin = async (employee: PosEmployee, pin: string): Promise<boolean> => {
     setPinVerifying(true);
+    let isVerified = false;
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:2823/api'}/pos/employees/verify-pin`, {
         method: 'POST',
@@ -145,17 +146,18 @@ const ApexPosSite: React.FC<{ seller?: Seller; products?: Product[] }> = ({ sell
         },
         body: JSON.stringify({ employeeId: employee.id, pin, sellerId: seller?.id }),
       });
-      if (response.ok) {
-        selectEmployee(employee);
-        setShowPinEntry(false);
-        return true;
-      }
-      return employee.pin === pin;
+      isVerified = response.ok || employee.pin === pin;
     } catch {
-      return employee.pin === pin;
+      isVerified = employee.pin === pin;
     } finally {
       setPinVerifying(false);
     }
+
+    if (isVerified) {
+      selectEmployee(employee);
+      setShowPinEntry(false);
+    }
+    return isVerified;
   };
 
   const handleSelectTable = (table: { id: string; tableNumber: string }) => {

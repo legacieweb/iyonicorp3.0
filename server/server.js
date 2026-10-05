@@ -105,14 +105,16 @@ const upload = multer({
 
 const nlmAudioExtensions = new Set(['.mp3', '.wav', '.m4a']);
 const nlmImageExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+const nlmMimeTypes = { '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.m4a': 'audio/mp4', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif' };
 const nlmUploadMemory = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 200 * 1024 * 1024, files: 2 },
-  fileFilter: (req, file, cb) => {
+   fileFilter: (req, file, cb) => {
     const extension = path.extname(file.originalname).toLowerCase();
     const allowed = file.fieldname === 'audio'
       ? nlmAudioExtensions.has(extension) && (file.mimetype.startsWith('audio/') || file.mimetype === 'application/octet-stream' || (extension === '.m4a' && file.mimetype === 'video/mp4'))
-      : file.fieldname === 'thumbnail' && nlmImageExtensions.has(extension) && file.mimetype.startsWith('image/');
+      : file.fieldname === 'thumbnail' && nlmImageExtensions.has(extension) && (file.mimetype.startsWith('image/') || file.mimetype === 'application/octet-stream');
+    if (allowed && nlmMimeTypes[extension]) file.mimetype = nlmMimeTypes[extension];
     cb(allowed ? null : new Error('Choose a supported audio file and an image thumbnail.'), allowed);
   }
 });
@@ -3664,9 +3666,9 @@ app.post('/api/nlmsongs', authenticateToken, requireNlmAdmin, handleNlmSongUploa
   }
   const finalArtist = artist || 'NLM Studio';
   try {
-    const result = await db.query(`INSERT INTO nlm_songs (seller_id, title, artist, description, genre, tags, lyrics, audio_data, audio_mime_type, thumbnail_data, thumbnail_mime_type, is_active, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, audio_mime_type, thumbnail_mime_type, is_active, created_by, created_at`,
-    [req.user.role === 'seller' ? req.user.sellerId : null, title.slice(0, 255), finalArtist.slice(0, 255), description, genre.slice(0, 100), tags, lyrics, audio.buffer, audio.mimetype, thumbnail ? thumbnail.buffer : null, thumbnail ? thumbnail.mimetype : null, req.body.isActive !== 'false', req.user.id]);
+    const result = await db.query(`INSERT INTO nlm_songs (seller_id, title, artist, description, genre, tags, lyrics, audio_url, audio_data, audio_mime_type, thumbnail_data, thumbnail_mime_type, is_active, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, '', $8, $9, $10, $11, $12, $13) RETURNING id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, audio_mime_type, thumbnail_mime_type, is_active, created_by, created_at`,
+    [req.user.role === 'seller' ? req.user.sellerId : null, title.slice(0, 255), finalArtist.slice(0, 255), description, genre.slice(0, 100), tags, lyrics, audio.buffer, audio.mimetype, thumbnail ? thumbnail.buffer : null, thumbnail ? thumbnail.mimetype : null, req.body.isActive !== 'false', req.user.id === 'admin-id' ? null : req.user.id]);
     const trackId = result.rows[0].id;
     const audioUrl = `/api/nlmsongs/${trackId}/stream`;
     const thumbnailUrl = thumbnail ? `/api/nlmsongs/${trackId}/thumbnail-stream` : null;
@@ -3682,22 +3684,25 @@ app.get('/api/nlmsongs/:id/stream', async (req, res) => {
   try {
     const result = await db.query('SELECT audio_data, audio_mime_type FROM nlm_songs WHERE id = $1 AND is_active = TRUE', [req.params.id]);
     if (!result.rows.length || !result.rows[0].audio_data) return res.status(404).json({ message: 'Track not found.' });
-    const { audio_data, audio_mime_type } = result.rows[0];
-    res.setHeader('Content-Type', audio_mime_type || 'application/octet-stream');
-    res.setHeader('Content-Length', audio_data.length);
+    const audioData = Buffer.isBuffer(result.rows[0].audio_data) ? result.rows[0].audio_data : Buffer.from(result.rows[0].audio_data);
+    const mimeType = result.rows[0].audio_mime_type && result.rows[0].audio_mime_type !== 'application/octet-stream'
+      ? result.rows[0].audio_mime_type
+      : 'audio/mpeg';
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', audioData.length);
     res.setHeader('Accept-Ranges', 'bytes');
     const range = req.headers.range;
     if (range) {
       const parts = range.replace(/bytes=/, '').split('-');
       const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : audio_data.length - 1;
+      const end = parts[1] ? parseInt(parts[1], 10) : audioData.length - 1;
       const chunkSize = end - start + 1;
       res.status(206);
-      res.setHeader('Content-Range', `bytes ${start}-${end}/${audio_data.length}`);
+      res.setHeader('Content-Range', `bytes ${start}-${end}/${audioData.length}`);
       res.setHeader('Content-Length', chunkSize);
-      res.end(audio_data.slice(start, end + 1));
+      res.end(audioData.slice(start, end + 1));
     } else {
-      res.end(audio_data);
+      res.end(audioData);
     }
   } catch (err) {
     console.error('NLMSongs stream error:', err);
@@ -3710,7 +3715,10 @@ app.get('/api/nlmsongs/:id/thumbnail-stream', async (req, res) => {
     const result = await db.query('SELECT thumbnail_data, thumbnail_mime_type FROM nlm_songs WHERE id = $1 AND is_active = TRUE', [req.params.id]);
     if (!result.rows.length || !result.rows[0].thumbnail_data) return res.status(404).end();
     const { thumbnail_data, thumbnail_mime_type } = result.rows[0];
-    res.setHeader('Content-Type', thumbnail_mime_type || 'application/octet-stream');
+    const thumbMimeType = thumbnail_mime_type && thumbnail_mime_type !== 'application/octet-stream'
+      ? thumbnail_mime_type
+      : 'image/jpeg';
+    res.setHeader('Content-Type', thumbMimeType);
     res.setHeader('Content-Length', thumbnail_data.length);
     res.end(thumbnail_data);
   } catch (err) {
