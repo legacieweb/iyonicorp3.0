@@ -106,6 +106,7 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [formError, setFormError] = useState('');
   const [playerError, setPlayerError] = useState('');
+  const [catalogError, setCatalogError] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -256,6 +257,7 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
 
   const loadTracks = async () => {
     setIsLoading(true);
+    setCatalogError('');
     if (!isAdminMode) {
       try {
         const songs = await nlmsongsAPI.list();
@@ -264,6 +266,7 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
         if (!selectedId && mapped.length) setSelectedId(mapped.find((track) => track.id === routeTrackId)?.id ?? mapped[0].id);
       } catch (error) {
         console.error('Could not load public catalogue:', error);
+        setCatalogError('The song catalogue could not be reached. Check your connection and try again.');
       } finally {
         setIsLoading(false);
       }
@@ -277,6 +280,7 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
       if (!selectedId && mapped.length) setSelectedId(mapped.find((track) => track.id === routeTrackId)?.id ?? mapped[0].id);
     } catch (error) {
       console.error('Could not load NLMSongs catalogue:', error);
+      setCatalogError('The song catalogue could not be reached. Check your connection and try again.');
       setFormError('The catalogue could not be loaded right now.');
     } finally {
       setIsLoading(false);
@@ -399,8 +403,10 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
       return;
     }
     const url = resolveAssetUrl(track.audioUrl);
-    const extension = new URL(url, window.location.origin).pathname.split('.').pop()?.toLowerCase() || 'mp3';
-    const filename = `${track.artist} - ${track.title}.${extension}`;
+    const urlExtension = new URL(url, window.location.origin).pathname.split('.').pop()?.toLowerCase();
+    const extension = urlExtension && ['mp3', 'wav', 'm4a'].includes(urlExtension) ? urlExtension : 'mp3';
+    const safeFilename = `${track.artist} - ${track.title}`.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-').trim();
+    const filename = `${safeFilename || 'NLM track'}.${extension}`;
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = filename;
@@ -666,6 +672,8 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
                    <label className="nlm-sort-control">SORT BY <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}><option value="recent">Recently added</option><option value="title">Title</option><option value="artist">Artist</option></select></label>
                   {isLoading ? (
                     <div className="nlm-empty-library" role="status"><span className="nlm-empty-icon"><Loader2 size={21} className="nlm-spinner" /></span><div><h3>Opening the listening room…</h3><p>Loading the published tracks from the catalogue.</p></div></div>
+                  ) : catalogError ? (
+                    <div className="nlm-empty-library" role="alert"><span className="nlm-empty-icon"><FileAudio2 size={21} /></span><div><h3>Couldn’t load the catalogue.</h3><p>{catalogError}</p></div><button onClick={() => void loadTracks()}>Try again</button></div>
                   ) : filteredTracks.length ? (
                     <div className="nlm-track-list">
                       <div className="nlm-track-columns"><span>TRACK</span><span>ARTIST</span><span>ACTIONS</span></div>
@@ -768,7 +776,7 @@ const NLMSongs = ({ mode = 'client' }: { mode?: 'client' | 'admin' }) => {
               </div>
               <div className="nlm-details-lyrics"><h3>Lyrics</h3>{detailTrack.lyrics.length ? <div className={`nlm-lyric-lines ${detailTrack.syncLyrics ? 'is-synced' : 'is-plain'}`}>{detailTrack.lyrics.map((line, index) => (<p key={`${line.time ?? 'plain'}-${index}`} className={detailTrack.syncLyrics ? index === highlightedLyric ? 'is-current' : index < highlightedLyric ? 'is-past' : '' : ''}>{line.text}</p>))}</div> : <p className="nlm-detail-no-lyrics">Lyrics have not been added for this track yet.</p>}</div>
             </div>
-          </> : <div className="nlm-detail-loading" role="status"><Loader2 size={18} className="nlm-spinner" /> {isLoading ? 'Loading this track…' : 'This track is not available in the catalogue.'}<button onClick={() => navigate('/nlmsongs')}>Return to discovery</button></div>}
+          </> : <div className="nlm-detail-loading" role={isLoading ? 'status' : 'alert'}>{isLoading && <Loader2 size={18} className="nlm-spinner" />} {isLoading ? 'Loading this track…' : catalogError || 'This track is not available in the catalogue.'}<button onClick={() => catalogError ? void loadTracks() : navigate('/nlmsongs')}>{catalogError ? 'Try again' : 'Return to discovery'}</button></div>}
         </section>}
 
         {playerError && <p className="nlm-player-error" role="alert">{playerError}<button onClick={() => setPlayerError('')} aria-label="Dismiss playback message"><X size={14} /></button></p>}

@@ -384,13 +384,6 @@
 .nlm-mobile-account-menu button.is-primary { color: var(--nlm-ink); background: var(--nlm-lime); font-weight: 700; }
 .nlm-mobile-account-name { overflow: hidden; margin: 2px 9px 6px; padding: 0 0 9px; border-bottom: 1px solid var(--nlm-line); color: #989b8c; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 
-.nlm-details-overlay { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; padding: 32px; background: rgba(0,0,0,.68); backdrop-filter: blur(12px); animation: nlm-overlay-in .2s ease-out both; }
-.nlm-details-modal { position: relative; display: grid; gap: 0; width: min(540px,100%); max-height: min(88vh,calc(100dvh - 64px)); overflow-y: auto; border-radius: 20px; border: 1px solid rgba(201,247,90,.12); background: linear-gradient(145deg,#151710 0%,#1e2019 55%,#151710 100%); box-shadow: 0 40px 80px rgba(0,0,0,.48), inset 0 0 0 1px rgba(201,247,90,.04); animation: nlm-details-in .28s cubic-bezier(.2,.8,.2,1) both; scrollbar-width: thin; scrollbar-color: #525549 transparent; }
-.nlm-details-modal::-webkit-scrollbar { width: 6px; }
-.nlm-details-modal::-webkit-scrollbar-track { background: transparent; }
-.nlm-details-modal::-webkit-scrollbar-thumb { width: 6px; border-radius: 10px; background: rgba(201,247,90,.18); }
-.nlm-details-close { position: absolute; top: 16px; right: 16px; display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid rgba(201,247,90,.2); color: #c8c9bc; background: rgba(255,255,255,.03); border-radius: 10px; cursor: pointer; transition: all .18s; z-index: 5; }
-.nlm-details-close:hover { color: var(--nlm-coral); border-color: var(--nlm-coral); background: rgba(255,128,104,.08); transform: scale(1.08); }
 .nlm-details-shell { display: grid; gap: 18px; padding: 34px 28px 28px; }
 .nlm-details-art-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .nlm-details-art { width: 190px; height: 190px; border-radius: 16px; border: 1px solid rgba(201,247,90,.18); background: #303329; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.42); }
@@ -434,7 +427,6 @@
 
 .nlm-spinner { animation: nlm-spin .7s linear infinite; }
 
-@keyframes nlm-details-in { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 @keyframes nlm-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes nlm-rise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
@@ -507,7 +499,6 @@
   .nlm-lyrics-panel h2 { margin: 9px 0 4px; font-size: 27px; }
   .nlm-lyric-lines { max-height: 25vh; min-height: 72px; }
   .nlm-lyric-lines p { font-size: 13px; }
-  .nlm-details-modal { padding: 20px; }
   .nlm-details-art { width: 140px; height: 140px; }
   .nlm-details-lyrics { margin-top: 10px; }
   .nlm-upload-panel { padding: 15px; }
@@ -532,7 +523,6 @@
   .nlm-player-lyrics { min-height: 30px; padding: 0 5px; font-size: 9px; }
   .nlm-player-tools .nlm-volume { gap: 5px; }
   .nlm-player-tools .nlm-volume input { width: 64px; }
-  .nlm-details-modal { margin: 0; width: 100%; max-width: 100%; border-radius: 16px; }
   .nlm-details-shell { padding: 24px 18px 24px; }
   .nlm-details-art { width: 150px; height: 150px; }
   .nlm-details-play { width: 50px; height: 50px; }

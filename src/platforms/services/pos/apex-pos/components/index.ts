@@ -6,7 +6,6 @@ export { PayModal } from './terminal/PayModal';
 export { TableSelector } from './terminal/TableSelector';
 export { PinEntry } from './shared/PinEntry';
 export { ProductDetailModal } from './terminal/ProductDetailModal';
-export { StatusBadge } from './shared/StatusBadge';
 export { AdminSidebar } from './admin/AdminSidebar';
 export { AdminTopbar } from './admin/AdminTopbar';
 export { DashboardMetrics } from './admin/DashboardMetrics';
