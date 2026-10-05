@@ -6,7 +6,7 @@ interface PinEntryProps {
   employees: PosEmployee[];
   currentEmployee: PosEmployee | null;
   isLoading: boolean;
-  onVerifyPin: (employee: PosEmployee, pin: string) => Promise<boolean>;
+  onVerifyPin: (employee: PosEmployee, pin: string) => Promise<boolean | string>;
   onSwitchEmployee: (employee: PosEmployee) => void;
   onCancel: () => void;
 }
@@ -21,6 +21,7 @@ export const PinEntry: React.FC<PinEntryProps> = ({
 }) => {
   const [selectedEmployee, setSelectedEmployee] = useState<PosEmployee | null>(currentEmployee || employees[0]);
   const [pin, setPin] = useState('');
+  const [verificationError, setVerificationError] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -35,28 +36,34 @@ export const PinEntry: React.FC<PinEntryProps> = ({
 
   const handleVerify = async () => {
     if (!selectedEmployee || isLoading) return;
-    const success = await onVerifyPin(selectedEmployee, pin);
+    const result = await onVerifyPin(selectedEmployee, pin);
+    const success = result === true;
     if (success) {
       setPin('');
+      setVerificationError('');
     } else {
       setPin('');
+      setVerificationError(typeof result === 'string' ? result : 'Incorrect PIN. Please try again.');
       inputRef.current?.focus();
     }
   };
 
   const handleNumberClick = (num: string) => {
     if (pin.length < 4 && !isLoading) {
+      setVerificationError('');
       setPin((p) => p + num);
     }
   };
 
   const handleDelete = () => {
+    setVerificationError('');
     setPin((p) => p.slice(0, -1));
   };
 
   const handleEmployeeSelect = (employee: PosEmployee) => {
     setSelectedEmployee(employee);
     setPin('');
+    setVerificationError('');
     onSwitchEmployee(employee);
   };
 
@@ -90,6 +97,24 @@ export const PinEntry: React.FC<PinEntryProps> = ({
               <div style={{ fontSize: '13px', color: '#cbd5e1', marginBottom: '8px' }}>
                 Enter PIN for <strong>{selectedEmployee.name}</strong>
               </div>
+              {verificationError && (
+                <div
+                  className="apex-pos__pin-error"
+                  role="alert"
+                  style={{
+                    color: '#fecaca',
+                    background: 'rgba(127, 29, 29, 0.28)',
+                    border: '1px solid rgba(248, 113, 113, 0.35)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    lineHeight: 1.4,
+                    marginBottom: '8px',
+                    padding: '8px 10px',
+                  }}
+                >
+                  {verificationError}
+                </div>
+              )}
               <div
                 className="apex-pos__pin-display"
                 style={{

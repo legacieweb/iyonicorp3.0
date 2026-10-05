@@ -109,11 +109,15 @@ const ApexPosSite: React.FC<{ seller?: Seller; products?: Product[] }> = ({ sell
     if (!seller) return;
     setSettings(getPosSettings(seller));
     if (employees.length === 0) {
-      try {
-        const empData = await employeesAPI.getBySellerId(seller.id);
-        setEmployees(empData);
-      } catch {
+      if (seller.id === 'apex-demo-seller') {
         setEmployees(createDemoEmployees(seller.id || ''));
+      } else {
+        try {
+          const empData = await employeesAPI.getBySellerId(seller.id);
+          setEmployees(empData);
+        } catch {
+          setEmployees(createDemoEmployees(seller.id || ''));
+        }
       }
     }
     if (tables.length === 0) {
@@ -126,7 +130,7 @@ const ApexPosSite: React.FC<{ seller?: Seller; products?: Product[] }> = ({ sell
   }, [ensureStoreData]);
 
   useEffect(() => {
-    if (seller?.id) {
+    if (seller?.id && seller.id !== 'apex-demo-seller') {
       connectWebSocket(seller.id);
     }
     return () => {
@@ -134,21 +138,34 @@ const ApexPosSite: React.FC<{ seller?: Seller; products?: Product[] }> = ({ sell
     };
   }, [seller?.id, connectWebSocket, disconnectWebSocket]);
 
-  const handleVerifyPin = async (employee: PosEmployee, pin: string): Promise<boolean> => {
+  const handleVerifyPin = async (employee: PosEmployee, pin: string): Promise<boolean | string> => {
     setPinVerifying(true);
     let isVerified = false;
+    let verificationError = '';
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:2823/api'}/pos/employees/verify-pin`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': localStorage.getItem('iyonicorp_token') || '',
-        },
-        body: JSON.stringify({ employeeId: employee.id, pin, sellerId: seller?.id }),
-      });
-      isVerified = response.ok || employee.pin === pin;
+      if (seller?.id === 'apex-demo-seller') {
+        isVerified = employee.pin === pin;
+        if (!isVerified) {
+          verificationError = 'Incorrect PIN. Please try again.';
+        }
+      } else {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:2823/api'}/pos/employees/verify-pin`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-auth-token': localStorage.getItem('iyonicorp_token') || '',
+          },
+          body: JSON.stringify({ employeeId: employee.id, pin, sellerId: seller?.id }),
+        });
+        isVerified = response.ok;
+        if (!isVerified) {
+          verificationError = response.status === 401 || response.status === 404
+            ? 'Incorrect PIN. Please try again.'
+            : 'PIN verification is temporarily unavailable. Please try again later.';
+        }
+      }
     } catch {
-      isVerified = employee.pin === pin;
+      verificationError = 'Could not reach the PIN verification service. Check your connection and try again.';
     } finally {
       setPinVerifying(false);
     }
@@ -157,7 +174,7 @@ const ApexPosSite: React.FC<{ seller?: Seller; products?: Product[] }> = ({ sell
       selectEmployee(employee);
       setShowPinEntry(false);
     }
-    return isVerified;
+    return isVerified || verificationError;
   };
 
   const handleSelectTable = (table: { id: string; tableNumber: string }) => {

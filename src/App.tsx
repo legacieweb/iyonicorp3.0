@@ -248,7 +248,7 @@ const AppContent: React.FC = () => {
       
       <Route path="/login" element={
         <AuthRoute>
-          <LoginWrapper onSwitchToRegister={() => navigate('/register')} onBackToHomepage={handleBackToHomepage} />
+          <LoginWrapper />
         </AuthRoute>
       } />
       
@@ -455,19 +455,20 @@ const AppContent: React.FC = () => {
   );
 };
 
-const LoginWrapper: React.FC<{ onSwitchToRegister: () => void; onBackToHomepage: () => void }> = ({ onSwitchToRegister, onBackToHomepage }) => {
+const LoginWrapper: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const sellerId = searchParams.get('shop');
   const subdomain = searchParams.get('subdomain');
-  const navigate = useNavigate();
-  
+  const redirectParam = searchParams.get('redirect');
+
   return (
-    <Login 
+    <Login
       onSwitchToRegister={() => {
         const params = new URLSearchParams(searchParams.toString());
         navigate(`/register?${params.toString()}`);
       }}
-      onBackToHomepage={onBackToHomepage}
+      onBackToHomepage={() => navigate(redirectParam || '/')}
       sellerId={sellerId}
     />
   );

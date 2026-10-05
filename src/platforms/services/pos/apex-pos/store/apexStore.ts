@@ -64,8 +64,33 @@ export interface ApexState {
 const createInitialSettings = (seller?: Seller | null): PosSettings =>
   getPosSettings(seller);
 
+const getSocketBaseUrl = (): string => {
+  const configuredSocketUrl = import.meta.env.VITE_WS_URL;
+  if (configuredSocketUrl) {
+    try {
+      const url = new URL(configuredSocketUrl);
+      if (['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)) {
+        return url.origin;
+      }
+    } catch {
+      // Fall back to the API origin when the optional socket URL is malformed.
+    }
+  }
+
+  const apiUrl = import.meta.env.VITE_API_URL;
+  if (apiUrl) {
+    try {
+      return new URL(apiUrl).origin;
+    } catch {
+      // Use the local API origin when the configured API URL is malformed.
+    }
+  }
+
+  return 'http://localhost:2823';
+};
+
 const connectWebSocketImpl = (sellerId: string) => {
-  const wsBaseUrl = import.meta.env.VITE_WS_URL || (import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:2823');
+  const wsBaseUrl = getSocketBaseUrl();
   if (socket) {
     socket.disconnect();
   }
@@ -300,7 +325,7 @@ export const useApexStore = create<ApexState>()(
 let socket: Socket | null = null;
 
 useApexStore.getState().connectWebSocket = (sellerId: string) => {
-  const wsBaseUrl = import.meta.env.VITE_WS_URL || (import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:2823');
+  const wsBaseUrl = getSocketBaseUrl();
   if (socket) {
     socket.disconnect();
   }

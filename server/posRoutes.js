@@ -115,6 +115,7 @@ export function mountPosRoutes(app, authenticateToken, io) {
       if (!valid) return res.status(401).json({ message: 'Invalid PIN.' });
       res.json({ id: employee.id, name: employee.name, role: employee.role });
     } catch (err) {
+      console.error('Failed to verify POS employee PIN:', err);
       res.status(500).json({ message: 'Server error' });
     }
   });
