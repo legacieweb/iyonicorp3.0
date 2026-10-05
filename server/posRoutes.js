@@ -104,6 +104,10 @@ export function mountPosRoutes(app, authenticateToken, io) {
     if (!employeeId || !pin) {
       return res.status(400).json({ message: 'Employee ID and PIN are required.' });
     }
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_REGEX.test(employeeId)) {
+      return res.status(400).json({ message: 'Invalid employee ID format.' });
+    }
     try {
       const result = await db.query(
         'SELECT * FROM pos_employees WHERE id = $1 AND seller_id = $2 AND active = TRUE',

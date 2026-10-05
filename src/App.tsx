@@ -364,7 +364,7 @@ const AppContent: React.FC = () => {
           <LicensedPlatformRoute themeId="nlmsongs"><NLMSongs mode="admin" /></LicensedPlatformRoute>
         </ProtectedRoute>
       } />
-      <Route path="/nlmsongs" element={<NLMSongs />} />
+      <Route path="/nlmsongs/*" element={<NLMSongs />} />
 
       <Route path="/ixstream/dashboard" element={
         <ProtectedRoute allowedRoles={['seller']}>

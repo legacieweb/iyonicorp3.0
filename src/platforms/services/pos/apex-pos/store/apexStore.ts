@@ -69,8 +69,9 @@ const getSocketBaseUrl = (): string => {
   if (configuredSocketUrl) {
     try {
       const url = new URL(configuredSocketUrl);
-      if (['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)) {
-        return url.origin;
+      if (['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol) && url.hostname && url.hostname !== 'https' && url.hostname !== 'http') {
+        const wsProto = url.protocol === 'https:' || url.protocol === 'wss:' ? 'wss:' : 'ws:';
+        return `${wsProto}//${url.hostname}`;
       }
     } catch {
       // Fall back to the API origin when the optional socket URL is malformed.
@@ -80,13 +81,17 @@ const getSocketBaseUrl = (): string => {
   const apiUrl = import.meta.env.VITE_API_URL;
   if (apiUrl) {
     try {
-      return new URL(apiUrl).origin;
+      const url = new URL(apiUrl);
+      if (url.hostname && url.hostname !== 'https' && url.hostname !== 'http') {
+        const wsProto = url.protocol === 'https:' || url.protocol === 'wss:' ? 'wss:' : 'ws:';
+        return `${wsProto}//${url.hostname}`;
+      }
     } catch {
       // Use the local API origin when the configured API URL is malformed.
     }
   }
 
-  return 'http://localhost:2823';
+  return 'ws://localhost:2823';
 };
 
 const connectWebSocketImpl = (sellerId: string) => {

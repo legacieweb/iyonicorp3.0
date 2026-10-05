@@ -143,7 +143,8 @@ const ApexPosSite: React.FC<{ seller?: Seller; products?: Product[] }> = ({ sell
     let isVerified = false;
     let verificationError = '';
     try {
-      if (seller?.id === 'apex-demo-seller') {
+      const isUuidId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(employee.id);
+      if (seller?.id === 'apex-demo-seller' || !isUuidId) {
         isVerified = employee.pin === pin;
         if (!isVerified) {
           verificationError = 'Incorrect PIN. Please try again.';
@@ -155,7 +156,7 @@ const ApexPosSite: React.FC<{ seller?: Seller; products?: Product[] }> = ({ sell
             'Content-Type': 'application/json',
             'x-auth-token': localStorage.getItem('iyonicorp_token') || '',
           },
-          body: JSON.stringify({ employeeId: employee.id, pin, sellerId: seller?.id }),
+          body: JSON.stringify({ employeeId: employee.id, pin }),
         });
         isVerified = response.ok;
         if (!isVerified) {

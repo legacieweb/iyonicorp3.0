@@ -366,9 +366,6 @@
 .nlm-app input[type='range']::-moz-range-thumb { width: 10px; height: 10px; border: 0; border-radius: 50%; background: var(--nlm-lime); }
 .nlm-app input[type='range']:disabled { cursor: not-allowed; opacity: .35; }
 .nlm-player-tools { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
-.nlm-player-download { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 0 10px; border: 1px solid rgba(201,247,90,.35); border-radius: 6px; color: var(--nlm-lime); background: rgba(201,247,90,.06); font-size: 9px; font-weight: 600; cursor: pointer; transition: all .18s; }
-.nlm-player-download:hover { background: rgba(201,247,90,.12); }
-.nlm-player-download:disabled { opacity: .38; cursor: not-allowed; }
 .nlm-player-lyrics { display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 0 10px; border: 1px solid transparent; color: #aeb0a2; background: transparent; font-size: 9px; font-weight: 600; border-radius: 6px; }
 .nlm-player-lyrics:not(:disabled):hover,
 .nlm-player-lyrics.is-open { border-color: rgba(201,247,90,.35); color: var(--nlm-lime); background: rgba(201,247,90,.06); }
@@ -534,7 +531,6 @@
   .nlm-player-favorite { width: 26px; height: 26px; }
   .nlm-player-lyrics { min-height: 30px; padding: 0 5px; font-size: 9px; }
   .nlm-player-tools .nlm-volume { gap: 5px; }
-  .nlm-player-download { display: none; }
   .nlm-player-tools .nlm-volume input { width: 64px; }
   .nlm-details-modal { margin: 0; width: 100%; max-width: 100%; border-radius: 16px; }
   .nlm-details-shell { padding: 24px 18px 24px; }
@@ -563,4 +559,79 @@
   .nlm-app *,
   .nlm-app *::before,
   .nlm-app *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}
+
+.nlm-library-area.is-detail-route > * { display: none; }
+.nlm-discovery-section,
+.nlm-fresh-section { margin: 0 0 26px; }
+.nlm-discovery-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.nlm-discovery-heading .nlm-eyebrow { color: var(--nlm-coral); }
+.nlm-discovery-heading h2 { margin: 0; color: #f0f0e5; font-size: 18px; font-weight: 500; }
+.nlm-genre-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.nlm-genre-chips button { min-height: 34px; padding: 0 12px; border: 1px solid rgba(242,244,223,.14); color: #c5c7b8; background: rgba(255,255,255,.025); font-family: 'DM Mono',monospace; font-size: 9px; transition: color .18s,border-color .18s,background .18s; }
+.nlm-genre-chips button:hover,
+.nlm-genre-chips button.is-active { border-color: var(--nlm-lime); color: var(--nlm-ink); background: var(--nlm-lime); }
+.nlm-fresh-list { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; padding-top: 12px; }
+.nlm-fresh-card { display: grid; grid-template-columns: 46px 22px minmax(0,1fr) 28px; align-items: center; gap: 9px; min-width: 0; padding: 9px; border: 1px solid rgba(242,244,223,.1); color: inherit; background: rgba(255,255,255,.025); text-align: left; transition: transform .18s,border-color .18s,background .18s; }
+.nlm-fresh-card:hover { transform: translateY(-2px); border-color: rgba(201,247,90,.45); background: rgba(201,247,90,.045); }
+.nlm-fresh-art { display: grid; place-items: center; width: 46px; height: 46px; overflow: hidden; color: var(--nlm-lime); background: #303329; }
+.nlm-fresh-index { color: #77796e; font: 9px 'DM Mono',monospace; }
+.nlm-fresh-meta { display: grid; gap: 5px; min-width: 0; }
+.nlm-fresh-meta strong,
+.nlm-fresh-meta small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nlm-fresh-meta strong { color: #ecece0; font-size: 10px; }
+.nlm-fresh-meta small { color: #858879; font-size: 8px; }
+.nlm-fresh-play { display: grid; place-items: center; width: 27px; height: 27px; color: var(--nlm-lime); border: 1px solid rgba(201,247,90,.28); border-radius: 50%; }
+.nlm-sort-control { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; color: #858879; font: 8px 'DM Mono',monospace; }
+.nlm-sort-control select { min-height: 30px; padding: 0 28px 0 9px; border: 1px solid rgba(242,244,223,.13); color: #d9dbce; background: #1d2018; font: 9px 'Space Grotesk',sans-serif; }
+.nlm-now-playing { padding: 0; border: 0; color: inherit; background: transparent; text-align: left; }
+.nlm-now-playing:disabled { cursor: default; opacity: 1; }
+.nlm-detail-page { flex: 1; min-width: 0; padding: 34px clamp(22px,4vw,54px) 48px; animation: nlm-rise .35s both; }
+.nlm-detail-back { display: inline-flex; align-items: center; gap: 8px; min-height: 35px; margin-bottom: 22px; padding: 0 11px; border: 1px solid var(--nlm-line); color: #b7b9aa; background: transparent; font-size: 10px; }
+.nlm-detail-back:hover { border-color: var(--nlm-lime); color: var(--nlm-lime); }
+.nlm-detail-page .nlm-details-shell { grid-template-columns: minmax(220px,.8fr) minmax(0,1.2fr); align-items: center; gap: 22px 38px; max-width: 1050px; margin: auto; padding: clamp(22px,4vw,46px); border: 1px solid rgba(201,247,90,.17); background: radial-gradient(circle at 20% 24%,rgba(201,247,90,.08),transparent 34%),linear-gradient(140deg,#191b15,#20221a 55%,#151710); box-shadow: 0 30px 80px rgba(0,0,0,.2); }
+.nlm-detail-page .nlm-details-art-wrap { align-items: flex-start; }
+.nlm-detail-page .nlm-details-art { width: min(100%,340px); height: auto; aspect-ratio: 1; border-radius: 0; box-shadow: 18px 18px 0 rgba(201,247,90,.08),0 25px 54px rgba(0,0,0,.34); }
+.nlm-detail-page .nlm-details-art-fallback { height: 100%; background: radial-gradient(circle at 48% 42%,rgba(201,247,90,.2),transparent 35%),linear-gradient(145deg,#34372a,#141610); }
+.nlm-detail-page .nlm-details-meta { text-align: left; }
+.nlm-detail-page .nlm-details-meta > .nlm-eyebrow { margin-bottom: 13px; color: var(--nlm-lime); }
+.nlm-detail-page .nlm-details-meta h2 { font-size: clamp(34px,5vw,66px); line-height: .98; overflow-wrap: anywhere; }
+.nlm-detail-page .nlm-details-artist { margin-top: 11px; color: var(--nlm-coral); font-size: 16px; }
+.nlm-detail-page .nlm-details-description { margin: 20px 0 0; color: #b0b2a5; font-size: 13px; line-height: 1.8; }
+.nlm-detail-page .nlm-details-tags { justify-content: flex-start; margin-top: 18px; }
+.nlm-detail-page .nlm-details-controls,
+.nlm-detail-page .nlm-details-actions,
+.nlm-detail-page .nlm-details-lyrics { grid-column: 1 / -1; }
+.nlm-detail-page .nlm-details-controls { justify-content: flex-start; padding-top: 17px; border-top: 1px solid var(--nlm-line); }
+.nlm-detail-page .nlm-details-actions { justify-content: flex-start; }
+.nlm-detail-page .nlm-details-lyrics { width: 100%; margin-top: 8px; padding-top: 19px; border-top: 1px solid var(--nlm-line); }
+.nlm-detail-page .nlm-details-lyrics h3 { color: var(--nlm-lime); font-size: 10px; letter-spacing: .08em; }
+.nlm-detail-page .nlm-details-lyrics .nlm-lyric-lines { max-height: 280px; }
+.nlm-detail-no-lyrics { margin: 0; color: #a2a496; font-size: 12px; }
+.nlm-detail-loading { display: flex; align-items: center; flex-wrap: wrap; gap: 11px; min-height: 220px; color: #a2a496; }
+.nlm-detail-loading button { min-height: 33px; padding: 0 11px; border: 1px solid rgba(201,247,90,.35); color: var(--nlm-lime); background: transparent; font-size: 10px; }
+
+@media (max-width: 900px) {
+  .nlm-fresh-list { grid-template-columns: 1fr; }
+  .nlm-detail-page .nlm-details-shell { grid-template-columns: minmax(160px,.65fr) minmax(0,1.35fr); gap: 20px; }
+}
+@media (max-width: 600px) {
+  .nlm-fresh-list { gap: 7px; }
+  .nlm-fresh-card { grid-template-columns: 42px 18px minmax(0,1fr) 26px; gap: 7px; }
+  .nlm-fresh-art { width: 42px; height: 42px; }
+  .nlm-detail-page { padding: 24px 16px 35px; }
+  .nlm-detail-page .nlm-details-shell { grid-template-columns: 1fr; justify-items: stretch; gap: 20px; padding: 20px 17px; }
+  .nlm-detail-page .nlm-details-art-wrap { align-items: center; }
+  .nlm-detail-page .nlm-details-art { width: min(72vw,300px); }
+  .nlm-detail-page .nlm-details-meta { text-align: center; }
+  .nlm-detail-page .nlm-details-tags { justify-content: center; }
+  .nlm-detail-page .nlm-details-controls,
+  .nlm-detail-page .nlm-details-actions,
+  .nlm-detail-page .nlm-details-lyrics { grid-column: 1; }
+  .nlm-detail-page .nlm-details-controls { gap: 11px; }
+  .nlm-detail-page .nlm-details-play { width: 49px; height: 49px; }
+  .nlm-detail-page .nlm-details-actions { gap: 6px; }
+  .nlm-detail-page .nlm-details-favorite,
+  .nlm-detail-page .nlm-details-download,
+  .nlm-detail-page .nlm-details-share { min-height: 34px; padding: 0 9px; font-size: 8px; }
 }
