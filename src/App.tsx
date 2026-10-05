@@ -135,12 +135,12 @@ const LicensedPlatformRoute: React.FC<{ children: React.ReactNode; themeId: stri
 };
 
 const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isInitializing } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const shopSubdomain = searchParams.get('subdomain');
   
-  if (isLoading) {
+  if (isInitializing) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-white">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
