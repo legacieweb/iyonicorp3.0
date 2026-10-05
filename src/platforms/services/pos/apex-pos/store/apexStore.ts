@@ -79,19 +79,6 @@ const getSocketBaseUrl = (): string => {
     }
   }
 
-  const apiUrl = import.meta.env.VITE_API_URL;
-  if (apiUrl) {
-    try {
-      const url = new URL(apiUrl);
-      if (url.hostname && url.hostname !== 'https' && url.hostname !== 'http') {
-        const wsProto = url.protocol === 'https:' || url.protocol === 'wss:' ? 'wss:' : 'ws:';
-        return `${wsProto}//${url.hostname}`;
-      }
-    } catch {
-      // Use the local API origin when the configured API URL is malformed.
-    }
-  }
-
   return getApiOrigin().replace(/^http/, 'ws');
 };
 

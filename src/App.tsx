@@ -178,7 +178,7 @@ const AppContent: React.FC = () => {
   const isMainPlatformHomepage = location.pathname === '/'
     && !hasStoreQuery
     && (
-      ['localhost', '127.0.0.1', 'iyonicweb.com', 'www.iyonicweb.com', 'web.iyonicorp.com'].includes(hostname)
+      ['localhost', '127.0.0.1', 'iyonicweb.com', 'www.iyonicweb.com', 'api.iyonicorp.com'].includes(hostname)
       || hostname === 'iyonicorp.com'
       || hostname === 'www.iyonicorp.com'
       || hostname.endsWith('.iyonicorp.com')
