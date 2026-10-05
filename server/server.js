@@ -116,7 +116,7 @@ const nlmUploadMemory = multer({
     cb(allowed ? null : new Error('Choose a supported audio file and an image thumbnail.'), allowed);
   }
 });
- const handleNlmSongUpload = (req, res, next) => nlmUploadMemory.fields([{ name: 'audio', maxCount: 1 }, { name: 'thumbnail', maxCount: 1 }])(req, res, (error) => {
+const handleNlmSongUpload = (req, res, next) => nlmUploadMemory.fields([{ name: 'audio', maxCount: 1 }, { name: 'thumbnail', maxCount: 1 }])(req, res, (error) => {
   if (error) return res.status(400).json({ message: error.message });
   next();
 });
@@ -3665,7 +3665,7 @@ app.post('/api/nlmsongs', authenticateToken, requireNlmAdmin, handleNlmSongUploa
   const finalArtist = artist || 'NLM Studio';
   try {
     const result = await db.query(`INSERT INTO nlm_songs (seller_id, title, artist, description, genre, tags, lyrics, audio_data, audio_mime_type, thumbnail_data, thumbnail_mime_type, is_active, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, audio_mime_type, thumbnail_mime_type, is_active, created_by, created_at,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, audio_mime_type, thumbnail_mime_type, is_active, created_by, created_at`,
     [req.user.role === 'seller' ? req.user.sellerId : null, title.slice(0, 255), finalArtist.slice(0, 255), description, genre.slice(0, 100), tags, lyrics, audio.buffer, audio.mimetype, thumbnail ? thumbnail.buffer : null, thumbnail ? thumbnail.mimetype : null, req.body.isActive !== 'false', req.user.id]);
     const trackId = result.rows[0].id;
     const audioUrl = `/api/nlmsongs/${trackId}/stream`;
