@@ -17,7 +17,7 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.iyonicorp.rule=Host(`${DOMAIN}`) || HostRegexp(`{seller:[a-z0-9-]+}.${DOMAIN}`)"
+      - "traefik.http.routers.iyonicorp.rule=Host(`${DOMAIN}`) || Host(`api.${DOMAIN}`) || HostRegexp(`{seller:[a-z0-9-]+}.${DOMAIN}`)"
       - "traefik.http.routers.iyonicorp.entrypoints=websecure"
       - "traefik.http.routers.iyonicorp.tls.certresolver=letsencrypt"
       - "traefik.http.services.iyonicorp.loadbalancer.server.port=5000"
