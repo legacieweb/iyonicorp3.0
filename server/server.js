@@ -64,6 +64,26 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const app = express();
 const PORT = process.env.PORT || 2823;
 const JWT_SECRET = process.env.JWT_SECRET || 'iyonicorp_secret_key';
+const additionalCorsOrigins = new Set(
+  (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
+const isPlatformOrigin = (origin) => {
+  try {
+    const { protocol, hostname } = new URL(origin);
+    if (protocol !== 'http:' && protocol !== 'https:') return false;
+    const host = hostname.toLowerCase();
+    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+    const isIyonicorpDomain = host === 'iyonicorp.com' || host.endsWith('.iyonicorp.com');
+    const isIyonicwebDomain = host === 'iyonicweb.com' || host.endsWith('.iyonicweb.com');
+    const isDevelopmentDomain = ['iyonicorp.test', 'sellermuutu.test'].includes(host);
+    return isLocalhost || isIyonicorpDomain || isIyonicwebDomain || isDevelopmentDomain;
+  } catch {
+    return false;
+  }
+};
 const RESERVED_STORE_SUBDOMAINS = new Set([
   'admin', 'api', 'app', 'demo', 'iyonicorp', 'iyonicweb', 'localhost', 'shop', 'store', 'web', 'www'
 ]);
@@ -93,7 +113,17 @@ const formatPrice = (amount, currency = 'USD') => {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
 };
 
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || isPlatformOrigin(origin) || additionalCorsOrigins.has(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(null, false);
+  },
+  methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
+}));
 app.use(express.json());
 
 // Special CORS for embed endpoints
