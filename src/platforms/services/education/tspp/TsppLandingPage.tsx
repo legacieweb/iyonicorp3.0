@@ -58,7 +58,8 @@ const TsppLandingPage: React.FC = () => (
         </nav>
 
         <div className="tspp-actions">
-          <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fadmin" className="tspp-btn tspp-btn-ghost">School sign in</Link>
+          <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fowner" className="tspp-btn tspp-btn-ghost">Admin dashboard</Link>
+          <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fadmin" className="tspp-btn tspp-btn-ghost">School dashboard</Link>
           <a href="#signup" onClick={scrollToSignup} className="tspp-btn tspp-btn-primary">
             Sign up <ArrowRight size={16} />
           </a>

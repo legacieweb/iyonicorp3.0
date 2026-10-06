@@ -199,7 +199,7 @@ const TsppClient: React.FC = () => {
             </div>
             <div>
               <h1 style={{ margin: 0, fontSize: '2rem' }}>{user?.name || 'Teacher'}</h1>
-              <p style={{ margin: '0.25rem 0 0', color: 'var(--tspp-slate)' }}>{user?.email}</p>
+              <p style={{ margin: '0.25rem 0 0', color: 'var(--tspp-slate)' }}>Teacher client dashboard</p>
             </div>
           </div>
         </div>

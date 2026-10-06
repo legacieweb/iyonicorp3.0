@@ -52,6 +52,7 @@ const InvoicePage = lazy(() => import('./pages/InvoicePage'));
 const IyonicShop = lazy(() => import('./pages/IyonicShop'));
 const Refunds = lazy(() => import('./pages/Refunds'));
 const TsppLandingPage = lazy(() => import('./platforms/services/education/tspp/TsppLandingPage'));
+const TsppOwnerDashboard = lazy(() => import('./platforms/services/education/tspp/TsppOwnerDashboard'));
 const TsppAdmin = lazy(() => import('./platforms/services/education/tspp/TsppAdmin'));
 const TsppClient = lazy(() => import('./platforms/services/education/tspp/TsppClient'));
 const About = lazy(() => import('./pages/static').then(({ About }) => ({ default: About })));
@@ -274,6 +275,11 @@ const AppContent: React.FC = () => {
 
       <Route path="/themes" element={<Themes />} />
       <Route path="/tspp" element={<TsppLandingPage />} />
+      <Route path="/tspp/owner" element={
+        <ProtectedRoute allowedRoles={['seller']}>
+          <LicensedPlatformRoute themeId="tspp"><TsppOwnerDashboard /></LicensedPlatformRoute>
+        </ProtectedRoute>
+      } />
       <Route path="/tspp/admin" element={
         <ProtectedRoute allowedRoles={['seller']}>
           <LicensedPlatformRoute themeId="tspp"><TsppAdmin /></LicensedPlatformRoute>

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowDownLeft, ArrowRight, BadgeCheck, Check, ExternalLink, LayoutGrid, Search, Send, Sparkles, Store, Ticket } from 'lucide-react';
+import { ArrowDownLeft, ArrowRight, BadgeCheck, Check, ExternalLink, Eye, LayoutGrid, Search, Send, Sparkles, Store, Ticket } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { Seller, sellersAPI } from '../services/api';
@@ -123,6 +123,7 @@ const Themes: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [category, setCategory] = useState<ThemeCategory>('All platforms');
   const [query, setQuery] = useState('');
+  const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
   const [acquiredThemeIds, setAcquiredThemeIds] = useState<string[]>([]);
@@ -472,15 +473,28 @@ const Themes: React.FC = () => {
               const isActive = activeThemeId === theme.id;
               const price = THEME_PRICES_USD_CENTS[theme.id] / 100;
               const isBusy = applyingId === theme.id;
+              const previewIsLoaded = activePreviewId === theme.id;
+              const sellerAccessRequired = Boolean(user && !isSeller && !isActive);
               return (
                 <article key={theme.id} className={`theme-card${index === 0 && category === 'All platforms' && !query ? ' theme-card-featured' : ''}`}>
-                  <div className="theme-card-preview">
-                    <iframe src={previewUrl(theme.id)} title={`${theme.name} live platform preview`} loading="lazy" tabIndex={-1} aria-hidden="true" className="theme-card-frame" />
-                    <div className="theme-preview-shade" />
-                    <span className="theme-kind-label">{kindLabel[theme.kind]}</span>
-                    <a href={previewUrl(theme.id)} target="_blank" rel="noreferrer" className="theme-preview-action" aria-label={`Open ${theme.name} preview in a new tab`}>Preview <ExternalLink size={13} /></a>
-                    <span className="theme-preview-index">{String(index + 1).padStart(2, '0')}</span>
-                  </div>
+                <div className="theme-card-preview">
+                  {previewIsLoaded && <iframe src={previewUrl(theme.id)} title={`${theme.name} live platform preview`} loading="lazy" tabIndex={-1} aria-hidden="true" className="theme-card-frame" />}
+                  <div className="theme-preview-shade" />
+                  <span className="theme-kind-label">{kindLabel[theme.kind]}</span>
+                  {!previewIsLoaded ? (
+                    <div className="theme-preview-actions">
+                      <button type="button" className="theme-preview-action" onClick={() => setActivePreviewId(theme.id)} aria-label={`Load ${theme.name} live preview`}>
+                        <Eye size={13} /> Live preview
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="theme-preview-actions">
+                      <button type="button" className="theme-preview-action" onClick={() => setActivePreviewId(null)} aria-label={`Close ${theme.name} live preview`}>Close preview</button>
+                      <a href={previewUrl(theme.id)} target="_blank" rel="noreferrer" className="theme-preview-action" aria-label={`Open ${theme.name} preview in a new tab`}>Open full preview <ExternalLink size={13} /></a>
+                    </div>
+                  )}
+                  <span className="theme-preview-index">{String(index + 1).padStart(2, '0')}</span>
+                </div>
                   <div className="theme-card-body">
                     <div className="theme-card-tags">
                       <span className="theme-vip-tag"><Sparkles size={10} /> VIP</span>
@@ -494,8 +508,10 @@ const Themes: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => isActive ? navigate(getThemeDashboardRoute(theme.id)) : isAcquired ? void applyTheme(theme) : void purchaseTheme(theme.id)}
-                        disabled={isBusy || acquisitionsLoading || (isActive && !isSeller)}
-                        className={`theme-primary-action${isActive ? ' is-applied' : ''}`}
+                        disabled={isBusy || acquisitionsLoading || (isActive && !isSeller) || sellerAccessRequired}
+                        title={sellerAccessRequired ? 'A seller account is required to acquire and apply a platform.' : undefined}
+                        aria-describedby={sellerAccessRequired ? 'theme-seller-note' : undefined}
+                        className={`theme-primary-action${isActive ? ' is-applied' : ''}${sellerAccessRequired ? ' is-role-disabled' : ''}`}
                       >
                         {isBusy ? <><span className="theme-button-spinner" />{isAcquired ? 'Opening platform…' : 'Opening checkout…'}</>
                           : isActive ? <><Check size={15} /> Open applied platform</>
@@ -503,7 +519,7 @@ const Themes: React.FC = () => {
                               : isSeller && isAcquired ? <><Store size={15} /> Apply platform</>
                                 : !user ? <><Store size={15} /> Sign in to acquire</>
                                   : isSeller ? <><Store size={15} /> Acquire · ${price.toFixed(2)}</>
-                                    : 'Seller access required'}
+                                    : 'Seller account required'}
                       </button>
                       {isSeller && !isAcquired && !isActive && (
                         <button type="button" className="theme-offer-toggle" onClick={() => {
@@ -530,7 +546,7 @@ const Themes: React.FC = () => {
         ) : (
           <div className="theme-empty-state"><Search size={22} /><h3>No platforms found</h3><p>Try another search or choose a broader category.</p></div>
         )}
-        {!isSeller && <p className="theme-seller-note"><Ticket size={15} /> Platform licenses are available to seller accounts. Explore each live preview before signing in.</p>}
+        {!isSeller && <p id="theme-seller-note" className="theme-seller-note"><Ticket size={15} /> Platform licenses are available to seller accounts. Explore each live preview before signing in.</p>}
       </section>
       <footer className="theme-library-footer"><Link to="/"><img src="/logo.png" alt="" />Iyonicorp</Link><span>Build the business that feels like yours.</span></footer>
 

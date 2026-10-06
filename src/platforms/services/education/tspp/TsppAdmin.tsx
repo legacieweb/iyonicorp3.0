@@ -131,7 +131,7 @@ const TsppAdmin: React.FC = () => {
         <section className="tspp-card tspp-admin-welcome">
           <div>
             <div className="tspp-section-heading" style={{ marginBottom: 0, maxWidth: '100%' }}>
-              <p className="tspp-kicker"><Sparkles size={14} /> {tabs.find(t => t.id === activeTab)?.label ?? 'Platform dashboard'}</p>
+              <p className="tspp-kicker"><Sparkles size={14} /> {tabs.find(t => t.id === activeTab)?.label ?? 'School dashboard'}</p>
               <h2>{content.headline} — {getSchoolName()}</h2>
               <p style={{ marginTop: '1rem', color: 'var(--tspp-slate)', fontSize: '1.06rem' }}>{content.description}</p>
             </div>

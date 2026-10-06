@@ -167,26 +167,28 @@
 .theme-card-featured .theme-card-preview { aspect-ratio: 1.8 / 1; }
 .theme-card-frame { position: absolute; top: 0; left: 0; width: 200%; height: 200%; transform: scale(.5); transform-origin: top left; border: 0; pointer-events: none; background: #efede5; }
 .theme-preview-shade { position: absolute; inset: 0; background: linear-gradient(0deg, rgb(14 24 18 / 55%), transparent 58%), linear-gradient(110deg, rgb(22 38 28 / 19%), transparent 58%); pointer-events: none; }
-.theme-kind-label { position: absolute; top: 13px; left: 13px; padding: 6px 8px; color: #f4f1e6; background: rgb(28 45 34 / 84%); font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.theme-preview-action { position: absolute; right: 13px; bottom: 13px; display: inline-flex; align-items: center; gap: 7px; color: #fff; font-size: 10px; font-weight: 800; text-decoration: none; }
+.theme-kind-label { position: absolute; top: 13px; left: 13px; padding: 6px 8px; color: #f4f1e6; background: rgb(28 45 34 / 84%); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.theme-preview-actions { position: absolute; right: 13px; bottom: 13px; display: flex; align-items: center; gap: 12px; }
+.theme-preview-action { display: inline-flex; align-items: center; gap: 7px; padding: 4px 0; border: 0; color: #fff; background: transparent; font: inherit; font-size: 11px; font-weight: 800; text-decoration: none; cursor: pointer; }
 .theme-preview-action:hover { color: #e3dc9c; }
 .theme-preview-index { position: absolute; bottom: 11px; left: 13px; color: rgb(255 255 255 / 78%); font-size: 9px; font-weight: 800; letter-spacing: .12em; }
 .theme-card-body { padding: clamp(16px, 2vw, 22px); }
 .theme-card-tags { display: flex; min-height: 20px; flex-wrap: wrap; align-items: center; gap: 5px; margin: 0 0 14px; }
-.theme-card-tags > span { padding: 4px 6px; color: #687367; background: #eeefe8; font-size: 8px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.theme-card-tags > span { padding: 4px 6px; color: #687367; background: #eeefe8; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .theme-card-tags > .theme-vip-tag { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #d8c89d; color: #70572b; background: #f1ead8; letter-spacing: .08em; }
 .theme-card-tags .theme-owned-tag { display: inline-flex; align-items: center; gap: 4px; color: #365440; background: #e1e9d8; }
 .theme-card-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .theme-card-title-row h3 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(21px, 2vw, 28px); font-weight: 400; letter-spacing: -.04em; line-height: 1.15; }
 .theme-card-price { flex: none; color: var(--theme-forest); font-family: Georgia, "Times New Roman", serif; font-size: 19px; letter-spacing: -.045em; text-align: right; white-space: nowrap; }
-.theme-card-price small { display: block; margin-top: 3px; color: #7c877b; font-family: "Aptos", "Segoe UI", sans-serif; font-size: 8px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
-.theme-card-description { min-height: 43px; margin: 12px 0 14px; color: #687369; font-size: 11px; line-height: 1.7; }
-.theme-license-note { display: flex; align-items: center; gap: 6px; padding-top: 11px; border-top: 1px solid #e5e6de; color: #637168; font-size: 9px; font-weight: 700; }
+.theme-card-price small { display: block; margin-top: 3px; color: #7c877b; font-family: "Aptos", "Segoe UI", sans-serif; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.theme-card-description { min-height: 43px; margin: 12px 0 14px; color: #687369; font-size: 13px; line-height: 1.65; }
+.theme-license-note { display: flex; align-items: center; gap: 6px; padding-top: 11px; border-top: 1px solid #e5e6de; color: #637168; font-size: 11px; font-weight: 700; }
 .theme-license-note svg { color: #6c8259; }
 .theme-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 13px; }
-.theme-primary-action { display: inline-flex; min-height: 39px; align-items: center; justify-content: center; gap: 8px; padding: 0 13px; border: 1px solid var(--theme-forest); color: #f8f6ec; background: var(--theme-forest); font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; transition: color 160ms ease, background-color 160ms ease; }
+.theme-primary-action { display: inline-flex; min-height: 39px; align-items: center; justify-content: center; gap: 8px; padding: 0 13px; border: 1px solid var(--theme-forest); color: #f8f6ec; background: var(--theme-forest); font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; transition: color 160ms ease, background-color 160ms ease; }
 .theme-primary-action:hover:not(:disabled) { color: #fff; background: #365642; }
 .theme-primary-action:disabled { opacity: .56; cursor: wait; }
+.theme-primary-action.is-role-disabled { border-color: #b9c2b3; color: #59665a; background: #e8ebe3; opacity: 1; cursor: not-allowed; }
 .theme-primary-action.is-applied { border-color: #8b9b78; color: #3d5d41; background: #e8ebdc; cursor: pointer; }
 .theme-button-spinner { width: 13px; height: 13px; border: 2px solid rgb(255 255 255 / 45%); border-top-color: #fff; border-radius: 50%; animation: catalog-spin .7s linear infinite; }
 .theme-offer-toggle { padding: 7px 0; border: 0; color: #627659; background: none; font: inherit; font-size: 9px; font-weight: 750; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
@@ -204,7 +206,7 @@
 .theme-empty-state svg { margin: 0 auto 12px; }
 .theme-empty-state h3 { margin: 0; color: var(--theme-ink); font-family: Georgia, "Times New Roman", serif; font-size: 25px; font-weight: 400; }
 .theme-empty-state p { margin: 7px 0 0; font-size: 11px; }
-.theme-seller-note { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 30px 0 0; color: #667268; font-size: 11px; }
+.theme-seller-note { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 30px 0 0; color: #667268; font-size: 12px; }
 .theme-library-footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px clamp(20px, 5.4vw, 84px); border-top: 1px solid #dfe1d9; color: #798176; background: #f8f6f0; font-size: 10px; }
 .theme-library-footer a { gap: 7px; font-size: 11px; font-weight: 850; }
 .theme-library-footer img { width: 22px; height: 22px; object-fit: contain; }
