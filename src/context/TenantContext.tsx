@@ -150,8 +150,9 @@ const shopSubdomain = (path.startsWith('/shop/')
         return;
       } catch (error) {
         console.error('Error fetching tenant from path:', error);
-        // Fallback to main platform if store not found
-        setIsMainPlatform(true);
+        // Don't fall back to main platform for /shop/:subdomain routes;
+        // let Storefront handle the fallback with its demo mode
+        setIsMainPlatform(false);
         setTenant(null);
         setIsLoading(false);
         return;
@@ -264,7 +265,9 @@ const shopSubdomain = (path.startsWith('/shop/')
       } catch (error) {
         console.error('Error fetching tenant:', error);
         setTenant(null);
-        setIsMainPlatform(true); // Fallback to main platform if store not found
+        // Keep isMainPlatform=false for seller subdomains so AppContent
+        // can redirect to /shop/:subdomain for proper error handling
+        setIsMainPlatform(false);
       } finally {
         setIsLoading(false);
       }

@@ -175,13 +175,19 @@ const AppContent: React.FC = () => {
   const hostname = window.location.hostname.toLowerCase();
   const hasStoreQuery = new URLSearchParams(window.location.search).has('store')
     || new URLSearchParams(location.search).has('store');
+
+  // A seller subdomain like "switched.iyonicorp.com" should never
+  // be treated as the main platform homepage
+  const isSellerSubdomain = hostname !== 'localhost'
+    && hostname !== '127.0.0.1'
+    && !['iyonicorp.com', 'www.iyonicorp.com'].includes(hostname)
+    && hostname.endsWith('.iyonicorp.com');
+
   const isMainPlatformHomepage = location.pathname === '/'
     && !hasStoreQuery
+    && !isSellerSubdomain
     && (
-      ['localhost', '127.0.0.1', 'iyonicorp.com', 'www.iyonicorp.com', 'api.iyonicorp.com'].includes(hostname)
-      || hostname === 'iyonicorp.com'
-      || hostname === 'www.iyonicorp.com'
-      || hostname.endsWith('.iyonicorp.com')
+      ['localhost', '127.0.0.1', 'iyonicorp.com', 'www.iyonicorp.com'].includes(hostname)
     );
 
   if (tenantLoading && !isMainPlatformHomepage) {
@@ -216,6 +222,21 @@ const AppContent: React.FC = () => {
     location.pathname === '/refunds';
 
   if (!isMainPlatform && tenant && !isPlatformRoute) {
+    return <Storefront />;
+  }
+
+  // When on a seller subdomain but tenant fetch failed, redirect to /shop/:subdomain
+  // so the Storefront component handles the error display (not the landing page)
+  if (isSellerSubdomain && !isPlatformRoute && location.pathname === '/') {
+    const subdomain = hostname.split('.')[0];
+    if (!tenant) {
+      return <Navigate to={`/shop/${subdomain}`} replace />;
+    }
+  }
+
+  // When at /shop/:subdomain but tenant fetch failed, still render Storefront
+  // so its fallback demo mode can handle the missing seller
+  if (!isPlatformRoute && location.pathname.startsWith('/shop/')) {
     return <Storefront />;
   }
 
