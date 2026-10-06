@@ -75,8 +75,8 @@ export const HomepageFooter: React.FC = () => {
         <div className="mb-16 grid grid-cols-1 gap-12 lg:mb-20 lg:grid-cols-12 lg:gap-8">
           <div className="lg:col-span-4">
             <Link to="/" className="group mb-6 inline-flex items-center gap-3">
-              <img src="/logo.png" alt="iyonicweb" className="h-12 w-12 object-contain transition-transform duration-500 group-hover:scale-110" />
-              <span className="text-2xl font-black tracking-tight text-gray-900">iyonicweb</span>
+              <img src="/logo.png" alt="Iyonicorp" className="h-12 w-12 object-contain transition-transform duration-500 group-hover:scale-110" />
+              <span className="text-2xl font-black tracking-tight text-gray-900">Iyonicorp</span>
             </Link>
             <p className="mb-8 max-w-sm text-lg leading-relaxed text-gray-500">
               The next generation modular commerce platform. Engineered for growth, scale, and intelligence.
@@ -138,7 +138,7 @@ export const HomepageFooter: React.FC = () => {
           </div>
 
           <div className="mt-12 flex flex-col items-center justify-between gap-5 border-t border-gray-50 pt-8 md:flex-row">
-            <p className="text-sm font-medium text-gray-400">© 2026 iyonicweb Inc. All rights reserved.</p>
+            <p className="text-sm font-medium text-gray-400">© 2026 Iyonicorp Inc. All rights reserved.</p>
             <div className="flex items-center gap-6 text-sm font-medium text-gray-400">
               <span>Global Commerce</span>
               <span>Carbon Neutral</span>

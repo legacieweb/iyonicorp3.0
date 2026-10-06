@@ -257,10 +257,10 @@ const Themes: React.FC = () => {
   return (
     <main className="theme-library">
       <header className="theme-library-header">
-        <Link to="/" className="theme-library-brand" aria-label="Iyonicweb home">
-          <img src="/logo.png" alt="" />
-          <span>iyonicweb<small>THE PLATFORM COLLECTION</small></span>
-        </Link>
+          <Link to="/" className="theme-library-brand" aria-label="Iyonicorp home">
+            <img src="/logo.png" alt="" />
+            <span>Iyonicorp<small>THE PLATFORM COLLECTION</small></span>
+          </Link>
         <div className="theme-library-header-actions">
           {user && <span className="theme-account-context"><span className="theme-account-dot" />{isSeller ? 'Seller workspace' : 'Customer account'}{user.name ? ` · ${user.name}` : ''}</span>}
           <Link to={returnPath} className="theme-return-link"><ArrowDownLeft size={16} /> Dashboard</Link>
@@ -385,7 +385,7 @@ const Themes: React.FC = () => {
         )}
         {!isSeller && <p className="theme-seller-note"><Ticket size={15} /> Platform licenses are available to seller accounts. Explore each live preview before signing in.</p>}
       </section>
-      <footer className="theme-library-footer"><Link to="/"><img src="/logo.png" alt="" />iyonicweb</Link><span>Build the business that feels like yours.</span></footer>
+      <footer className="theme-library-footer"><Link to="/"><img src="/logo.png" alt="" />Iyonicorp</Link><span>Build the business that feels like yours.</span></footer>
 
       {launchingTheme && (
         <ThemeLaunchOverlay

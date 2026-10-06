@@ -1006,6 +1006,157 @@ button:focus-visible {
   }
 }
 
+.tspp-signup-section {
+  scroll-margin-top: 2rem;
+}
+
+.tspp-signup-section .tspp-section-heading {
+  max-width: 48rem;
+  margin-bottom: 2rem;
+}
+
+.tspp-signup-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+.tspp-signup-choice {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: clamp(1.5rem, 3vw, 2.25rem);
+  border: 1px solid var(--tspp-line);
+  border-radius: var(--tspp-radius-lg);
+  box-shadow: var(--tspp-shadow);
+}
+
+.tspp-signup-choice-school {
+  color: var(--tspp-paper);
+  border-color: var(--tspp-primary);
+  background: var(--tspp-gradient-primary);
+}
+
+.tspp-signup-choice-educator {
+  color: var(--tspp-ink);
+  border-color: #e8dfcd;
+  background: linear-gradient(145deg, #fffdf8 0%, #f7f2e8 100%);
+}
+
+.tspp-signup-choice-topline {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  margin-bottom: 1.4rem;
+}
+
+.tspp-signup-choice-icon {
+  display: inline-flex;
+  width: 2.8rem;
+  height: 2.8rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--tspp-accent);
+  border: 1px solid currentColor;
+  border-radius: 10px;
+}
+
+.tspp-signup-choice-educator .tspp-signup-choice-icon {
+  color: var(--tspp-primary);
+}
+
+.tspp-signup-audience {
+  color: var(--tspp-accent);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.tspp-signup-choice h3 {
+  margin: 0;
+  color: inherit;
+  font-size: clamp(1.25rem, 2vw, 1.6rem);
+  line-height: 1.2;
+}
+
+.tspp-signup-choice > p {
+  max-width: 34rem;
+  margin: .8rem 0 0;
+  color: inherit;
+  opacity: .82;
+  line-height: 1.7;
+}
+
+.tspp-signup-choice ul {
+  display: grid;
+  gap: .75rem;
+  width: 100%;
+  margin: 1.4rem 0 1.8rem;
+  padding: 0;
+  list-style: none;
+}
+
+.tspp-signup-choice li {
+  display: flex;
+  align-items: flex-start;
+  gap: .65rem;
+  font-size: .92rem;
+  line-height: 1.45;
+}
+
+.tspp-signup-choice li svg {
+  flex: 0 0 auto;
+  margin-top: .12rem;
+  color: var(--tspp-accent);
+}
+
+.tspp-signup-choice-educator li svg {
+  color: var(--tspp-accent-deep);
+}
+
+.tspp-signup-choice-cta {
+  min-height: 46px;
+  justify-content: center;
+  margin-top: auto;
+  padding: .75rem 1rem;
+  color: var(--tspp-primary);
+  border: 1px solid var(--tspp-accent);
+  background: var(--tspp-accent);
+  font-weight: 800;
+}
+
+.tspp-signup-choice-cta:hover {
+  transform: translateY(-1px);
+  background: #d9bc83;
+  box-shadow: var(--tspp-shadow-accent);
+}
+
+.tspp-signup-next-step {
+  margin-top: .8rem;
+  color: inherit;
+  font-size: .76rem;
+  opacity: .7;
+}
+
+@media (max-width: 760px) {
+  .tspp-signup-choices {
+    grid-template-columns: 1fr;
+  }
+
+  .tspp-signup-choice {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .tspp-signup-choice-cta {
+    width: 100%;
+  }
+}
+
 /* Shadow helper for inline styles */
 .tspp-shadow-sm { box-shadow: var(--tspp-shadow-xs); }
 .tspp-shadow { box-shadow: var(--tspp-shadow); }

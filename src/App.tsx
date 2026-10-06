@@ -7,6 +7,7 @@ import { ToastProvider } from './context/ToastContext';
 import { Homepage } from './pages/Homepage';
 import { sellersAPI } from './services/api';
 import { normalizeThemeId } from './utils/themeDashboard';
+import GlobalPreloader from './components/GlobalPreloader';
 
 const Login = lazy(() => import('./pages/auth/Login').then(({ Login }) => ({ default: Login })));
 const Register = lazy(() => import('./pages/auth/Register').then(({ Register }) => ({ default: Register })));
@@ -91,12 +92,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles: string
   const shopSubdomain = searchParams.get('subdomain');
   
   if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-white">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-500 font-medium">Loading...</p>
-      </div>
-    );
+    return <GlobalPreloader message="Loading your dashboard…" />;
   }
   
   if (!isAuthenticated) {
@@ -141,12 +137,7 @@ const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const shopSubdomain = searchParams.get('subdomain');
   
   if (isInitializing) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-white">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-500 font-medium">Loading...</p>
-      </div>
-    );
+    return <GlobalPreloader message="Checking your session…" />;
   }
   
   if (isAuthenticated && user) {
@@ -191,12 +182,7 @@ const AppContent: React.FC = () => {
     );
 
   if (tenantLoading && !isMainPlatformHomepage) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-white">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-gray-500 font-medium">Loading...</p>
-      </div>
-    );
+    return <GlobalPreloader message="Loading your store…" />;
   }
 
   const isPlatformRoute = 
@@ -505,13 +491,13 @@ const LoginWrapper: React.FC = () => {
 
 const RegisterWrapper: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   
   const roleParam = searchParams.get('role') as 'seller' | 'seller_manager' | 'customer' | null;
   const managerSlug = searchParams.get('manager');
   const sellerId = searchParams.get('shop');
   const redirectParam = searchParams.get('redirect');
+  const isTsppSignup = searchParams.get('theme') === 'tspp';
   
   return (
     <Register 
@@ -519,7 +505,7 @@ const RegisterWrapper: React.FC = () => {
         const params = new URLSearchParams(searchParams.toString());
         navigate(`/login?${params.toString()}`);
       }}
-      onBackToHomepage={() => navigate(redirectParam || '/')}
+      onBackToHomepage={() => navigate(isTsppSignup ? '/tspp' : redirectParam || '/')}
       preselectedRole={roleParam}
       managerSlug={managerSlug}
       sellerId={sellerId}
@@ -551,11 +537,7 @@ const ManagerPublicPage: React.FC = () => {
   }, [slug]);
   
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-      </div>
-    );
+    return <GlobalPreloader message="Loading manager profile…" />;
   }
   
   if (error || !manager) {
@@ -643,11 +625,7 @@ function App() {
       <AuthProvider>
         <ToastProvider>
           <DataProvider>
-            <Suspense fallback={
-              <div className="flex min-h-screen items-center justify-center bg-white" role="status" aria-label="Loading page">
-                <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-              </div>
-            }>
+            <Suspense fallback={<GlobalPreloader message="Loading…" />}>
               <AppContent />
             </Suspense>
           </DataProvider>

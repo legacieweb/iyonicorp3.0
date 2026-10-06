@@ -70,22 +70,8 @@ const additionalCorsOrigins = new Set(
     .map((origin) => origin.trim())
     .filter(Boolean)
 );
-const isPlatformOrigin = (origin) => {
-  try {
-    const { protocol, hostname } = new URL(origin);
-    if (protocol !== 'http:' && protocol !== 'https:') return false;
-    const host = hostname.toLowerCase();
-    const isLocalhost = host === 'localhost' || host === '127.0.0.1';
-    const isIyonicorpDomain = host === 'iyonicorp.com' || host.endsWith('.iyonicorp.com');
-    const isIyonicwebDomain = host === 'iyonicweb.com' || host.endsWith('.iyonicweb.com');
-    const isDevelopmentDomain = ['iyonicorp.test', 'sellermuutu.test'].includes(host);
-    return isLocalhost || isIyonicorpDomain || isIyonicwebDomain || isDevelopmentDomain;
-  } catch {
-    return false;
-  }
-};
 const RESERVED_STORE_SUBDOMAINS = new Set([
-  'admin', 'api', 'app', 'demo', 'iyonicorp', 'iyonicweb', 'localhost', 'shop', 'store', 'web', 'www'
+  'admin', 'api', 'app', 'demo', 'iyonicorp', 'localhost', 'shop', 'store', 'web', 'www'
 ]);
 
 const normalizeStoreSubdomain = (value) => String(value || '').trim().toLowerCase();
@@ -146,12 +132,6 @@ const corsOptions = {
         host === 'www.iyonicorp.com' ||
         host.endsWith('.iyonicorp.com');
 
-      // Iyonicweb domains
-      const isIyonicwebDomain =
-        host === 'iyonicweb.com' ||
-        host === 'www.iyonicweb.com' ||
-        host.endsWith('.iyonicweb.com');
-
       // Development domains
       const isDevelopmentDomain =
         host === 'iyonicorp.test' ||
@@ -161,7 +141,6 @@ const corsOptions = {
       if (
         isLocalhost ||
         isIyonicorpDomain ||
-        isIyonicwebDomain ||
         isDevelopmentDomain
       ) {
         return callback(null, true);

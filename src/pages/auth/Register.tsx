@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Input, Card } from '../../components/ui';
-import { Store, Users, Eye, EyeOff, CheckCircle, ArrowLeft, Package, Briefcase, Link as LinkIcon } from 'lucide-react';
+import { Store, Users, Eye, EyeOff, CheckCircle, ArrowLeft, Package, Briefcase, Building2, Link as LinkIcon } from 'lucide-react';
 import { getAuthErrorDetails } from '../../utils/authErrors';
 import { managerInvitationAPI } from '../../services/api';
 import { getVipAuthTheme } from '../../utils/vipAuthTheme';
@@ -34,7 +34,7 @@ export const Register: React.FC<RegisterProps> = ({
   const isUtormeStudentSignup = isUtormeSignup && preselectedRole === 'customer';
   const isTsppSignup = signupParams.get('theme') === 'tspp';
   const isTsppTeacherSignup = isTsppSignup && preselectedRole === 'customer';
-  const isTsppSchoolSignup = isTsppSignup && preselectedRole === 'seller';
+  const isTsppSchoolSignup = isTsppSignup && !isTsppTeacherSignup;
   const isShopSignup = Boolean(initialSellerId || storeSubdomain);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -151,7 +151,7 @@ export const Register: React.FC<RegisterProps> = ({
       return 'Passwords do not match. Please ensure both passwords are identical.';
     }
     if (!isShopSignup && formData.role === 'seller' && !formData.storeName.trim()) {
-      return 'Please enter your store name.';
+      return isTsppSchoolSignup ? 'Please enter your school name.' : 'Please enter your store name.';
     }
     return null;
   };
@@ -192,8 +192,10 @@ export const Register: React.FC<RegisterProps> = ({
         themeId: isTsppSignup ? 'tspp' : undefined,
         ...(accountRole === 'seller' ? {
           storeName: formData.storeName,
-          subdomain: formData.subdomain,
-          shopType: formData.shopType,
+          ...(!isTsppSignup ? {
+            subdomain: formData.subdomain,
+            shopType: formData.shopType,
+          } : {}),
           managerId: managerInfo?.id,
         } : {}),
       });
@@ -359,7 +361,7 @@ export const Register: React.FC<RegisterProps> = ({
       {/* Left Side - Information & Benefits */}
       <div 
         className="vip-auth-brand-panel hidden md:flex md:w-2/5 p-12 text-white flex-col justify-between relative overflow-hidden"
-        style={{ background: `linear-gradient(145deg, ${themeSecondary}, ${themePrimary})` }}
+        style={{ background: isTsppSignup ? 'linear-gradient(145deg, #123b3b, #1f5a55)' : `linear-gradient(145deg, ${themeSecondary}, ${themePrimary})` }}
       >
         <div className="relative z-10">
           <div className="flex items-center space-x-2 mb-12">
@@ -373,14 +375,18 @@ export const Register: React.FC<RegisterProps> = ({
             <span className="text-2xl font-bold tracking-tight">{storeInfo?.storeName || vipTheme?.name || 'Iyonicorp'}</span>
           </div>
           
-          <h2 className="text-4xl font-extrabold leading-tight mb-6">
+          <h2 className={`text-4xl font-extrabold leading-tight mb-6 ${isTsppSignup ? 'text-[#f8f5ed]' : ''}`}>
             {vipTheme ? vipTheme.headline : storeInfo ? `Join ${storeInfo.storeName}` : 'Start your journey'} <br />
-            {!vipTheme && <span className="text-purple-300">with us today.</span>}
+            {!vipTheme && <span className={isTsppSignup ? 'text-[#d8b978]' : 'text-purple-300'}>with us today.</span>}
           </h2>
-          <p className="text-lg text-purple-100 max-w-md mb-8">
-            {vipTheme ? vipTheme.description : storeInfo 
-              ? `Become a member of ${storeInfo.storeName} and enjoy exclusive benefits, track your orders, and more.`
-              : 'Join the fastest growing platform for sellers and managers. Everything you need to succeed in one place.'}
+          <p className={`text-lg max-w-md mb-8 ${isTsppSignup ? 'text-[#e0eeea]' : 'text-purple-100'}`}>
+            {isTsppSchoolSignup
+              ? 'Create your school hiring workspace to publish roles, review verified candidates, and manage interviews in one place.'
+              : isTsppTeacherSignup
+                ? 'Build your professional profile, verify your credentials, and connect with schools looking for teachers and staff.'
+                : vipTheme ? vipTheme.description : storeInfo
+                ? `Become a member of ${storeInfo.storeName} and enjoy exclusive benefits, track your orders, and more.`
+                : 'Join the fastest growing platform for sellers and managers. Everything you need to succeed in one place.'}
           </p>
           
           <div className="space-y-6">
@@ -393,9 +399,9 @@ export const Register: React.FC<RegisterProps> = ({
             }`}>
               <h3 className="text-xl font-bold mb-4 flex items-center">
                 {formData.role === 'seller' ? (
-                  <><Store className="w-6 h-6 mr-2 text-blue-300" />{isUtormeTutorSignup ? 'Tutor Benefits' : isTsppSchoolSignup ? 'School Benefits' : 'Seller Benefits'}</>
+                  <>{isTsppSchoolSignup ? <Building2 className="w-6 h-6 mr-2 text-blue-300" /> : <Store className="w-6 h-6 mr-2 text-blue-300" />}{isUtormeTutorSignup ? 'Tutor Benefits' : isTsppSchoolSignup ? 'School Benefits' : 'Seller Benefits'}</>
                 ) : formData.role === 'customer' ? (
-                  <><Package className="w-6 h-6 mr-2 text-green-300" />{isUtormeStudentSignup ? 'Student Benefits' : isTsppTeacherSignup ? 'Teacher Benefits' : 'Customer Benefits'}</>
+                  <><Package className="w-6 h-6 mr-2 text-green-300" />{isUtormeStudentSignup ? 'Student Benefits' : isTsppTeacherSignup ? 'Educator Benefits' : 'Customer Benefits'}</>
                 ) : (
                   <><Users className="w-6 h-6 mr-2 text-purple-300" /> Manager Benefits</>
                 )}
@@ -412,12 +418,12 @@ export const Register: React.FC<RegisterProps> = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white/5 p-4 rounded-xl border border-white/10 text-center">
-                <p className="text-2xl font-bold text-white">{initialSellerId ? 'Verified' : isUtormeSignup ? (isUtormeTutorSignup ? 'Tutor' : 'Learn') : '10K+'}</p>
-                <p className="text-xs text-purple-200 uppercase tracking-wider">{initialSellerId ? 'Shop' : isUtormeSignup ? (isUtormeTutorSignup ? 'Business account' : 'Student account') : 'Active Sellers'}</p>
+                <p className="text-2xl font-bold text-white">{isTsppSignup ? (isTsppSchoolSignup ? 'School' : 'Teacher / worker') : initialSellerId ? 'Verified' : isUtormeSignup ? (isUtormeTutorSignup ? 'Tutor' : 'Learn') : '10K+'}</p>
+                <p className={`text-xs uppercase tracking-wider ${isTsppSignup ? 'text-[#e0eeea]' : 'text-purple-200'}`}>{isTsppSignup ? (isTsppSchoolSignup ? 'Hiring workspace' : 'Professional profile') : initialSellerId ? 'Shop' : isUtormeSignup ? (isUtormeTutorSignup ? 'Business account' : 'Student account') : 'Active Sellers'}</p>
               </div>
               <div className="bg-white/5 p-4 rounded-xl border border-white/10 text-center">
-                <p className="text-2xl font-bold text-white">{isUtormeSignup ? '1:1' : '24/7'}</p>
-                <p className="text-xs text-purple-200 uppercase tracking-wider">{isUtormeSignup ? 'Tutor sessions' : 'Expert Support'}</p>
+                <p className="text-2xl font-bold text-white">{isTsppSignup ? 'Verified' : isUtormeSignup ? '1:1' : '24/7'}</p>
+                <p className={`text-xs uppercase tracking-wider ${isTsppSignup ? 'text-[#e0eeea]' : 'text-purple-200'}`}>{isTsppSignup ? (isTsppSchoolSignup ? 'Candidate profiles' : 'Credentials') : isUtormeSignup ? 'Tutor sessions' : 'Expert Support'}</p>
               </div>
             </div>
           </div>
@@ -433,7 +439,7 @@ export const Register: React.FC<RegisterProps> = ({
       </div>
 
       {/* Right Side - Registration Form */}
-      <div className="vip-auth-form-panel flex-1 flex items-center justify-center p-8 bg-gray-50/50 overflow-y-auto">
+      <div className={`vip-auth-form-panel flex-1 flex items-center justify-center p-8 overflow-y-auto ${isTsppSignup ? 'bg-[#f8f6f0]' : 'bg-gray-50/50'}`}>
         <div className="w-full max-w-xl py-12">
           {/* Mobile Logo */}
           <div className="md:hidden flex items-center justify-center space-x-2 mb-8" style={{ color: themePrimary }}>
@@ -448,8 +454,28 @@ export const Register: React.FC<RegisterProps> = ({
           </div>
 
           <div className="mb-8 text-center md:text-left">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{vipTheme ? `Join ${vipTheme.name}` : isShopSignup ? 'Create Your Account' : 'Build your business with Iyonicorp'}</h1>
-            <p className="text-gray-500">{vipTheme ? vipTheme.description : isShopSignup ? 'Fill in the details below to get started' : 'Create an account for your seller or manager business.'}</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              {isTsppSchoolSignup
+                ? 'Create your school account'
+                : isTsppTeacherSignup
+                  ? 'Join as a teacher or worker'
+                  : vipTheme
+                    ? `Join ${vipTheme.name}`
+                    : isShopSignup
+                      ? 'Create Your Account'
+                      : 'Build your business with Iyonicorp'}
+            </h1>
+            <p className="text-gray-500">
+              {isTsppSchoolSignup
+                ? 'Set up your school’s hiring workspace and connect with verified educators.'
+                : isTsppTeacherSignup
+                  ? 'Create your profile and connect with schools looking for your experience.'
+                  : vipTheme
+                    ? vipTheme.description
+                    : isShopSignup
+                      ? 'Fill in the details below to get started'
+                      : 'Create an account for your seller or manager business.'}
+            </p>
           </div>
 
           {managerLoading && (
@@ -590,17 +616,17 @@ export const Register: React.FC<RegisterProps> = ({
                    </div>
                 </div>)}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                <div className={`grid grid-cols-1 gap-6 p-4 rounded-2xl border ${isTsppSignup ? 'md:grid-cols-1 border-white/10 bg-white/5' : 'md:grid-cols-2 bg-blue-50/50 border-blue-100'}`}>
                 <Input
                    label={isUtormeTutorSignup ? 'Tutor or practice name' : isTsppSchoolSignup ? 'School name' : 'Store Name'}
                   type="text"
-                  placeholder={isUtormeTutorSignup ? 'Your tutoring name' : isTsppSchoolSignup ? 'Your school' : 'My Awesome Store'}
+                  placeholder={isUtormeTutorSignup ? 'Your tutoring name' : isTsppSchoolSignup ? 'Your school name' : 'My Awesome Store'}
                   value={formData.storeName}
                   onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
                   required
                   className="bg-white border-gray-200 rounded-xl"
                 />
-                <Input
+                {!isTsppSignup && <Input
                   label="Preferred subdomain (optional)"
                   type="text"
                   placeholder="mystore"
@@ -610,7 +636,7 @@ export const Register: React.FC<RegisterProps> = ({
                     ? `Your store URL: ${formData.subdomain}.iyonicorp.com`
                     : "Leave blank and we'll assign a live store URL automatically."}
                   className="bg-white border-gray-200 rounded-xl"
-                />
+                />}
               </div>
             </div>
           )}
@@ -655,7 +681,11 @@ export const Register: React.FC<RegisterProps> = ({
               size="lg"
               isLoading={isLoading}
             >
-              Create My Account
+              {isTsppSchoolSignup
+                ? 'Create school account'
+                : isTsppTeacherSignup
+                  ? 'Create teacher / worker account'
+                  : 'Create My Account'}
             </Button>
 
             <div className="pt-6 text-center border-t border-gray-100">
@@ -679,7 +709,7 @@ export const Register: React.FC<RegisterProps> = ({
               className="w-full mt-6 flex items-center justify-center text-gray-500 hover:text-gray-800 transition-colors text-sm font-medium"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Homepage
+              {isTsppSignup ? 'Back to TSPP landing page' : 'Back to Homepage'}
             </button>
           )}
         </div>

@@ -34,7 +34,7 @@ export const ProductFooter: React.FC<ProductFooterProps> = ({ product, accentCla
       <div className="grid gap-12 border-b border-white/10 pb-16 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
           <Link to="/" className="group inline-flex items-center gap-3">
-            <img src="/logo.png" alt="iyonicweb" className="h-11 w-11 object-contain" />
+            <img src="/logo.png" alt="Iyonicorp" className="h-11 w-11 object-contain" />
             <span className="text-2xl font-black tracking-tight">{product}</span>
           </Link>
           <p className="mt-6 max-w-sm text-base leading-7 text-gray-400">{description}</p>
@@ -51,9 +51,9 @@ export const ProductFooter: React.FC<ProductFooterProps> = ({ product, accentCla
         <FooterColumn title="Company" links={companyLinks} accentClass={accentClass} />
       </div>
       <div className="flex flex-col gap-4 pt-8 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-        <p>© 2026 iyonicweb. Built for the next generation of business.</p>
+        <p>© 2026 Iyonicorp. Built for the next generation of business.</p>
         <Link to="/" className={`inline-flex items-center gap-2 font-semibold ${accentClass}`}>
-          Explore iyonicweb <ArrowUpRight className="h-4 w-4" />
+          Explore Iyonicorp <ArrowUpRight className="h-4 w-4" />
         </Link>
       </div>
     </div>

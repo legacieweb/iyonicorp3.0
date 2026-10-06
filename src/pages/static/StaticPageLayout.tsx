@@ -14,9 +14,9 @@ interface StaticPageLayoutProps {
 export const StaticSiteHeader: React.FC = () => (
   <header className="sticky top-0 z-30 border-b border-gray-200/80 bg-white/90 backdrop-blur-md">
     <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-5 py-3 sm:px-8">
-      <Link to="/" className="group inline-flex min-w-0 items-center gap-3" aria-label="iyonicweb home">
+      <Link to="/" className="group inline-flex min-w-0 items-center gap-3" aria-label="Iyonicorp home">
         <img src="/logo.png" alt="" className="h-10 w-10 object-contain" />
-        <span className="truncate text-lg font-black text-gray-950">iyonicweb</span>
+        <span className="truncate text-lg font-black text-gray-950">Iyonicorp</span>
       </Link>
       <nav aria-label="Main navigation" className="hidden items-center gap-7 md:flex">
         <Link to="/iyonicshop" className="text-sm font-medium text-gray-600 transition-colors hover:text-gray-950">Shop</Link>
@@ -59,7 +59,7 @@ export const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ title, eyebr
       {children}
       <div className="mt-16 flex flex-col gap-4 border-t border-gray-200 pt-7 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
         <Link to="/" className="inline-flex items-center gap-2 font-semibold text-gray-800 transition-colors hover:text-blue-700">
-          Back to iyonicweb <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          Back to Iyonicorp <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
         <p>Built for the next generation of business.</p>
       </div>

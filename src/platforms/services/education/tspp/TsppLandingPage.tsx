@@ -4,6 +4,14 @@ import { Link } from 'react-router-dom';
 import SEO from '../../../../components/SEO';
 import './tspp-theme.css';
 
+const scrollToSignup = (event: React.MouseEvent<HTMLAnchorElement>) => {
+  event.preventDefault();
+  document.getElementById('signup')?.scrollIntoView({
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+    block: 'start',
+  });
+};
+
 const features = [
   { icon: <Building2 size={22} />, title: 'School profiles', desc: 'Showcase your school identity, values, and recruitment brand in a polished employer hub.' },
   { icon: <Users size={22} />, title: 'Verified talent', desc: 'Attract qualified teachers with trust signals, credential checks, and structured profiles.' },
@@ -51,9 +59,9 @@ const TsppLandingPage: React.FC = () => (
 
         <div className="tspp-actions">
           <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fadmin" className="tspp-btn tspp-btn-ghost">School sign in</Link>
-          <Link to="/register?theme=tspp&role=seller&redirect=%2Ftspp%2Fadmin" className="tspp-btn tspp-btn-primary">
-            Book a demo <ArrowRight size={16} />
-          </Link>
+          <a href="#signup" onClick={scrollToSignup} className="tspp-btn tspp-btn-primary">
+            Sign up <ArrowRight size={16} />
+          </a>
         </div>
       </div>
     </header>
@@ -71,10 +79,10 @@ const TsppLandingPage: React.FC = () => (
         </p>
 
         <div className="tspp-cta-row">
-          <Link to="/register?theme=tspp&role=seller&redirect=%2Ftspp%2Fadmin" className="tspp-btn tspp-btn-primary tspp-btn-primary-large">
-            Get started for your school <ArrowRight size={17} />
-          </Link>
-          <Link to="/register?theme=tspp&role=customer&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-ghost">Apply as a teacher</Link>
+          <a href="#signup" onClick={scrollToSignup} className="tspp-btn tspp-btn-primary tspp-btn-primary-large">
+            Choose your account <ArrowRight size={17} />
+          </a>
+          <Link to="/login?theme=tspp&redirect=%2Ftspp%2Fadmin" className="tspp-btn tspp-btn-ghost">Already a member? Sign in</Link>
         </div>
 
         <div className="tspp-proof-row">
@@ -133,6 +141,52 @@ const TsppLandingPage: React.FC = () => (
             <Link to="/tspp/client" className="tspp-btn tspp-btn-mini">View profile</Link>
           </div>
         </div>
+      </div>
+    </section>
+
+    <section className="tspp-section tspp-signup-section" id="signup" aria-labelledby="tspp-signup-title">
+      <div className="tspp-section-heading narrow">
+        <p className="tspp-kicker">YOUR NEXT STEP</p>
+        <h2 id="tspp-signup-title">Two ways to move education forward.</h2>
+        <p>Choose the account that fits you. You can complete your profile and get into your TSPP workspace right after signing up.</p>
+      </div>
+
+      <div className="tspp-signup-choices">
+        <article className="tspp-signup-choice tspp-signup-choice-school">
+          <div className="tspp-signup-choice-topline">
+            <span className="tspp-signup-choice-icon"><Building2 size={23} aria-hidden="true" /></span>
+            <span className="tspp-signup-audience">For school leaders</span>
+          </div>
+          <h3>Sign up as a school</h3>
+          <p>Build your school’s hiring workspace, publish roles, and meet verified teachers and staff.</p>
+          <ul>
+            <li><CheckCircle2 size={16} aria-hidden="true" /> Create a school employer profile</li>
+            <li><CheckCircle2 size={16} aria-hidden="true" /> Find and shortlist verified candidates</li>
+            <li><CheckCircle2 size={16} aria-hidden="true" /> Manage interviews in one place</li>
+          </ul>
+          <Link to="/register?theme=tspp&role=seller&redirect=%2Ftspp%2Fadmin" className="tspp-btn tspp-signup-choice-cta">
+            Create a school account <ArrowRight size={17} aria-hidden="true" />
+          </Link>
+          <span className="tspp-signup-next-step">Next: set up your school hiring workspace</span>
+        </article>
+
+        <article className="tspp-signup-choice tspp-signup-choice-educator">
+          <div className="tspp-signup-choice-topline">
+            <span className="tspp-signup-choice-icon"><GraduationCap size={24} aria-hidden="true" /></span>
+            <span className="tspp-signup-audience">For educators and staff</span>
+          </div>
+          <h3>Sign up as a teacher or worker</h3>
+          <p>Share your experience, verify your credentials, and connect with schools looking for your skills.</p>
+          <ul>
+            <li><CheckCircle2 size={16} aria-hidden="true" /> Create your professional profile</li>
+            <li><CheckCircle2 size={16} aria-hidden="true" /> Showcase experience and credentials</li>
+            <li><CheckCircle2 size={16} aria-hidden="true" /> Hear from schools in your TSPP workspace</li>
+          </ul>
+          <Link to="/register?theme=tspp&role=customer&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-signup-choice-cta">
+            Create teacher / worker account <ArrowRight size={17} aria-hidden="true" />
+          </Link>
+          <span className="tspp-signup-next-step">Next: build your profile in the teacher and worker workspace</span>
+        </article>
       </div>
     </section>
 
@@ -259,10 +313,9 @@ const TsppLandingPage: React.FC = () => (
       <div className="tspp-kicker">READY TO GROW THE TEAM?</div>
       <h2>Give your school hiring a system that feels premium and trustworthy.</h2>
       <div className="tspp-cta-row" style={{ marginTop: 0 }}>
-        <Link to="/register?theme=tspp&role=seller&redirect=%2Ftspp%2Fadmin" className="tspp-btn tspp-btn-ghost-light tspp-btn-primary-large">
-          Start your TSPP setup <ArrowRight size={17} />
-        </Link>
-        <Link to="/register?theme=tspp&role=customer&redirect=%2Ftspp%2Fclient" className="tspp-btn tspp-btn-ghost-light">Apply as a teacher</Link>
+        <a href="#signup" onClick={scrollToSignup} className="tspp-btn tspp-btn-ghost-light tspp-btn-primary-large">
+          Choose your signup path <ArrowRight size={17} />
+        </a>
       </div>
     </section>
 

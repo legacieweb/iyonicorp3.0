@@ -8,6 +8,7 @@ import BotWidget from '../components/BotWidget';
 import { uploadAPI, productsAPI, botsAPI } from '../services/api';
 import { normalizeThemeId } from '../utils/themeDashboard';
 import { getApiBaseUrl } from '../utils/apiUrl';
+import GlobalPreloader from '../components/GlobalPreloader';
 import EventoSite from '../platforms/services/events/evento/EventoSite';
 import { 
   Edit3, 
@@ -472,25 +473,7 @@ export const Storefront: React.FC = () => {
 
   const showLoading = contextLoading || (Boolean(tenant && tenant.id !== 'demo-seller') && tenantProductsLoading);
   if (showLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white">
-        {tenant?.logo ? (
-          <div className="relative mb-8">
-            <div className="absolute inset-0 animate-ping rounded-full bg-blue-100 opacity-75"></div>
-            <img 
-              src={tenant.logo} 
-              alt={tenant.name} 
-              className="relative w-24 h-24 object-contain rounded-2xl shadow-xl"
-            />
-          </div>
-        ) : (
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600 mb-6"></div>
-        )}
-        <h2 className="text-2xl font-black text-gray-900 animate-pulse tracking-tight">
-          {tenant?.name || 'Loading Store...'}
-        </h2>
-      </div>
-    );
+    return <GlobalPreloader message={tenant?.name ? `Opening ${tenant.name}…` : 'Loading store…'} />;
   }
 
   const isPreview = new URLSearchParams(window.location.search).get('preview') === 'true';
@@ -683,11 +666,7 @@ export const Storefront: React.FC = () => {
     .join('\n');
 
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    }>
+    <Suspense fallback={<GlobalPreloader message="Loading store…" />}>
       <style dangerouslySetInnerHTML={{ __html: sanitizeThemeCss(liveCustomCss) }} />
       {renderTheme()}
       <SecureEmbed code={liveCustomizations.embedCode} />

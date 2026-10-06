@@ -213,7 +213,7 @@ const shopSubdomain = (path.startsWith('/shop/')
     
     let subdomain = storeParam?.trim().toLowerCase() || null;
     if (!subdomain) {
-      const platformRootDomains = ['iyonicorp.com', 'iyonicorp.test', 'iyonicweb.com', 'sellermuutu.test'];
+      const platformRootDomains = ['iyonicorp.com', 'iyonicorp.test', 'sellermuutu.test'];
       const isPlatformRootDomain = platformRootDomains.includes(hostname);
       const extractedSubdomain = parts.length > 1
         && parts[0] !== 'www'
