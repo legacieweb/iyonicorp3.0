@@ -466,7 +466,7 @@ const toCamel = (obj) => {
 
 // Register
 app.post('/api/auth/register', async (req, res) => {
-  const { name, email, password, role, storeName, subdomain, shopType, firstName, lastName, phoneNumber, username, sellerId: requestSellerId } = req.body;
+  const { name, email, password, role, storeName, subdomain, shopType, firstName, lastName, phoneNumber, username, sellerId: requestSellerId, themeId } = req.body;
 
   try {
     const requestedSubdomain = normalizeStoreSubdomain(subdomain);
@@ -567,15 +567,23 @@ app.post('/api/auth/register', async (req, res) => {
           startDate: new Date().toISOString(),
           endDate: null
         });
-        const defaultTheme = JSON.stringify({
+        const themeSettings = {
           primaryColor: '#3b82f6',
           secondaryColor: '#1d4ed8',
           fontFamily: 'Inter'
-        });
-await client.query(
-           'INSERT INTO sellers (user_id, store_name, subdomain, shop_type, subscription, theme, manager_id, is_live) VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)',
-           [user.id, storeName || 'My Store', generatedSubdomain, shopType || 'product', defaultSubscription, defaultTheme, managerIdFromUrl]
-         );
+        };
+        const acquiredThemes = Array.from(VIP_THEME_IDS);
+
+        if (themeId && VIP_THEME_IDS.has(themeId)) {
+          themeSettings.selectedTheme = themeId;
+        }
+
+        const defaultTheme = JSON.stringify(themeSettings);
+        const defaultAcquiredThemes = JSON.stringify(acquiredThemes);
+        await client.query(
+          'INSERT INTO sellers (user_id, store_name, subdomain, shop_type, subscription, theme, acquired_themes, manager_id, is_live) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)',
+          [user.id, storeName || 'My Store', generatedSubdomain, shopType || 'product', defaultSubscription, defaultTheme, defaultAcquiredThemes, managerIdFromUrl]
+        );
       } else if (role === 'seller_manager') {
         const slug = (name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36)).replace(/[^a-z0-9-]/g, '');
         await client.query(
@@ -9119,6 +9127,94 @@ const startBackgroundJobs = () => {
 
 // Start background jobs
 startBackgroundJobs();
+
+// --- TSPP Routes ---
+
+// Get TSPP Teacher Profile
+app.get('/api/tspp/profile', authenticateToken, async (req, res) => {
+  try {
+    const profileRes = await db.query('SELECT * FROM tspp_teacher_profiles WHERE user_id = $1', [req.user.id]);
+    if (profileRes.rows.length === 0) {
+      return res.status(404).json({ message: 'Profile not found' });
+    }
+    res.json(toCamel(profileRes.rows[0]));
+  } catch (err) {
+    console.error('TSPP Get Profile Error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Create or Update TSPP Teacher Profile
+app.post('/api/tspp/profile', authenticateToken, async (req, res) => {
+  try {
+    const { subjectArea, gradeLevel, bio, website, yearsExperience } = req.body;
+
+    const existing = await db.query('SELECT id FROM tspp_teacher_profiles WHERE user_id = $1', [req.user.id]);
+
+    if (existing.rows.length > 0) {
+      const result = await db.query(
+        `UPDATE tspp_teacher_profiles SET subject_area = $1, grade_level = $2, bio = $3, website = $4, years_experience = $5, updated_at = CURRENT_TIMESTAMP WHERE user_id = $6 RETURNING *`,
+        [subjectArea || null, gradeLevel || null, bio || null, website || null, yearsExperience || null, req.user.id]
+      );
+      res.json(toCamel(result.rows[0]));
+    } else {
+      const result = await db.query(
+        `INSERT INTO tspp_teacher_profiles (user_id, subject_area, grade_level, bio, website, years_experience) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [req.user.id, subjectArea || null, gradeLevel || null, bio || null, website || null, yearsExperience || null]
+      );
+      res.status(201).json(toCamel(result.rows[0]));
+    }
+  } catch (err) {
+    console.error('TSPP Create/Update Profile Error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get TSPP Documents
+app.get('/api/tspp/documents', authenticateToken, async (req, res) => {
+  try {
+    const docsRes = await db.query('SELECT * FROM tspp_documents WHERE user_id = $1 ORDER BY created_at DESC', [req.user.id]);
+    res.json(docsRes.rows.map(row => toCamel(row)));
+  } catch (err) {
+    console.error('TSPP Get Documents Error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Upload TSPP Document metadata (file upload handled by /api/upload)
+app.post('/api/tspp/documents', authenticateToken, async (req, res) => {
+  try {
+    const { documentType, fileUrl, fileName, fileSize, mimeType } = req.body;
+
+    if (!documentType || !fileUrl || !fileName) {
+      return res.status(400).json({ message: 'documentType, fileUrl, and fileName are required' });
+    }
+
+    const result = await db.query(
+      `INSERT INTO tspp_documents (user_id, document_type, file_url, file_name, file_size, mime_type) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [req.user.id, documentType, fileUrl, fileName, fileSize || null, mimeType || null]
+    );
+    res.status(201).json(toCamel(result.rows[0]));
+  } catch (err) {
+    console.error('TSPP Create Document Error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Delete TSPP Document
+app.delete('/api/tspp/documents/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query('DELETE FROM tspp_documents WHERE id = $1 AND user_id = $2 RETURNING id', [id, req.user.id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: 'Document not found' });
+    }
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error('TSPP Delete Document Error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 // === Apex POS WebSocket + Routes ===
 import http from 'http';

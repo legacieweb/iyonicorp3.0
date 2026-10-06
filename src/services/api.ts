@@ -1726,6 +1726,72 @@ export const loyaltyAPI = {
   },
 };
 
+export interface TsppTeacherProfile {
+  id: string;
+  userId: string;
+  subjectArea: string;
+  gradeLevel: string;
+  bio: string;
+  website: string;
+  yearsExperience: number;
+  verificationStatus: 'pending' | 'verified' | 'rejected';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TsppDocument {
+  id: string;
+  userId: string;
+  documentType: string;
+  fileUrl: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const tsppAPI = {
+  async getProfile(): Promise<TsppTeacherProfile | null> {
+    try {
+      const response = await api.get('/tspp/profile');
+      return response.data;
+    } catch (err: any) {
+      if (err.response?.status === 404) return null;
+      throw err;
+    }
+  },
+
+  async saveProfile(data: Partial<TsppTeacherProfile>): Promise<TsppTeacherProfile> {
+    const response = await api.post('/tspp/profile', data);
+    return response.data;
+  },
+
+  async getDocuments(): Promise<TsppDocument[]> {
+    const response = await api.get('/tspp/documents');
+    return response.data;
+  },
+
+  async addDocument(data: {
+    documentType: string;
+    fileUrl: string;
+    fileName: string;
+    fileSize?: number;
+    mimeType?: string;
+  }): Promise<TsppDocument> {
+    const response = await api.post('/tspp/documents', data);
+    return response.data;
+  },
+
+  async deleteDocument(id: string): Promise<void> {
+    await api.delete(`/tspp/documents/${id}`);
+  },
+};
+
 export { default as ApexTypes } from '../platforms/services/pos/apex-pos/apexTypes';
 
 export default {
@@ -1755,4 +1821,5 @@ export default {
    loyalty: loyaltyAPI,
    playlists: playlistsAPI,
    history: historyAPI,
+   tspp: tsppAPI,
 };

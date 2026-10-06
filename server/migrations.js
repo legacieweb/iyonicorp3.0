@@ -13,7 +13,7 @@ async function runMigrations() {
     await db.query(`
       ALTER TABLE sellers ADD COLUMN IF NOT EXISTS acquired_themes JSONB NOT NULL DEFAULT '[]'::JSONB;
       UPDATE sellers SET acquired_themes = jsonb_build_array(theme->>'selectedTheme')
-        WHERE theme->>'selectedTheme' IN ('tamira-salon', 'spa-retreat', 'elite-consulting', 'creative-studio', 'modern-wellness', 'nlmsongs', 'utorme', 'homeworker', 'car-rental', 'restaurant', 'instagram-vip', 'ixstream')
+        WHERE theme->>'selectedTheme' IN ('tamira-salon', 'spa-retreat', 'elite-consulting', 'creative-studio', 'modern-wellness', 'nlmsongs', 'utorme', 'homeworker', 'car-rental', 'restaurant', 'instagram-vip', 'ixstream', 'tspp')
           AND NOT (COALESCE(acquired_themes, '[]'::jsonb) ? (theme->>'selectedTheme'));
       CREATE TABLE IF NOT EXISTS vip_theme_purchases (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

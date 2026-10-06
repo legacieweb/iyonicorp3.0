@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from 'react';
-import { ArrowRight, Briefcase, CheckCircle2, ChevronRight, Clock3, MessageSquareText, Search, ShieldCheck, Sparkles, TrendingUp, UserCheck, Users } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Briefcase, CheckCircle2, ChevronRight, Clock3, LogOut, MessageSquareText, Search, ShieldCheck, Sparkles, TrendingUp, UserCheck, Users } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../../context/AuthContext';
+import { Seller, sellersAPI } from '../../../../services/api';
 import './tspp-theme.css';
 
 const tabs = [
@@ -39,7 +41,31 @@ const tasks = [
 ];
 
 const TsppAdmin: React.FC = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [seller, setSeller] = useState<Seller | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadSeller = async () => {
+      try {
+        const sellerData = await sellersAPI.getMe();
+        setSeller(sellerData);
+      } catch (err) {
+        console.error('Failed to load seller:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSeller();
+  }, []);
+
+  const getSchoolName = () => {
+    if (seller?.storeName) return seller.storeName;
+    if (user?.name) return user.name;
+    return 'Your School';
+  };
 
   const content = useMemo(() => {
     if (activeTab === 'roles') {
@@ -94,10 +120,8 @@ const TsppAdmin: React.FC = () => {
           </nav>
 
           <div className="tspp-actions">
-            <button type="button" className="tspp-btn tspp-btn-ghost"><Search size={16} /> Search</button>
-            <button type="button" className="tspp-btn tspp-btn-ghost">Invite school</button>
-            <button type="button" className="tspp-btn tspp-btn-primary">
-              Launch hiring <ArrowRight size={16} />
+            <button type="button" className="tspp-btn tspp-btn-ghost" onClick={logout}>
+              <LogOut size={16} /> Sign out
             </button>
           </div>
         </div>
@@ -108,7 +132,7 @@ const TsppAdmin: React.FC = () => {
           <div>
             <div className="tspp-section-heading" style={{ marginBottom: 0, maxWidth: '100%' }}>
               <p className="tspp-kicker"><Sparkles size={14} /> {tabs.find(t => t.id === activeTab)?.label ?? 'Platform dashboard'}</p>
-              <h2>{content.headline}</h2>
+              <h2>{content.headline} — {getSchoolName()}</h2>
               <p style={{ marginTop: '1rem', color: 'var(--tspp-slate)', fontSize: '1.06rem' }}>{content.description}</p>
             </div>
 

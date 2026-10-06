@@ -128,7 +128,7 @@ export const initDb = async () => {
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS theme JSONB DEFAULT '{"primaryColor": "#3b82f6", "secondaryColor": "#1e40af", "fontFamily": "Inter"}'::JSONB;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS acquired_themes JSONB NOT NULL DEFAULT '[]'::JSONB;
         UPDATE sellers SET acquired_themes = jsonb_build_array(theme->>'selectedTheme')
-          WHERE theme->>'selectedTheme' IN ('tamira-salon', 'spa-retreat', 'elite-consulting', 'creative-studio', 'modern-wellness', 'nlmsongs', 'utorme', 'homeworker', 'car-rental', 'restaurant', 'instagram-vip', 'ixstream')
+          WHERE theme->>'selectedTheme' IN ('tamira-salon', 'spa-retreat', 'elite-consulting', 'creative-studio', 'modern-wellness', 'nlmsongs', 'utorme', 'homeworker', 'car-rental', 'restaurant', 'instagram-vip', 'ixstream', 'tspp')
             AND NOT (COALESCE(acquired_themes, '[]'::jsonb) ? (theme->>'selectedTheme'));
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS social_links JSONB DEFAULT '{"facebook": "", "instagram": "", "twitter": "", "linkedin": "", "youtube": "", "tiktok": ""}'::JSONB;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS contact_info JSONB DEFAULT '{"email": "", "phone": "", "address": "", "whatsapp": ""}'::JSONB;
@@ -645,6 +645,41 @@ CREATE INDEX IF NOT EXISTS idx_sellers_manager_id ON sellers(manager_id);
         );
         CREATE INDEX IF NOT EXISTS idx_ixstream_subscriptions_user ON ixstream_subscriptions(user_id);
         CREATE INDEX IF NOT EXISTS idx_ixstream_subscriptions_seller ON ixstream_subscriptions(seller_id);
+
+        -- TSPP Teacher Profiles table
+        CREATE TABLE IF NOT EXISTS tspp_teacher_profiles (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+            subject_area VARCHAR(255),
+            grade_level VARCHAR(100),
+            bio TEXT,
+            website TEXT,
+            years_experience INTEGER,
+            verification_status VARCHAR(20) DEFAULT 'pending' CHECK (verification_status IN ('pending', 'verified', 'rejected')),
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_tspp_teacher_profiles_user ON tspp_teacher_profiles(user_id);
+
+        -- TSPP Documents table
+        CREATE TABLE IF NOT EXISTS tspp_documents (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            document_type VARCHAR(50) NOT NULL,
+            file_url TEXT NOT NULL,
+            file_name VARCHAR(255) NOT NULL,
+            file_size INTEGER,
+            mime_type VARCHAR(100),
+            status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+            reviewed_by UUID REFERENCES users(id),
+            reviewed_at TIMESTAMP WITH TIME ZONE,
+            rejection_reason TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_tspp_documents_user ON tspp_documents(user_id);
+        CREATE INDEX IF NOT EXISTS idx_tspp_documents_type ON tspp_documents(document_type);
+        CREATE INDEX IF NOT EXISTS idx_tspp_documents_status ON tspp_documents(status);
       `);
 
       await pool.query('COMMIT');
