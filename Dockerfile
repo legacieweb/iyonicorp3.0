@@ -12,6 +12,10 @@ RUN npm ci
 # Copy the rest of the application code
 COPY . .
 
+ARG VITE_API_URL=https://api.iyonicorp.com/api
+ENV VITE_API_URL=${VITE_API_URL}
+RUN node -e "const host = new URL(process.env.VITE_API_URL).hostname; if (['localhost', '127.0.0.1', '[::1]'].includes(host)) throw new Error('Production VITE_API_URL cannot target localhost')"
+
 # Build the frontend assets
 RUN npm run build
 
