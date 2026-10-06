@@ -142,6 +142,7 @@ const Themes: React.FC = () => {
   const purchaseInProgress = useRef<string | null>(null);
   const applyingThemeIds = useRef(new Set<string>());
   const verifiedReferences = useRef(new Set<string>());
+  const autoAppliedPurchaseReferences = useRef(new Set<string>());
   const verificationInFlight = useRef(new Set<string>());
   const autoAppliedThemeId = useRef<string | null>(null);
   const isSeller = user?.role === 'seller';
@@ -260,8 +261,8 @@ const Themes: React.FC = () => {
         console.error('Theme purchase was verified, but seller data could not be refreshed:', refreshError);
       }
 
-      if (!autoAppliedThemeId.current || autoAppliedThemeId.current !== themeId) {
-        autoAppliedThemeId.current = themeId;
+      if (!autoAppliedPurchaseReferences.current.has(verificationKey)) {
+        autoAppliedPurchaseReferences.current.add(verificationKey);
         const theme = THEMES.find((item) => item.id === themeId);
         if (theme) await applyTheme(theme);
       }
@@ -347,12 +348,14 @@ const Themes: React.FC = () => {
         onError: (popupError) => {
           if (checkoutSettled) return;
           checkoutSettled = true;
+          setSuccess('');
           setError(popupError.message || 'The payment window could not complete checkout. No license was added.');
           setApplyingId(null);
           purchaseInProgress.current = null;
         },
       });
     } catch (purchaseError: any) {
+      setSuccess('');
       setError(purchaseError.response?.data?.message || purchaseError.message || 'Could not start checkout. Please try again.');
       setApplyingId(null);
       purchaseInProgress.current = null;
@@ -454,7 +457,9 @@ const Themes: React.FC = () => {
         {error && <div role="alert" className="theme-message theme-message-error">
           {error}
           {canRetryVerification && pendingVerification && (
-            <button type="button" onClick={() => void verifyPaymentAndApply(pendingVerification.themeId, pendingVerification.reference)}>Retry payment verification</button>
+            <button type="button" disabled={verificationPending} onClick={() => void verifyPaymentAndApply(pendingVerification.themeId, pendingVerification.reference)}>
+              {verificationPending ? 'Verifying…' : 'Retry payment verification'}
+            </button>
           )}
         </div>}
         {verificationPending && <div role="status" className="theme-message theme-message-progress"><span className="theme-button-spinner" />Confirming your payment securely… Your theme will open as soon as it is verified.</div>}

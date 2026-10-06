@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowRight, BadgeCheck, Clock3, Edit3, FileText, LogOut, Save, ShieldCheck, Upload, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../context/AuthContext';
-import { TsppDocument, TsppTeacherProfile, tsppAPI, uploadAPI, User } from '../../../../services/api';
+import { TsppDocument, TsppTeacherProfile, tsppAPI, uploadAPI } from '../../../../services/api';
 import './tspp-theme.css';
 
 const DOCUMENT_TYPES = [
@@ -256,7 +256,7 @@ const TsppClient: React.FC = () => {
                 <FileText size={16} /> <span>{documents.length} documents uploaded</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <User size={16} /> <span>{profile.subjectArea || 'Add subject area'}</span>
+                <User size={16} /> <span>{profile?.subjectArea || 'Add subject area'}</span>
               </div>
             </div>
           </div>
@@ -347,23 +347,23 @@ const TsppClient: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
               <div>
                 <p className="tspp-label">Subject area</p>
-                <p style={{ fontSize: '1rem', color: 'var(--tspp-ink)' }}>{profile.subjectArea || <em style={{ color: 'var(--tspp-slate)' }}>Not set</em>}</p>
+                <p style={{ fontSize: '1rem', color: 'var(--tspp-ink)' }}>{profile?.subjectArea || <em style={{ color: 'var(--tspp-slate)' }}>Not set</em>}</p>
               </div>
               <div>
                 <p className="tspp-label">Grade level</p>
-                <p style={{ fontSize: '1rem', color: 'var(--tspp-ink)' }}>{profile.gradeLevel || <em style={{ color: 'var(--tspp-slate)' }}>Not set</em>}</p>
+                <p style={{ fontSize: '1rem', color: 'var(--tspp-ink)' }}>{profile?.gradeLevel || <em style={{ color: 'var(--tspp-slate)' }}>Not set</em>}</p>
               </div>
               <div>
                 <p className="tspp-label">Years of experience</p>
-                <p style={{ fontSize: '1rem', color: 'var(--tspp-ink)' }}>{profile.yearsExperience !== null && profile.yearsExperience !== undefined ? profile.yearsExperience : <em style={{ color: 'var(--tspp-slate)' }}>Not set</em>}</p>
+                <p style={{ fontSize: '1rem', color: 'var(--tspp-ink)' }}>{profile?.yearsExperience !== null && profile?.yearsExperience !== undefined ? profile?.yearsExperience : <em style={{ color: 'var(--tspp-slate)' }}>Not set</em>}</p>
               </div>
               <div>
                 <p className="tspp-label">Website</p>
-                <p style={{ fontSize: '1rem', color: 'var(--tspp-ink)' }}>{profile.website ? <a href={profile.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--tspp-accent)' }}>{profile.website}</a> : <em style={{ color: 'var(--tspp-slate)' }}>Not set</em>}</p>
+                <p style={{ fontSize: '1rem', color: 'var(--tspp-ink)' }}>{profile?.website ? <a href={profile.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--tspp-accent)' }}>{profile.website}</a> : <em style={{ color: 'var(--tspp-slate)' }}>Not set</em>}</p>
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <p className="tspp-label">Bio</p>
-                <p style={{ fontSize: '1rem', color: 'var(--tspp-ink)', whiteSpace: 'pre-wrap' }}>{profile.bio || <em style={{ color: 'var(--tspp-slate)' }}>Not set</em>}</p>
+                <p style={{ fontSize: '1rem', color: 'var(--tspp-ink)', whiteSpace: 'pre-wrap' }}>{profile?.bio || <em style={{ color: 'var(--tspp-slate)' }}>Not set</em>}</p>
               </div>
             </div>
           )}
