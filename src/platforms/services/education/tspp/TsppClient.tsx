@@ -313,7 +313,7 @@ const TsppClient: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600', marginBottom: '0.5rem', color: 'var(--tspp-ink-muted)' }}>Website / Portfolio</label>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--tspp-ink-muted)' }}>Website / Portfolio</label>
                 <input
                   type="url"
                   className="tspp-input"

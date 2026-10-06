@@ -61,12 +61,66 @@ const withTimeout = <T,>(operation: Promise<T>, message: string) => new Promise<
   );
 });
 
+type PaystackTransaction = { reference?: string; trxref?: string; status?: string };
+type PaystackPopup = {
+  resumeTransaction: (
+    accessCode: string,
+    callbacks: {
+      onSuccess: (transaction: PaystackTransaction) => void;
+      onCancel: () => void;
+      onError: (popupError: { message?: string }) => void;
+    },
+  ) => void;
+};
+type PaystackPopupConstructor = new () => PaystackPopup;
+
+declare global {
+  interface Window {
+    PaystackPop?: PaystackPopupConstructor & { setup?: (...args: any[]) => any };
+  }
+}
+
+let paystackPopupConstructorPromise: Promise<PaystackPopupConstructor> | null = null;
+
+const loadPaystackPopup = () => {
+  if (paystackPopupConstructorPromise) return paystackPopupConstructorPromise;
+
+  paystackPopupConstructorPromise = new Promise<PaystackPopupConstructor>((resolve, reject) => {
+    const legacyPaystackPop = window.PaystackPop;
+    const script = document.createElement('script');
+    script.src = 'https://js.paystack.co/v2/inline.js';
+    script.async = true;
+    script.onload = () => {
+      const popupConstructor = window.PaystackPop;
+      if (legacyPaystackPop) window.PaystackPop = legacyPaystackPop;
+      else delete window.PaystackPop;
+
+      if (popupConstructor?.prototype?.resumeTransaction) resolve(popupConstructor);
+      else {
+        script.remove();
+        paystackPopupConstructorPromise = null;
+        reject(new Error('The secure payment window could not be loaded. Please try again.'));
+      }
+    };
+    script.onerror = () => {
+      if (legacyPaystackPop) window.PaystackPop = legacyPaystackPop;
+      else delete window.PaystackPop;
+      script.remove();
+      paystackPopupConstructorPromise = null;
+      reject(new Error('The secure payment window could not be loaded. Check your connection and try again.'));
+    };
+    document.head.appendChild(script);
+  });
+
+  return paystackPopupConstructorPromise;
+};
+
 const Themes: React.FC = () => {
   const { user } = useAuth();
   const { refreshData } = useData();
   const location = useLocation();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [category, setCategory] = useState<ThemeCategory>('All platforms');
   const [query, setQuery] = useState('');
   const [applyingId, setApplyingId] = useState<string | null>(null);
@@ -82,9 +136,13 @@ const Themes: React.FC = () => {
   const [offerResult, setOfferResult] = useState<{ themeId: string; message: string } | null>(null);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
-  const [verificationAttempt, setVerificationAttempt] = useState(0);
   const [verificationPending, setVerificationPending] = useState(false);
   const [canRetryVerification, setCanRetryVerification] = useState(false);
+  const [pendingVerification, setPendingVerification] = useState<{ themeId: string; reference: string } | null>(null);
+  const purchaseInProgress = useRef<string | null>(null);
+  const applyingThemeIds = useRef(new Set<string>());
+  const verifiedReferences = useRef(new Set<string>());
+  const verificationInFlight = useRef(new Set<string>());
   const autoAppliedThemeId = useRef<string | null>(null);
   const isSeller = user?.role === 'seller';
 
@@ -107,41 +165,6 @@ const Themes: React.FC = () => {
     return () => { active = false; };
   }, [isSeller]);
 
-  useEffect(() => {
-    const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
-    const pageParams = new URLSearchParams(window.location.search);
-    const reference = searchParams.get('reference') || searchParams.get('trxref') ||
-      hashParams.get('reference') || hashParams.get('trxref') ||
-      pageParams.get('reference') || pageParams.get('trxref');
-    const themeId = sessionStorage.getItem('iyonic-vip-theme-purchase-pending');
-    if (!reference || !themeId || !isSeller) return;
-
-    let active = true;
-    setVerificationPending(true);
-    setCanRetryVerification(false);
-    setError('');
-    withTimeout(sellersAPI.verifyThemePurchase(themeId, reference), 'Payment verification timed out. Your payment reference is saved; retry verification below.').then(async ({ acquiredThemes }) => {
-      if (!active) return;
-      sessionStorage.removeItem('iyonic-vip-theme-purchase-pending');
-      setAcquiredThemeIds(acquiredThemes);
-      setSuccess('Payment confirmed. Your one-time theme license is ready to apply.');
-      setVerificationPending(false);
-      setCanRetryVerification(false);
-      try {
-        await refreshData();
-      } catch (refreshError) {
-        console.error('Theme purchase was verified, but seller data could not be refreshed:', refreshError);
-      }
-      setSearchParams({}, { replace: true });
-    }).catch((verifyError) => {
-      if (!active) return;
-      setError(verifyError.response?.data?.message || 'We could not verify that payment. This theme has not been unlocked.');
-      setVerificationPending(false);
-      setCanRetryVerification(true);
-    });
-    return () => { active = false; };
-  }, [searchParams, setSearchParams, isSeller, refreshData, verificationAttempt]);
-
   const previewUrl = (themeId: string) => {
     if (themeId === 'nlmsongs' || themeId === 'ixstream' || themeId === 'utorme' || themeId === 'tspp') {
       return `${window.location.origin}/#/${themeId}`;
@@ -163,12 +186,14 @@ const Themes: React.FC = () => {
   }, [category, query]);
 
   const applyTheme = async (theme: ThemeOption) => {
+    if (applyingThemeIds.current.has(theme.id)) return;
     if (!isSeller) {
       if (!user) navigate('/login?redirect=%2Fthemes');
       else setError('A seller account is required to acquire and apply a platform.');
       return;
     }
 
+    applyingThemeIds.current.add(theme.id);
     setApplyingId(theme.id);
     setLaunchingTheme(theme);
     setLaunchState('checking');
@@ -204,9 +229,81 @@ const Themes: React.FC = () => {
       setLaunchError(message);
       setLaunchState('error');
     } finally {
+      applyingThemeIds.current.delete(theme.id);
       setApplyingId(null);
     }
   };
+
+  const verifyPaymentAndApply = async (themeId: string, reference: string) => {
+    const verificationKey = `${themeId}:${reference}`;
+    if (verificationInFlight.current.has(verificationKey) || verifiedReferences.current.has(verificationKey)) return;
+    verificationInFlight.current.add(verificationKey);
+    setPendingVerification({ themeId, reference });
+    setVerificationPending(true);
+    setCanRetryVerification(false);
+    setError('');
+    setSuccess('');
+
+    try {
+      const { acquiredThemes } = await withTimeout(
+        sellersAPI.verifyThemePurchase(themeId, reference),
+        'Payment verification timed out. Your payment reference is saved; retry verification below.',
+      );
+      verifiedReferences.current.add(verificationKey);
+      sessionStorage.removeItem('iyonic-vip-theme-purchase-pending');
+      setPendingVerification(null);
+      setAcquiredThemeIds(acquiredThemes);
+      setSuccess('Payment confirmed. Your license is secure; opening your new platform now…');
+      try {
+        await refreshData();
+      } catch (refreshError) {
+        console.error('Theme purchase was verified, but seller data could not be refreshed:', refreshError);
+      }
+
+      if (!autoAppliedThemeId.current || autoAppliedThemeId.current !== themeId) {
+        autoAppliedThemeId.current = themeId;
+        const theme = THEMES.find((item) => item.id === themeId);
+        if (theme) await applyTheme(theme);
+      }
+    } catch (verifyError: any) {
+      const pending = { themeId, reference };
+      sessionStorage.setItem('iyonic-vip-theme-purchase-pending', JSON.stringify(pending));
+      setPendingVerification(pending);
+      setError(verifyError.response?.data?.message || verifyError.message || 'Payment verification failed. Your theme remains locked until we confirm it.');
+      setCanRetryVerification(true);
+      setApplyingId(null);
+    } finally {
+      verificationInFlight.current.delete(verificationKey);
+      setVerificationPending(false);
+      purchaseInProgress.current = null;
+    }
+  };
+
+  useEffect(() => {
+    if (!isSeller || pendingVerification) return;
+    const stored = sessionStorage.getItem('iyonic-vip-theme-purchase-pending');
+    if (!stored) return;
+    try {
+      let pending: { themeId?: string; reference?: string };
+      try {
+        pending = JSON.parse(stored) as { themeId?: string; reference?: string };
+      } catch {
+        const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+        const reference = searchParams.get('reference') || searchParams.get('trxref') ||
+          hashParams.get('reference') || hashParams.get('trxref') ||
+          new URLSearchParams(window.location.search).get('reference') ||
+          new URLSearchParams(window.location.search).get('trxref');
+        pending = { themeId: stored, reference: reference || undefined };
+      }
+      if (pending.themeId && pending.reference) {
+        void verifyPaymentAndApply(pending.themeId, pending.reference);
+      } else {
+        sessionStorage.removeItem('iyonic-vip-theme-purchase-pending');
+      }
+    } catch (storageError) {
+      console.error('Could not resume theme payment verification:', storageError);
+    }
+  }, [isSeller, searchParams]);
 
   const purchaseTheme = async (themeId: string) => {
     if (!isSeller) {
@@ -214,18 +311,51 @@ const Themes: React.FC = () => {
       else setError('Only sellers can acquire platform licenses.');
       return;
     }
+    if (purchaseInProgress.current) return;
+    purchaseInProgress.current = themeId;
     setApplyingId(themeId);
     setError('');
+    setSuccess('Connecting to secure Paystack checkout…');
     try {
-      sessionStorage.setItem('iyonic-vip-theme-purchase-pending', themeId);
       const checkout = await withTimeout(sellersAPI.initializeThemePurchase(themeId), 'Checkout setup timed out. Please try again.');
-      const authorizationUrl = checkout.data?.authorization_url;
-      if (!authorizationUrl) throw new Error('Checkout did not return a payment link.');
-      window.location.assign(authorizationUrl);
+      const accessCode = checkout.data?.access_code;
+      if (!accessCode) throw new Error('Checkout did not return a secure payment session.');
+      const PaystackPop = await loadPaystackPopup();
+      let checkoutSettled = false;
+      const popup = new PaystackPop();
+      popup.resumeTransaction(accessCode, {
+        onSuccess: (transaction) => {
+          if (checkoutSettled) return;
+          checkoutSettled = true;
+          const reference = transaction.reference || transaction.trxref || checkout.data?.reference;
+          if (!reference) {
+            setError('Payment was submitted, but the provider did not return a reference. Contact support before trying again.');
+            setApplyingId(null);
+            purchaseInProgress.current = null;
+            return;
+          }
+          sessionStorage.setItem('iyonic-vip-theme-purchase-pending', JSON.stringify({ themeId, reference }));
+          void verifyPaymentAndApply(themeId, reference);
+        },
+        onCancel: () => {
+          if (checkoutSettled) return;
+          checkoutSettled = true;
+          setSuccess('Checkout cancelled. No license was added and no payment was verified.');
+          setApplyingId(null);
+          purchaseInProgress.current = null;
+        },
+        onError: (popupError) => {
+          if (checkoutSettled) return;
+          checkoutSettled = true;
+          setError(popupError.message || 'The payment window could not complete checkout. No license was added.');
+          setApplyingId(null);
+          purchaseInProgress.current = null;
+        },
+      });
     } catch (purchaseError: any) {
-      sessionStorage.removeItem('iyonic-vip-theme-purchase-pending');
       setError(purchaseError.response?.data?.message || purchaseError.message || 'Could not start checkout. Please try again.');
       setApplyingId(null);
+      purchaseInProgress.current = null;
     }
   };
 
@@ -298,9 +428,20 @@ const Themes: React.FC = () => {
 
         <div className="theme-discovery">
           <div className="theme-category-list" role="group" aria-label="Filter platforms by category">
-            {CATEGORIES.map((item) => (
-              <button key={item} type="button" aria-pressed={category === item} onClick={() => setCategory(item)} className={`theme-category-button${category === item ? ' is-active' : ''}`}>{item}</button>
-            ))}
+            {CATEGORIES.map((item) => {
+              const count = item === 'All platforms'
+                ? THEMES.length
+                : THEMES.filter((theme) =>
+                  (item === 'Product stores' && theme.kind === 'product') ||
+                  (item === 'Service platforms' && theme.kind === 'service') ||
+                  (item === 'Streaming platforms' && theme.kind === 'streaming') ||
+                  (item === 'Education platforms' && theme.kind === 'education')).length;
+              return (
+                <button key={item} type="button" aria-pressed={category === item} onClick={() => setCategory(item)} className={`theme-category-button${category === item ? ' is-active' : ''}`}>
+                  {item}<span aria-label={`${count} platforms`}>{count}</span>
+                </button>
+              );
+            })}
           </div>
           <label className="theme-search">
             <Search size={17} aria-hidden="true" />
@@ -312,11 +453,11 @@ const Themes: React.FC = () => {
 
         {error && <div role="alert" className="theme-message theme-message-error">
           {error}
-          {canRetryVerification && sessionStorage.getItem('iyonic-vip-theme-purchase-pending') && (
-            <button type="button" onClick={() => { setError(''); setVerificationAttempt((attempt) => attempt + 1); }}>Retry payment verification</button>
+          {canRetryVerification && pendingVerification && (
+            <button type="button" onClick={() => void verifyPaymentAndApply(pendingVerification.themeId, pendingVerification.reference)}>Retry payment verification</button>
           )}
         </div>}
-        {verificationPending && <div role="status" className="theme-message theme-message-success">Confirming your payment with the payment provider…</div>}
+        {verificationPending && <div role="status" className="theme-message theme-message-progress"><span className="theme-button-spinner" />Confirming your payment securely… Your theme will open as soon as it is verified.</div>}
         {success && <div role="status" className="theme-message theme-message-success">{success}</div>}
 
         {visibleThemes.length ? (
@@ -337,6 +478,7 @@ const Themes: React.FC = () => {
                   </div>
                   <div className="theme-card-body">
                     <div className="theme-card-tags">
+                      <span className="theme-vip-tag"><Sparkles size={10} /> VIP</span>
                       {theme.tags.map((tag) => <span key={tag}>{tag}</span>)}
                       {isSeller && isAcquired && <span className="theme-owned-tag"><BadgeCheck size={12} /> Licensed</span>}
                     </div>

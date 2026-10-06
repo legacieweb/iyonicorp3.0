@@ -17,6 +17,7 @@ export const THEME_PRICE_USD_CENTS = Object.freeze({
   'point-of-sale': 24000,
   'apex-pos': 30000,
   'event-planner': 22000,
+  carnovga: 22000,
   'instagram-vip': 30000,
   'car-rental': 35000,
   'restaurant': 40000,
