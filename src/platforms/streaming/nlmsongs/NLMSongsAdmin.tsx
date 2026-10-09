@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  Disc3, FileAudio2, LayoutDashboard, LogOut, Music2, Plus, Search, Trash2, Upload, X,
+  Activity, ArrowUpRight, Disc3, FileAudio2, Headphones, LayoutDashboard, LogOut, Music2, Plus, RefreshCw, Search, Trash2, Upload, X,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { nlmsongsAPI, type NLMSong } from '../../../services/api';
+import { nlmsongsAPI, type NLMSong, type NLMSongsAdminAnalytics } from '../../../services/api';
 import { getApiOrigin } from '../../../utils/apiUrl';
 import './nlmsongs.css';
 
 const API_ORIGIN = getApiOrigin();
 
-type Tab = 'catalogue' | 'uploads';
+type Tab = 'overview' | 'catalogue' | 'uploads';
 
 const resolveAssetUrl = (value?: string) => {
   if (!value) return '';
@@ -18,11 +18,21 @@ const resolveAssetUrl = (value?: string) => {
   return new URL(value, `${API_ORIGIN}/`).toString();
 };
 
+const metricNumber = (value: unknown): number | null => {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const formatMetric = (value: unknown) => metricNumber(value)?.toLocaleString() ?? '—';
+
 const NLMSongsAdmin = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>('catalogue');
+  const [tab, setTab] = useState<Tab>('overview');
   const [tracks, setTracks] = useState<NLMSong[]>([]);
+  const [analytics, setAnalytics] = useState<NLMSongsAdminAnalytics | null>(null);
+  const [analyticsUnavailable, setAnalyticsUnavailable] = useState(false);
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -44,8 +54,10 @@ const NLMSongsAdmin = () => {
   const loadTracks = async () => {
     setIsLoading(true);
     try {
-      const songs = await nlmsongsAPI.listAdmin();
+      const [songs, stats] = await Promise.all([nlmsongsAPI.listAdmin(), nlmsongsAPI.getAdminAnalytics().catch(() => null)]);
       setTracks(songs);
+      setAnalytics(stats);
+      setAnalyticsUnavailable(!stats);
     } catch (error) {
       console.error('Could not load NLMSongs admin catalogue:', error);
     } finally {
@@ -149,6 +161,7 @@ const NLMSongsAdmin = () => {
           <span>nlm<span className="nlm-brand-light">songs</span></span>
         </a>
         <nav className="nlm-admin-nav" aria-label="Admin navigation">
+          <button className={tab === 'overview' ? 'is-active' : ''} onClick={() => setTab('overview')}><Activity size={17} />Overview</button>
           <button className={tab === 'catalogue' ? 'is-active' : ''} onClick={() => setTab('catalogue')}><Disc3 size={17} />Catalogue</button>
           <button className={tab === 'uploads' ? 'is-active' : ''} onClick={() => setTab('uploads')}><Upload size={17} />Uploads</button>
         </nav>
@@ -160,12 +173,58 @@ const NLMSongsAdmin = () => {
           <div className="nlm-location"><span>ADMIN</span><span className="nlm-location-slash">/</span><span>{tab.toUpperCase()}</span></div>
           <div className="nlm-account-actions">
             <span className="nlm-account-name">{user?.name || user?.email}</span>
+            <button className="nlm-account-button" onClick={() => void loadTracks()} disabled={isLoading}><RefreshCw size={14} className={isLoading ? 'nlm-spin' : ''} /> Refresh</button>
             <button className="nlm-account-button" onClick={openAccount}><LayoutDashboard size={14} /> Dashboard</button>
             <button className="nlm-account-button" onClick={signOut}><LogOut size={14} /> Sign out</button>
           </div>
         </header>
 
         <div className="nlm-admin-workspace">
+          {tab === 'overview' && (() => {
+            const activeTracks = tracks.filter((track) => track.isActive !== false);
+            const genreCount = new Set(tracks.map((track) => track.genre?.trim()).filter(Boolean)).size;
+            const recentTracks = tracks.filter((track) => track.createdAt && Date.now() - new Date(track.createdAt).getTime() <= 30 * 86400000).slice(0, 4);
+            const analyticsPayload = analytics as (NLMSongsAdminAnalytics & Record<string, any>) | null;
+            const summary = (analyticsPayload?.summary ?? analyticsPayload?.data?.summary ?? {}) as Record<string, unknown>;
+            const readMetric = (camelKey: string, snakeKey: string) => metricNumber(summary[camelKey] ?? summary[snakeKey]);
+            const totalPlays30d = readMetric('playsLast30Days', 'plays_last_30_days');
+            const listeners30d = readMetric('listenersLast30Days', 'listeners_last_30_days');
+            const lifetimePlays = readMetric('totalPlays', 'total_plays');
+            const listeningSeconds = readMetric('listeningSeconds', 'listening_seconds');
+            const dailySource = analyticsPayload?.dailyPlays ?? analyticsPayload?.daily_plays ?? analyticsPayload?.data?.dailyPlays ?? [];
+            const daily = Array.isArray(dailySource) ? dailySource.flatMap((entry: any) => {
+              const day = entry?.day ?? entry?.date;
+              const plays = metricNumber(entry?.plays ?? entry?.count);
+              return day && plays !== null ? [{ day: String(day), plays }] : [];
+            }) : [];
+            const topTracksSource = analyticsPayload?.topTracks ?? analyticsPayload?.top_tracks ?? analyticsPayload?.data?.topTracks ?? [];
+            const topTracks = Array.isArray(topTracksSource) ? topTracksSource.filter((track: any) => track && typeof track === 'object') : [];
+            const maxPlays = Math.max(1, ...daily.map((item) => item.plays));
+            return <section className="nlm-admin-overview">
+              <div className="nlm-admin-overview-head">
+                <div><span className="nlm-eyebrow">YOUR MUSIC, IN FOCUS</span><h1>Overview</h1><p>A clear read on your catalogue and how listeners are finding it.</p></div>
+                <div className="nlm-admin-quick-actions"><button className="nlm-submit-button" onClick={() => { resetForm(); setTab('uploads'); }}><Plus size={15} /> Add a track</button><button className="nlm-account-button" onClick={() => navigate('/nlmsongs/listen')}><Headphones size={15} /> Open player <ArrowUpRight size={13} /></button></div>
+              </div>
+              <div className="nlm-admin-metrics">
+                <article><span>Catalogue</span><strong>{tracks.length}</strong><small>{activeTracks.length} active tracks</small></article>
+                <article><span>Genres</span><strong>{genreCount}</strong><small>Across your catalogue</small></article>
+                <article><span>Plays · 30 days</span><strong>{formatMetric(totalPlays30d)}</strong><small>{listeners30d === null ? 'Listener count unavailable' : `${listeners30d.toLocaleString()} listeners`}</small></article>
+                <article><span>Listening time</span><strong>{listeningSeconds === null ? '—' : `${Math.floor(listeningSeconds / 3600)}h`}</strong><small>{listeningSeconds === null ? 'No listening time recorded' : 'Recorded across all plays'}</small></article>
+              </div>
+              {analyticsUnavailable && <p className="nlm-analytics-note" role="status">Listener metrics could not be loaded. Catalogue figures remain available.</p>}
+              <div className="nlm-admin-insights-grid">
+                <section className="nlm-admin-insight-card nlm-admin-listens-card"><header><div><span className="nlm-eyebrow">LAST 30 DAYS</span><h2>Listening activity</h2></div><span className="nlm-admin-card-note">{lifetimePlays === null ? 'No activity data' : `${lifetimePlays.toLocaleString()} lifetime plays`}</span></header>
+                  {daily.length ? <div className="nlm-admin-chart" role="img" aria-label="Daily listening plays over the last 30 days">{daily.map((item) => <div className="nlm-admin-chart-column" key={item.day} title={`${new Date(item.day).toLocaleDateString()}: ${item.plays} plays`}><span style={{ height: `${Math.max(5, item.plays / maxPlays * 100)}%` }} /><small>{new Date(item.day).toLocaleDateString(undefined, { day: 'numeric' })}</small></div>)}</div> : <div className="nlm-admin-chart-empty">{analytics ? 'No listening history recorded in the last 30 days.' : 'Listening activity will appear when authorized metrics are available.'}</div>}
+                </section>
+                <section className="nlm-admin-insight-card"><header><div><span className="nlm-eyebrow">AUDIENCE FAVORITES</span><h2>Most played</h2></div></header>
+                  {topTracks.length ? <div className="nlm-admin-top-tracks">{topTracks.map((track: any, index: number) => <article key={track.id || `${track.title || 'track'}-${index}`}><span className="nlm-admin-rank">{String(index + 1).padStart(2, '0')}</span><div><strong>{track.title || 'Untitled track'}</strong><small>{track.artist || 'NLM Studio'}{track.genre ? ` · ${track.genre}` : ''}</small></div><span className="nlm-admin-play-count">{formatMetric(track.plays ?? track.play_count)} <small>plays</small></span></article>)}</div> : <div className="nlm-admin-chart-empty">{analytics ? 'Your first plays will show up here.' : 'Top tracks are unavailable without listener metrics.'}</div>}
+                </section>
+              </div>
+              <section className="nlm-admin-insight-card nlm-admin-recent-card"><header><div><span className="nlm-eyebrow">RECENTLY ADDED</span><h2>Latest in your catalogue</h2></div><button className="nlm-ghost-button" onClick={() => setTab('catalogue')}>View catalogue <ArrowUpRight size={13}/></button></header>
+                {recentTracks.length ? <div className="nlm-admin-recent-tracks">{recentTracks.map((track) => <article key={track.id}><span className="nlm-admin-track-art">{track.thumbnailUrl ? <img src={resolveAssetUrl(track.thumbnailUrl)} alt=""/> : <Music2 size={17}/>}</span><span><strong>{track.title}</strong><small>{track.artist || 'NLM Studio'} · {track.genre || 'Uncategorized'}</small></span><time>{new Date(track.createdAt).toLocaleDateString()}</time></article>)}</div> : <div className="nlm-admin-chart-empty">{tracks.length ? 'No recent additions in the past 30 days.' : 'Your uploaded tracks will appear here.'}</div>}
+              </section>
+            </section>;
+          })()}
           {tab === 'catalogue' && (
             <section className="nlm-section">
               <div className="nlm-section-head">

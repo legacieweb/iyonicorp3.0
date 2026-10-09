@@ -43,9 +43,10 @@ const stories = [
 ];
 
 export const Blog: React.FC = () => (
-  <StaticPage title="Ideas for building better commerce" description="Practical notes on storefronts, payments, and the systems behind growing businesses." eyebrow="Field notes / Blog" icon={FileText}>
+  <StaticPage title="Ideas for building better businesses" description="Editorial field notes on the different workflows, platforms, and shared services businesses use." eyebrow="Field notes / Blog" icon={FileText}>
     <section aria-labelledby="blog-latest">
-      <SectionHeading eyebrow="The latest" title="Useful thinking for your next move" >Short, practical reads for people building and running digital businesses.</SectionHeading>
+      <SectionHeading eyebrow="Editorial notes" title="Useful thinking for your next move" >Short, practical reads on the work behind running a business.</SectionHeading>
+      <p className="mb-4 text-sm leading-6 text-gray-500">These are general editorial guides, not customer case studies or published customer results.</p>
       <div className="divide-y divide-gray-200 border-y border-gray-200">
         {stories.map((story, index) => (
           <article key={story.title} className="grid gap-5 py-8 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-10">
@@ -74,11 +75,11 @@ export const Press: React.FC = () => (
   <StaticPage title="Press and media" description="Company background, brand resources, and a direct route for media questions." eyebrow="Company / Press" icon={FileText}>
     <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_20rem]">
       <div>
-        <SectionHeading eyebrow="Company overview" title="Commerce tools, connected around the work">
-          Iyonicorp brings storefront management, payments, and business automation into a connected platform for sellers and the teams that support them.
+        <SectionHeading eyebrow="Company overview" title="Every business is different. The technology behind it shouldn’t have to.">
+          Iyoni is a modular Business Operating System: one technology foundation for distinct business experiences and shared platform services.
         </SectionHeading>
         <div className="space-y-6 leading-7 text-gray-600">
-          <p>Our products are designed to help businesses manage the everyday work of selling online, from setting up a store to keeping customer operations moving.</p>
+          <p>IyonicShop is the commerce engine, IyonicPay is payment infrastructure, and IyonicBots is Iyoni’s AI and automation engine. Dedicated vertical experiences and storefront themes are available through the platform catalog.</p>
           <p>For accurate product details, current availability, or interview requests, please contact the press team before publication.</p>
         </div>
         <div className="mt-12 border-t border-gray-200 pt-8">

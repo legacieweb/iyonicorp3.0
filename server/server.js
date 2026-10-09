@@ -16,6 +16,9 @@ import { createTransporterFromSettings } from './mailer.js';
 import { triggerAutomation } from './automations.js';
 import { THEME_IDS, THEME_PRICE_USD_CENTS, isValidThemePrice } from '../shared/themePricing.js';
 import { mountPosRoutes } from './posRoutes.js';
+import { mountSmsRoutes } from './smsRoutes.js';
+import { mountSmsAuthRoutes } from './smsAuthRoutes.js';
+import { mountIyonicDbRoutes } from './iyonicdbRoutes.js';
 
 const Paystack = PaystackFactory.default || PaystackFactory;
 const VIP_THEME_IDS = THEME_IDS;
@@ -74,7 +77,14 @@ const RESERVED_STORE_SUBDOMAINS = new Set([
   'admin', 'api', 'app', 'demo', 'iyonicorp', 'localhost', 'shop', 'store', 'web', 'www'
 ]);
 
-const normalizeStoreSubdomain = (value) => String(value || '').trim().toLowerCase();
+const normalizeStoreSubdomain = (value) => String(value || '')
+  .trim()
+  .toLowerCase()
+  .normalize('NFKD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '')
+  .slice(0, 63);
 const isValidStoreSubdomain = (subdomain) => (
   subdomain.length >= 2
   && subdomain.length <= 63
@@ -288,13 +298,15 @@ app.use(express.static(distPath));
 console.log("DATABASE_URL:", process.env.DATABASE_URL ? "Loaded ✅" : "Missing ❌");
 
 // Initialize Database
-initDb()
+const databaseReady = initDb()
   .then(() => {
     seedDefaultTemplates();
     startBackgroundJobs();
+    return true;
   })
   .catch(err => {
     console.error('❌ Failed to initialize database on startup:', err);
+    return false;
   });
 
 // Seed default email templates
@@ -408,7 +420,7 @@ const authenticateToken = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    if (decoded.id !== 'admin-id') {
+     if (decoded.id !== 'admin-id') {
       const userRes = await db.query('SELECT is_suspended FROM users WHERE id = $1', [decoded.id]);
       if (userRes.rows.length === 0) {
         return res.status(401).json({ message: 'Account not found. Please sign in again.' });
@@ -572,7 +584,7 @@ app.post('/api/auth/register', async (req, res) => {
           secondaryColor: '#1d4ed8',
           fontFamily: 'Inter'
         };
-        const acquiredThemes = Array.from(VIP_THEME_IDS);
+        const acquiredThemes = Array.from(VIP_THEME_IDS).filter((themeId) => themeId !== 'sms');
 
         if (themeId && VIP_THEME_IDS.has(themeId)) {
           themeSettings.selectedTheme = themeId;
@@ -1021,7 +1033,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     }
 
     const userRes = await db.query(`
-      SELECT u.id, u.name, u.email, u.role, u.created_at, u.first_name, u.last_name, u.phone_number, u.username, u.last_selected_store_id, u.iyonicpay_opt_in,
+       SELECT u.id, u.name, u.email, u.role, u.created_at, u.first_name, u.last_name, u.phone_number, u.username, u.last_selected_store_id, u.iyonicpay_opt_in,
              s.id as seller_id, s.store_name, s.currency as "storeCurrency", sm.id as manager_id, sm.slug as manager_slug 
       FROM users u 
       LEFT JOIN sellers s ON u.id = s.user_id 
@@ -3770,6 +3782,37 @@ app.get('/api/nlmsongs/admin', authenticateToken, requireNlmAdmin, async (req, r
   }
 });
 
+app.get('/api/nlmsongs/admin/analytics', authenticateToken, requireNlmAdmin, async (req, res) => {
+  try {
+    const isManager = req.user.role === 'manager_admin';
+    const historyScope = isManager ? '' : ' AND h.seller_id = $1';
+    const params = isManager ? [] : [req.user.sellerId];
+    const [summary, topTracks, dailyPlays] = await Promise.all([
+      db.query(`SELECT COUNT(*)::int AS total_plays,
+          COUNT(DISTINCT user_id) FILTER (WHERE user_id IS NOT NULL)::int AS total_listeners,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS plays_last_30_days,
+          COUNT(DISTINCT user_id) FILTER (WHERE user_id IS NOT NULL AND created_at >= NOW() - INTERVAL '30 days')::int AS listeners_last_30_days,
+          COALESCE(SUM(played_seconds), 0)::bigint AS listening_seconds
+        FROM nlm_listening_history h WHERE 1=1${historyScope}`, params),
+      db.query(`SELECT s.id, s.title, s.artist, s.genre, s.thumbnail_url,
+          COUNT(*)::int AS plays, COUNT(DISTINCT h.user_id)::int AS listeners,
+          COALESCE(SUM(h.played_seconds), 0)::bigint AS listening_seconds
+        FROM nlm_listening_history h JOIN nlm_songs s ON s.id = h.track_id
+        WHERE 1=1${historyScope}${isManager ? '' : ' AND s.seller_id = $1'}
+        GROUP BY s.id, s.title, s.artist, s.genre, s.thumbnail_url
+        ORDER BY plays DESC, listeners DESC LIMIT 5`, params),
+      db.query(`SELECT DATE_TRUNC('day', created_at)::date AS day, COUNT(*)::int AS plays
+        FROM nlm_listening_history h
+        WHERE created_at >= NOW() - INTERVAL '30 days'${historyScope}
+        GROUP BY DATE_TRUNC('day', created_at)::date ORDER BY day ASC`, params),
+    ]);
+    res.json(toCamel({ summary: summary.rows[0], topTracks: topTracks.rows, dailyPlays: dailyPlays.rows }));
+  } catch (err) {
+    console.error('NLMSongs admin analytics error:', err);
+    res.status(500).json({ message: 'Could not load NLMSongs analytics.' });
+  }
+});
+
 app.post('/api/nlmsongs', authenticateToken, requireNlmAdmin, handleNlmSongUpload, async (req, res) => {
   const audio = req.files?.audio?.[0];
   const thumbnail = req.files?.thumbnail?.[0];
@@ -3922,10 +3965,28 @@ app.get('/api/nlmsongs/search', async (req, res) => {
 });
 
 const requireNlmUser = (req, res, next) => {
-  if (req.user?.role === 'manager_admin') return next();
-  if (req.user?.role === 'seller' || req.user?.role === 'seller_manager' || req.user?.role === 'customer') return next();
-  return res.status(403).json({ message: 'Authentication required.' });
+  if (req.user?.id) return next();
+  return res.status(401).json({ message: 'Sign in to manage playlists.' });
 };
+
+// Public share endpoint deliberately returns playlist and track metadata only.
+app.get('/api/nlmsongs/shared-playlists/:id', async (req, res) => {
+  try {
+    const result = await db.query(`SELECT p.id, p.name, p.description, p.cover_url as "coverUrl", p.is_public as "isPublic", p.track_count as "trackCount", p.created_at as "createdAt", p.updated_at as "updatedAt"
+      FROM nlm_playlists p WHERE p.id = $1 AND p.is_public = TRUE`, [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Public playlist not found.' });
+    const playlist = result.rows[0];
+    const tracks = await db.query(`SELECT s.id, s.title, s.artist, s.genre,
+        s.thumbnail_url as "thumbnailUrl"
+      FROM nlm_playlist_items pi JOIN nlm_songs s ON s.id = pi.track_id
+      WHERE pi.playlist_id = $1 AND s.is_active = TRUE ORDER BY pi.position`, [req.params.id]);
+    playlist.tracks = tracks.rows;
+    res.json(toCamel(playlist));
+  } catch (err) {
+    console.error('NLM shared playlist error:', err);
+    res.status(500).json({ message: 'Could not load this playlist.' });
+  }
+});
 
 app.get('/api/nlmsongs/playlists', authenticateToken, requireNlmUser, async (req, res) => {
   try {
@@ -7860,17 +7921,21 @@ app.get('/test-db', async (req, res) => {
 
 // Verify API key
 const verifyApiKey = async (apiKey) => {
-  if (!apiKey || !apiKey.startsWith('ip_sk_')) {
+  if (!apiKey || (!apiKey.startsWith('ip_sk_') && !apiKey.startsWith('im_sk_'))) {
     return null;
   }
   
   try {
     const keyRes = await db.query(
-      'SELECT user_id, api_key FROM api_keys WHERE api_key = $1',
+      'SELECT user_id, api_key, is_active FROM api_keys WHERE api_key = $1',
       [apiKey]
     );
     
     if (keyRes.rows.length === 0) {
+      return null;
+    }
+
+    if (!keyRes.rows[0].is_active) {
       return null;
     }
     
@@ -8231,6 +8296,57 @@ app.delete('/api/social-media/posts/:id', authenticateToken, async (req, res) =>
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error deleting social media post' });
+  }
+});
+
+// --- API Key Management Routes ---
+
+// Get or create API key for authenticated user (works for all roles)
+app.get('/api/user/api-key', authenticateToken, async (req, res) => {
+  try {
+    let keyRes = await db.query('SELECT api_key, is_active, created_at FROM api_keys WHERE user_id = $1', [req.user.id]);
+    if (keyRes.rows.length === 0) {
+      const newKey = `im_sk_${nanoid(32)}`;
+      keyRes = await db.query('INSERT INTO api_keys (user_id, api_key, is_active) VALUES ($1, $2, TRUE) RETURNING api_key, is_active, created_at', [req.user.id, newKey]);
+    }
+    res.json({ apiKey: keyRes.rows[0].api_key, isActive: keyRes.rows[0].is_active, createdAt: keyRes.rows[0].created_at });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Regenerate API key
+app.post('/api/user/api-key/regenerate', authenticateToken, async (req, res) => {
+  try {
+    const newKey = `im_sk_${nanoid(32)}`;
+    const result = await db.query(
+      'UPDATE api_keys SET api_key = $1, is_active = TRUE WHERE user_id = $2 RETURNING api_key, is_active, created_at',
+      [newKey, req.user.id]
+    );
+    if (result.rows.length === 0) {
+      const insertRes = await db.query(
+        'INSERT INTO api_keys (user_id, api_key, is_active) VALUES ($1, $2, TRUE) RETURNING api_key, is_active, created_at',
+        [req.user.id, newKey]
+      );
+      res.json({ apiKey: insertRes.rows[0].api_key, isActive: insertRes.rows[0].is_active, createdAt: insertRes.rows[0].created_at });
+    } else {
+      res.json({ apiKey: result.rows[0].api_key, isActive: result.rows[0].is_active, createdAt: result.rows[0].created_at });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error regenerating API key' });
+  }
+});
+
+// Revoke API key
+app.post('/api/user/api-key/revoke', authenticateToken, async (req, res) => {
+  try {
+    await db.query('UPDATE api_keys SET is_active = FALSE WHERE user_id = $1', [req.user.id]);
+    res.json({ message: 'API key revoked successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error revoking API key' });
   }
 });
 
@@ -9235,6 +9351,10 @@ io.on('connection', (socket) => {
 });
 
 mountPosRoutes(app, authenticateToken, io);
+
+mountSmsRoutes(app, authenticateToken, db, toCamel);
+mountSmsAuthRoutes(app, authenticateToken, db, toCamel, normalizeStoreSubdomain, isValidStoreSubdomain, generateStoreSubdomain);
+mountIyonicDbRoutes(app, authenticateToken, db, Paystack, databaseReady);
 
 // ✅ IMPORTANT: bind to 0.0.0.0 for Coolify
 httpServer.listen(PORT, "0.0.0.0", () => {

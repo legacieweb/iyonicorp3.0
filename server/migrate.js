@@ -49,7 +49,7 @@ async function migrate() {
 
     try {
       await client.query('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');
-      await client.query("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('seller', 'seller_manager', 'manager_admin', 'customer'))");
+      await client.query("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('seller', 'seller_manager', 'manager_admin', 'customer', 'school_staff', 'teacher'))");
       console.log('✅ Role constraint updated');
     } catch (err) {
       console.error('❌ Error updating role constraint:', err.message);

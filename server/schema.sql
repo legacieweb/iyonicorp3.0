@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(255) UNIQUE,
     is_suspended BOOLEAN DEFAULT FALSE,
     last_selected_store_id UUID,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('seller', 'seller_manager', 'manager_admin', 'customer')),
+     role VARCHAR(50) NOT NULL CHECK (role IN ('seller', 'seller_manager', 'manager_admin', 'customer', 'school_staff', 'teacher')),
     iyonicpay_opt_in BOOLEAN DEFAULT FALSE,
     iyonicpay_theme VARCHAR(50) DEFAULT 'professional',
     avatar TEXT,
@@ -792,6 +792,63 @@ CREATE TABLE IF NOT EXISTS ixstream_subscriptions (
 
 CREATE INDEX IF NOT EXISTS idx_ixstream_subscriptions_user ON ixstream_subscriptions(user_id);
 CREATE INDEX IF NOT EXISTS idx_ixstream_subscriptions_seller ON ixstream_subscriptions(seller_id);
+
+-- IyonicDB managed projects, API credentials, billing, and monthly metering
+CREATE TABLE IF NOT EXISTS iyonicdb_projects (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(63) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_iyonicdb_projects_user ON iyonicdb_projects(user_id, created_at);
+
+CREATE TABLE IF NOT EXISTS iyonicdb_api_keys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL REFERENCES iyonicdb_projects(id) ON DELETE CASCADE,
+    name VARCHAR(64) NOT NULL,
+    key_prefix VARCHAR(17) NOT NULL UNIQUE,
+    key_hash CHAR(64) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMPTZ,
+    revoked_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_iyonicdb_api_keys_user ON iyonicdb_api_keys(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS iyonicdb_subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan_id VARCHAR(16) NOT NULL CHECK (plan_id IN ('launch', 'growth', 'scale')),
+    status VARCHAR(16) NOT NULL CHECK (status IN ('active', 'expired', 'canceled')),
+    current_period_start TIMESTAMPTZ NOT NULL,
+    current_period_end TIMESTAMPTZ NOT NULL,
+    payment_reference VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_iyonicdb_subscriptions_user_period
+    ON iyonicdb_subscriptions(user_id, current_period_end DESC);
+
+CREATE TABLE IF NOT EXISTS iyonicdb_payment_attempts (
+    reference VARCHAR(255) PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan_id VARCHAR(16) NOT NULL CHECK (plan_id IN ('launch', 'growth', 'scale')),
+    amount NUMERIC(10, 2) NOT NULL CHECK (amount > 0),
+    currency VARCHAR(3) NOT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS iyonicdb_usage (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    month_start DATE NOT NULL,
+    request_count BIGINT NOT NULL DEFAULT 0,
+    write_count BIGINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, month_start)
+);
 
 -- ============================================
 -- Apex POS Tables

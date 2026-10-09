@@ -6,6 +6,9 @@ import SEO from '../components/SEO';
 import { Button, Input, Card, Popup, Textarea, Select, Badge } from '../components/ui';
 import { 
   Bot, 
+  ArrowUpRight,
+  ArrowRight,
+  ArrowDown,
   Cpu, 
   MessageSquare, 
   Terminal, 
@@ -39,7 +42,9 @@ import {
 } from 'lucide-react';
 import { api, botsAPI } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import ProductFooter from '../components/ProductFooter';
+import { HomepageFooter } from '../components/HomepageFooter';
+import IyoniPlatformBand from '../components/IyoniPlatformBand';
+import './Homepage.css';
 
 const IyonicBots: React.FC = () => {
   const { user, login, register, setAuthenticatedUser, logout } = useAuth();
@@ -48,6 +53,7 @@ const IyonicBots: React.FC = () => {
   const [isLoginPopupOpen, setIsLoginPopupOpen] = useState(false);
   const [isRegisterPopupOpen, setIsRegisterPopupOpen] = useState(false);
   const [isContinuePopupOpen, setIsContinuePopupOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   
   const [activeTab, setActiveTab] = useState<'dashboard' | 'my-bots' | 'training' | 'api' | 'billing' | 'knowledge' | 'conversations' | 'analytics' | 'settings' | 'test-lab'>('dashboard');
   const [view, setView] = useState<'landing' | 'dashboard'>('landing');
@@ -61,29 +67,29 @@ const IyonicBots: React.FC = () => {
     { 
       id: 'support-pro', 
       name: 'SupportPro', 
-      desc: 'Expert customer service bot trained for e-commerce. Handles returns, shipping queries, and product FAQs with empathy.', 
+      desc: 'A customer-support starting point for common product and policy questions.',
       icon: <MessageSquare className="w-8 h-8" />, 
       category: 'Support',
       color: 'bg-blue-50 text-blue-600',
-      features: ['24/7 Availability', 'Policy Awareness', 'Sentiment Analysis']
+      features: ['Support conversations', 'Business information', 'Configurable responses']
     },
     { 
       id: 'sales-genie', 
       name: 'SalesGenie', 
-      desc: 'Aggressive sales assistant that drives conversions. Specialized in upselling, cross-selling, and creating urgency.', 
+      desc: 'A sales-oriented starting point for product questions and customer conversations.',
       icon: <Zap className="w-8 h-8" />, 
       category: 'Sales',
       color: 'bg-amber-50 text-amber-600',
-      features: ['Upsell Engine', 'Discount Logic', 'Abandoned Cart Recovery']
+      features: ['Sales conversations', 'Product information', 'Configurable responses']
     },
     { 
       id: 'tech-guru', 
       name: 'TechGuru', 
-      desc: 'Technical documentation specialist and debugger. Perfect for SaaS and tech products needing complex explanations.', 
+      desc: 'A technical-support starting point for product and service questions.',
       icon: <Terminal className="w-8 h-8" />, 
       category: 'Technical',
       color: 'bg-purple-50 text-purple-600',
-      features: ['API Docs Support', 'Troubleshooting', 'Version Control Tracking']
+      features: ['Technical questions', 'Business information', 'Configurable responses']
     },
   ]);
 
@@ -1440,313 +1446,264 @@ const IyonicBots: React.FC = () => {
   }
 
   // Landing Page View
+  const handleNav = () => setMenuOpen(false);
+  const scrollToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({
+      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+      block: 'start',
+    });
+    setMenuOpen(false);
+  };
+
   return (
-    <div className="min-h-screen bg-white font-sans selection:bg-blue-100">
+    <div className="home-shell platform-shell min-h-screen">
+      <IyoniPlatformBand />
       <SEO 
-        title="IyonicBots - Cognitive AI & Business Automation" 
-        description="Transform your business with IyonicBots. Intelligent AI partners trained on your data to handle customer support, sales, and complex workflows 24/7. Part of the Iyonicorp enterprise suite."
-        keywords="cognitive AI, business automation, intelligent chatbots, customer experience, AI workforce, IyonicBots"
+        title="IyonicBots — AI & Automation for Modern Business"
+        description="IyonicBots is Iyoni's AI and automation engine inside a modular Business Operating System — helping businesses turn repeat work into faster, clearer operations."
+        keywords="business automation, AI engine, automation, customer support, IyonicBots"
         canonical="https://iyonicorp.com/iyonicbots"
       />
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => window.location.href = '/'}>
-            <div className="w-10 h-10 flex items-center justify-center">
-              <img src="/logo.png" alt="Iyonicorp Logo" className="w-10 h-10 object-contain" />
-            </div>
-            <span className="text-2xl font-black tracking-tighter text-gray-900">IyonicBots</span>
-          </div>
-          <div className="hidden md:flex items-center space-x-8">
-            <a href="#features" className="text-sm font-bold text-gray-500 hover:text-gray-900">Features</a>
-            <a href="#templates" className="text-sm font-bold text-gray-500 hover:text-gray-900">Templates</a>
-            <a href="#api" className="text-sm font-bold text-gray-500 hover:text-gray-900">API</a>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" className="font-bold text-gray-600" onClick={() => setIsLoginPopupOpen(true)}>Sign In</Button>
-            <Button className="bg-blue-600 text-white hover:bg-blue-700 px-6 rounded-xl font-bold" onClick={() => setIsRegisterPopupOpen(true)}>Get Started</Button>
-          </div>
-        </div>
-      </nav>
 
-      {/* Hero */}
-      <header className="pt-40 pb-20 px-6">
-        <div className="max-w-7xl mx-auto text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center space-x-2 px-4 py-1.5 bg-blue-50 rounded-full border border-blue-100 mb-8"
-          >
-            <Sparkles className="w-4 h-4 text-blue-600" />
-            <span className="text-xs font-black tracking-wider text-blue-600 uppercase">AI Bot Engine v2.0 Now Live</span>
-          </motion.div>
-          <h1 className="text-6xl md:text-[80px] font-black tracking-tighter leading-[0.9] mb-8 text-gray-900">
-            Intelligent Bots for <br />
-            <span className="text-blue-600 italic font-serif font-light lowercase">your</span> Business.
-          </h1>
-          <p className="max-w-2xl mx-auto text-xl text-gray-500 mb-12 font-medium leading-relaxed">
-            Train custom AI agents on your business data and deploy them anywhere in seconds. 
-            Automate support, drive sales, and scale your operations 24/7.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button 
-              size="lg" 
-              className="w-full sm:w-auto px-10 py-8 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xl font-black shadow-2xl shadow-blue-200 transition-all hover:-translate-y-1"
+      <header className="home-header" id="home-header">
+        <nav className="home-nav" aria-label="Main navigation">
+          <Link to="/" className="home-brand" aria-label="Iyoni home" onClick={handleNav}>
+            <img src="/logo.png" alt="" />
+            <span>Iyoni<span className="brand-period">.</span></span>
+          </Link>
+
+          <div className="nav-links">
+            <button type="button" onClick={() => scrollToSection('features')}>Features</button>
+            <button type="button" onClick={() => scrollToSection('templates')}>Templates</button>
+            <button type="button" onClick={() => scrollToSection('platform')}>Iyoni platform</button>
+          </div>
+
+          <div className="nav-actions">
+            <button type="button" className="nav-login" onClick={() => setIsLoginPopupOpen(true)}>Log In</button>
+            <button
+              type="button"
+              className="nav-cta"
               onClick={() => setIsRegisterPopupOpen(true)}
             >
-              Build Your First Bot
-            </Button>
-            <Button 
-              size="lg" 
-              variant="outline" 
-              className="w-full sm:w-auto px-10 py-8 rounded-2xl text-xl font-bold border-2 border-gray-100 hover:bg-gray-50 transition-all"
-              onClick={() => setIsContinuePopupOpen(true)}
-            >
-              Connect store
-            </Button>
+              Build with Iyoni <ArrowUpRight size={15} />
+            </button>
           </div>
-          
-          <div className="mt-24 relative max-w-5xl mx-auto">
-            <div className="bg-gray-950 rounded-[3rem] p-4 shadow-3xl overflow-hidden border border-gray-800">
-              <div className="bg-gray-900 rounded-[2.5rem] p-8 text-left text-blue-400 font-mono text-sm min-h-[400px]">
-                <div className="flex space-x-2 mb-8">
-                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                  <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                </div>
-                <p className="mb-2"># Initialize Iyonic AI Engine...</p>
-                <p className="mb-2 text-white">$ iyonic train --source ./business_data.pdf</p>
-                <p className="mb-2 text-green-400">✓ Parsing knowledge base...</p>
-                <p className="mb-2 text-green-400">✓ Generating neural embeddings...</p>
-                <p className="mb-6 text-green-400">✓ AI Bot trained successfully (Accuracy: 99.2%)</p>
-                <p className="mb-2 text-white">$ iyonic deploy --platform iyonicorp --target storefront</p>
-                <p className="text-blue-500">→ Bot deployed to: shop-assistant-v2.iyonicbots.com</p>
-              </div>
+
+          <button
+            type="button"
+            className="menu-toggle"
+            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+
+          {menuOpen && (
+            <div className="mobile-nav">
+              <button type="button" onClick={() => scrollToSection('features')}>Features</button>
+              <button type="button" onClick={() => scrollToSection('templates')}>Templates</button>
+              <button type="button" onClick={() => scrollToSection('platform')}>Iyoni platform</button>
+              <button type="button" onClick={() => { setIsLoginPopupOpen(true); handleNav(); }}>Log In</button>
+              <button type="button" className="nav-cta" onClick={() => { setIsRegisterPopupOpen(true); handleNav(); }}>
+                Build with Iyoni <ArrowUpRight size={15} />
+              </button>
             </div>
-          </div>
-        </div>
+          )}
+        </nav>
       </header>
 
-      {/* Trust Section */}
-      <section className="px-6 py-20 bg-gray-50/50">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-center text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-12">Powering autonomous agents for</p>
-          <div className="flex flex-wrap justify-center items-center gap-12 md:gap-24 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
-            {['OpenAI', 'Anthropic', 'Meta', 'Google', 'Microsoft', 'NVIDIA'].map((brand) => (
-              <span key={brand} className="text-2xl font-black text-gray-900 tracking-tighter">{brand}</span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Modern Features Grid */}
-      <section id="features" className="px-6 py-32 max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-24">
-          <h2 className="text-5xl md:text-6xl font-black text-gray-900 mb-8 tracking-tighter leading-tight">Built for the <span className="text-blue-600 italic font-serif font-light lowercase">autonomous</span> era.</h2>
-          <p className="text-xl text-gray-500 font-medium leading-relaxed">The most advanced AI agent infrastructure. Train, deploy, and manage custom bots that actually understand your business.</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            { 
-              icon: <Database className="w-8 h-8" />, 
-              title: 'Vector Knowledge', 
-              desc: 'Convert your PDFs, docs, and URLs into a high-performance vector database for instant AI retrieval.',
-              color: 'bg-blue-50 text-blue-600'
-            },
-            { 
-              icon: <ShieldCheck className="w-8 h-8" />, 
-              title: 'Isolated Context', 
-              desc: 'Every bot operates in a strictly isolated environment. Your proprietary data never leaks between agents.',
-              color: 'bg-cyan-50 text-cyan-600'
-            },
-            { 
-              icon: <Globe className="w-8 h-8" />, 
-              title: 'Multi-Platform', 
-              desc: 'One-click deployment to Iyonicorp, WordPress, Shopify, or any custom site with a lightweight JS widget.',
-              color: 'bg-indigo-50 text-indigo-600'
-            },
-            { 
-              icon: <Smartphone className="w-8 h-8" />, 
-              title: 'Mobile Native', 
-              desc: 'Optimized chat interfaces that feel native on every device, with support for voice and media.',
-              color: 'bg-blue-900 text-white'
-            },
-            { 
-              icon: <Zap className="w-8 h-8" />, 
-              title: 'Real-time Learning', 
-              desc: 'Bots update their knowledge base in real-time as you add new information to your dashboard.',
-              color: 'bg-amber-50 text-amber-600'
-            },
-            { 
-              icon: <Terminal className="w-8 h-8" />, 
-              title: 'Developer SDK', 
-              desc: 'Full API access to programmatically manage bots, training data, and chat sessions.',
-              color: 'bg-gray-900 text-white'
-            }
-          ].map((feature, i) => (
-            <motion.div 
-              key={i}
-              whileHover={{ y: -10 }}
-              className="p-10 bg-white border border-gray-100 rounded-[3rem] shadow-sm hover:shadow-2xl hover:shadow-blue-100/50 transition-all duration-500 group"
+      <section className="platform-hero" aria-labelledby="bots-hero-title">
+        <div className="platform-hero-copy">
+          <p className="eyebrow"><span className="eyebrow-mark" /> AI & automation engine</p>
+          <h1 id="bots-hero-title">
+            Automate the work <br />
+            <em>that slows you down.</em>
+          </h1>
+          <p className="hero-lede">
+            IyonicBots is Iyoni's AI and automation engine inside a modular Business Operating System —
+            helping businesses move faster while keeping customer experience, knowledge, and workflows
+            connected.
+          </p>
+          <div className="hero-actions">
+            <button
+              type="button"
+              className="button button-dark"
+              onClick={() => setIsRegisterPopupOpen(true)}
             >
-              <div className={`w-16 h-16 ${feature.color} rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-current/10 group-hover:scale-110 transition-transform`}>
-                {feature.icon}
-              </div>
-              <h3 className="text-2xl font-black text-gray-900 mb-4 tracking-tight">{feature.title}</h3>
-              <p className="text-gray-500 font-medium leading-relaxed">{feature.desc}</p>
-            </motion.div>
-          ))}
+              Build your first bot <ArrowRight size={17} />
+            </button>
+            <button type="button" className="text-link" onClick={() => setIsContinuePopupOpen(true)}>
+              Explore Iyoni <ArrowDown size={15} />
+            </button>
+          </div>
+          <div className="hero-footnote">
+            <span className="footnote-rule" />
+            <span><strong>One platform.</strong> Automation connected to commerce and payments.</span>
+          </div>
+        </div>
+
+        <div className="platform-hero-visual" aria-hidden="true">
+          <div className="map-topline"><span>CONFIGURE</span><span>DEPLOY</span></div>
+          <div className="map-industry-row">
+            <span>Knowledge</span>
+            <span>Conversations</span>
+            <span>Automation</span>
+            <span>Integration</span>
+          </div>
+          <div className="map-connectors" aria-hidden="true">
+            <i /><i /><i /><i />
+          </div>
+          <div className="map-core">
+            <div className="core-symbol"><span /><span /><span /></div>
+            <div>
+              <span className="core-overline">IYONI</span>
+              <strong>Automation</strong>
+            </div>
+            <ArrowRight size={20} />
+          </div>
+          <div className="map-lower-label">CONNECTED SERVICES <span>↓</span></div>
+          <div className="map-capabilities">
+            <span>Commerce</span>
+            <span>Support</span>
+            <span>Operations</span>
+            <span>Growth</span>
+          </div>
+          <div className="map-caption">
+            <span className="caption-dot" />
+            Bots built to connect to the wider business platform.
+          </div>
         </div>
       </section>
 
-      {/* Bot Templates Section */}
-      <section id="templates" className="px-6 py-32 bg-gray-50/50">
+      <section className="section-wrap">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-5xl font-black text-gray-900 mb-6 tracking-tighter">Available Bot Templates</h2>
-            <p className="text-lg text-gray-500 font-medium">Choose a specialized agent personality for your specific business needs.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {availableBots.map((bot) => (
-              <motion.div 
-                key={bot.id}
-                whileHover={{ y: -10 }}
-                className="bg-white rounded-[3.5rem] p-10 border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 flex flex-col"
-              >
-                <div className={`w-20 h-20 ${bot.color} rounded-3xl flex items-center justify-center mb-10 shadow-lg`}>
-                  {bot.icon}
-                </div>
-                <h3 className="text-3xl font-black text-gray-900 mb-4">{bot.name}</h3>
-                <p className="text-gray-500 font-medium mb-8 flex-1 leading-relaxed">{bot.desc}</p>
-                
-                <div className="space-y-3 mb-10">
-                  {bot.features.map((feature: string, idx: number) => (
-                    <div key={idx} className="flex items-center space-x-3 text-sm font-bold text-gray-600">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                      <span>{feature}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <Button 
-                  onClick={() => setIsRegisterPopupOpen(true)}
-                  className="w-full py-6 rounded-[2rem] bg-gray-900 hover:bg-black text-white font-black"
-                >
-                  Deploy {bot.name}
-                </Button>
-              </motion.div>
-            ))}
+          <p className="text-center text-[10px] font-black uppercase tracking-[0.3em] text-[#65736a]">
+            A core Iyoni platform service
+          </p>
+          <p className="mx-auto mt-5 max-w-2xl text-center text-lg leading-8 text-[#65736a]">
+            IyonicBots is one of Iyoni's core services inside a broader Business Operating System.
+            The platform also includes dedicated commerce, payments, and growth services.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <Link to="/themes" className="inline-flex items-center gap-2 font-bold text-[#315e4b] hover:text-[#193d30]">
+              Explore all platforms <ArrowUpRight className="h-4 w-4" />
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* API / Code Section */}
-      <section id="api" className="px-6 py-32 bg-gray-950 overflow-hidden relative">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-20">
-          <div className="lg:w-1/2">
-            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-500/10 rounded-full text-blue-400 text-[10px] font-black uppercase tracking-[0.2em] mb-8">
-              <Code className="w-4 h-4" />
-              <span>Full API Access</span>
-            </div>
-            <h2 className="text-5xl md:text-6xl font-black text-white mb-8 tracking-tighter leading-tight">Embed <span className="text-blue-500">intelligence</span> into your app.</h2>
-            <p className="text-xl text-gray-400 font-medium mb-12 leading-relaxed">
-              Integrate custom AI agents into your existing workflows with our powerful REST API and client-side SDKs.
+      <section className="section-wrap" id="features" aria-labelledby="bots-features-title">
+        <div className="section-intro">
+          <p className="eyebrow">AI TOOLS</p>
+          <h2 id="bots-features-title">Everything you need to <em>configure</em> confidently.</h2>
+          <p>
+            Bot configuration, knowledge management, and conversation tools built for your
+            business — linked by design to operations and commerce.
+          </p>
+        </div>
+
+        <div className="capability-grid">
+          <Link to="/themes" className="capability-card">
+            <span className="capability-index">01</span>
+            <Database size={21} strokeWidth={1.7} />
+            <strong>Business knowledge</strong>
+            <p>Add and manage business information for bots, including knowledge documents and FAQs.</p>
+            <ArrowUpRight className="capability-arrow" size={16} />
+          </Link>
+          <Link to="/themes" className="capability-card">
+            <span className="capability-index">02</span>
+            <ShieldCheck size={21} strokeWidth={1.7} />
+            <strong>Bot configuration</strong>
+            <p>Set response instructions, welcome messages, and the knowledge sources available to a bot.</p>
+            <ArrowUpRight className="capability-arrow" size={16} />
+          </Link>
+          <Link to="/themes" className="capability-card">
+            <span className="capability-index">03</span>
+            <Globe size={21} strokeWidth={1.7} />
+            <strong>Widget settings</strong>
+            <p>Review the available widget settings, including its greeting, color, and icon.</p>
+            <ArrowUpRight className="capability-arrow" size={16} />
+          </Link>
+          <Link to="/themes" className="capability-card">
+            <span className="capability-index">04</span>
+            <Smartphone size={21} strokeWidth={1.7} />
+            <strong>Response testing</strong>
+            <p>Use the test experience to review bot responses as you configure it.</p>
+            <ArrowUpRight className="capability-arrow" size={16} />
+          </Link>
+          <Link to="/themes" className="capability-card">
+            <span className="capability-index">05</span>
+            <Zap size={21} strokeWidth={1.7} />
+            <strong>Conversation review</strong>
+            <p>View conversations in the bot workspace when conversation data is available.</p>
+            <ArrowUpRight className="capability-arrow" size={16} />
+          </Link>
+          <Link to="/themes" className="capability-card">
+            <span className="capability-index">06</span>
+            <Terminal size={21} strokeWidth={1.7} />
+            <strong>Bot workspace</strong>
+            <p>Manage your bots and their settings within the IyonicBots experience.</p>
+            <ArrowUpRight className="capability-arrow" size={16} />
+          </Link>
+        </div>
+      </section>
+
+      <section className="architecture-section" id="templates" aria-labelledby="bots-architecture-title">
+        <div className="section-wrap architecture-inner">
+          <div className="architecture-stamp">
+            <span>CORE<br />SERVICE</span>
+            <Bot size={24} />
+          </div>
+          <div className="architecture-copy">
+            <p className="eyebrow">A MODULAR WAY TO BUILD</p>
+            <h2 id="bots-architecture-title">One foundation.<br /><em>Automation in the picture.</em></h2>
+            <p>
+              IyonicBots is one of Iyoni's core services. Explore the business platforms around it
+              and check your account for currently available automation tools.
             </p>
-            <div className="grid grid-cols-2 gap-6">
-              {[
-                { label: 'Latency', value: '<200ms' },
-                { label: 'Availability', value: '99.99%' },
-                { label: 'Accuracy', value: '99.2%' },
-                { label: 'Security', value: 'AES-256' }
-              ].map((stat, i) => (
-                <div key={stat.label} className="p-6 bg-white/5 rounded-3xl border border-white/5">
-                  <p className="text-3xl font-black text-white mb-1 tracking-tighter">{stat.value}</p>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="lg:w-1/2 relative">
-            <div className="bg-[#0f172a] rounded-[2.5rem] p-8 shadow-2xl border border-white/5 relative z-10">
-              <div className="flex items-center justify-between mb-8 border-b border-white/5 pb-6">
-                <div className="flex space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
-                  <div className="w-3 h-3 rounded-full bg-amber-500/50"></div>
-                  <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
-                </div>
-                <span className="text-xs font-mono text-gray-500 uppercase tracking-widest">iyonic-sdk.js</span>
-              </div>
-              <pre className="font-mono text-sm leading-relaxed overflow-x-auto">
-                <code className="text-blue-400">
-                  {`import { IyonicBot } from '@iyonic/sdk';
-
-const agent = new IyonicBot('bot_id_...');
-
-// Connect to neural core
-await agent.connect();
-
-// Stream completion
-agent.chat('How do I process a refund?', (chunk) => {
-  render(chunk);
-});`}
-                </code>
-              </pre>
-            </div>
-            {/* Background Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-blue-600/20 rounded-full blur-[100px] -z-0"></div>
-          </div>
-        </div>
-      </section>
-
-      {/* Global Impact Section */}
-      <section className="px-6 py-32 max-w-7xl mx-auto text-center">
-        <h2 className="text-5xl md:text-6xl font-black text-gray-900 mb-8 tracking-tighter leading-tight">Scale <span className="text-cyan-500">beyond</span> human limits.</h2>
-        <p className="text-xl text-gray-500 font-medium max-w-3xl mx-auto mb-20 leading-relaxed">We handle millions of interactions daily, allowing businesses to provide expert-level support at any time, in any language.</p>
-        
-        <div className="relative aspect-[21/9] bg-gray-50 rounded-[4rem] overflow-hidden border border-gray-100 group">
-          <div className="absolute inset-0 flex items-center justify-center opacity-10 group-hover:opacity-20 transition-opacity duration-1000">
-            <Database className="w-full h-full text-blue-900 p-24" />
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-20">
-              {[
-                { label: 'AI Interactions', value: '15M+' },
-                { label: 'Data Points', value: '2.4B+' },
-                { label: 'Cost Savings', value: '85%' },
-                { label: 'Live Bots', value: '12K+' }
-              ].map((stat, i) => (
-                <div key={stat.label}>
-                  <p className="text-5xl font-black text-gray-900 mb-2 tracking-tighter">{stat.value}</p>
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">{stat.label}</p>
-                </div>
-              ))}
+            <div className="architecture-steps">
+              <span><b>01</b> Find your platform</span>
+              <i />
+              <span><b>02</b> Explore available tools</span>
+              <i />
+              <span><b>03</b> Build from there</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="px-6 py-32">
-        <div className="max-w-7xl mx-auto bg-blue-600 rounded-[4rem] p-12 md:p-32 text-center relative overflow-hidden group">
-          <div className="relative z-10">
-            <h2 className="text-5xl md:text-7xl font-black text-white mb-12 tracking-tighter leading-tight">Deploy your AI <br/> workforce today.</h2>
-            <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
-              <button onClick={() => setIsRegisterPopupOpen(true)} className="px-12 py-6 bg-white text-blue-600 font-black rounded-[2rem] text-xl shadow-2xl shadow-black/10 hover:bg-gray-50 transition-all active:scale-95">Get Started Free</button>
-              <button onClick={() => setIsLoginPopupOpen(true)} className="px-12 py-6 bg-blue-700 text-white font-black rounded-[2rem] text-xl hover:bg-blue-800 transition-all active:scale-95">Book a Demo</button>
-            </div>
+      <section className="closing-cta">
+        <div className="closing-orbit" aria-hidden="true"><span /><span /><span /></div>
+        <div className="closing-copy">
+          <p className="eyebrow">ONE FOUNDATION. YOUR BUSINESS.</p>
+          <h2>Deploy your AI <br />workforce <em>today.</em></h2>
+          <p>Find the platform that fits, then take your next step.</p>
+          <div className="hero-actions">
+            <Link className="button button-light" to="/themes">
+              Explore platforms <ArrowRight size={17} />
+            </Link>
+            <button
+              className="closing-login"
+              type="button"
+              onClick={() => setIsRegisterPopupOpen(true)}
+            >
+              Get started <ArrowUpRight size={16} />
+            </button>
           </div>
-          
-          {/* Decorative Elements */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[100px] -mr-48 -mt-48"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-cyan-400/20 rounded-full blur-[100px] -ml-48 -mb-48"></div>
+        </div>
+        <div className="closing-foot">
+          IYONI CORP <span>—</span> RUN. SELL. GET PAID. AUTOMATE. GROW.
         </div>
       </section>
 
+      <HomepageFooter />
+
+      {/* Modals */}
+      {/* Full Page Auth Overlays */}
       <AnimatePresence>
         {isLoginPopupOpen && (
+
           <motion.div 
             initial={{ opacity: 0, x: '100%' }}
             animate={{ opacity: 1, x: 0 }}
@@ -1766,28 +1723,17 @@ agent.chat('How do I process a refund?', (chunk) => {
                   The <span className="text-blue-500 italic font-serif font-light">next</span> generation of AI agents.
                 </h2>
                 <p className="text-gray-400 text-xl max-w-md font-medium leading-relaxed">
-                  Train intelligent bots on your own data and deploy them anywhere in seconds. Your 24/7 AI workforce starts here.
+                  Configure bots, add business information, and review the available conversation tools from your workspace.
                 </p>
               </div>
 
               <div className="relative z-10 space-y-8">
-                <div className="flex items-center space-x-4">
-                  <div className="flex -space-x-3">
-                    {[1,2,3,4].map(i => (
-                      <div key={i} className="w-10 h-10 rounded-full border-2 border-gray-950 bg-gray-800 flex items-center justify-center overflow-hidden">
-                        <img src={`https://i.pravatar.cc/100?img=${i+10}`} alt="" className="w-full h-full object-cover opacity-80" />
-                      </div>
-                    ))}
-                  </div>
-                  <span className="text-gray-400 text-sm font-bold">Trusted by 5,000+ businesses</span>
-                </div>
-
                 <div className="p-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2.5rem]">
                    <div className="flex items-center space-x-2 text-blue-500 mb-2">
                      <Sparkles className="w-4 h-4" />
-                     <span className="text-[10px] font-black uppercase tracking-widest">New Engine v2.0</span>
+                     <span className="text-[10px] font-black uppercase tracking-widest">Part of Iyoni</span>
                    </div>
-                   <p className="text-white font-bold">99.2% accuracy in technical documentation parsing.</p>
+                   <p className="text-white font-bold">One AI and automation service within a modular business platform.</p>
                 </div>
               </div>
               
@@ -1884,7 +1830,7 @@ agent.chat('How do I process a refund?', (chunk) => {
                   Build <span className="text-blue-200 italic font-serif font-light">better</span> together.
                 </h2>
                 <p className="text-blue-100 text-xl max-w-md font-medium">
-                  Create your free account today and start training your first custom AI agent in less than 5 minutes.
+                  Create an account to explore the IyonicBots workspace and its available configuration tools.
                 </p>
               </div>
               
@@ -2038,65 +1984,6 @@ agent.chat('How do I process a refund?', (chunk) => {
           </div>
         )}
       </Popup>
-
-      <section id="pricing" className="bg-gray-50 px-6 py-28">
-        <div className="mx-auto max-w-7xl">
-          <div className="mx-auto mb-16 max-w-3xl text-center">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-blue-600">Bot plans</p>
-            <h2 className="mt-4 text-5xl font-black tracking-tight text-gray-900">Start free. Advance when ready.</h2>
-            <p className="mt-6 text-lg leading-8 text-gray-500">Start with a free bot, add the everyday Basic toolkit for $2, then unlock deeper training and deployment controls.</p>
-          </div>
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-            {[
-              { id: 'starter', name: 'Starter', price: 0, displayPrice: 'Free', text: 'A focused role-based bot to get your store moving.', cta: 'Start free' },
-              { id: 'basic', name: 'Basic', price: 2, displayPrice: '$2/mo', text: 'Three role-based bots for everyday store support.', cta: 'Get Basic' },
-              { id: 'pro', name: 'Pro', price: 9.99, displayPrice: '$9.99/mo', text: 'Advanced training and deployment with IyonicShop Professional.', cta: 'Get Pro' },
-              { id: 'promax', name: 'Pro Max', price: 29.99, displayPrice: '$29.99/mo', text: 'Priority automation and the complete agent toolkit with Enterprise.', cta: 'Get Pro Max' }
-            ].map((plan, index) => {
-              const isSeller = user?.role === 'seller';
-              const isCurrent = isSeller && billing.plan.id === plan.id;
-              return (
-              <div key={plan.name} className={`rounded-[2rem] p-8 ${
-                index === 1 ? 'bg-blue-600 text-white shadow-2xl shadow-blue-200' : 'bg-white text-gray-900 shadow-xl'
-              } ${isCurrent ? 'ring-2 ring-indigo-600' : ''}`}>
-                <p className={`text-xs font-black uppercase tracking-[0.2em] ${index === 1 ? 'text-blue-100' : 'text-blue-600'}`}>{plan.name}</p>
-                <p className="mt-5 text-4xl font-black">{plan.displayPrice}</p>
-                {plan.price > 0 && (
-                  <p className={`mt-2 text-xs ${index === 1 ? 'text-blue-200' : 'text-gray-400'}`}>per bot per month</p>
-                )}
-                <p className={`mt-4 min-h-14 leading-7 ${index === 1 ? 'text-blue-100' : 'text-gray-500'}`}>{plan.text}</p>
-                <button
-                  onClick={() => isSeller ? handlePricingAction() : setIsRegisterPopupOpen(true)}
-                  className={`mt-8 w-full rounded-xl px-5 py-3 font-black transition ${index === 1 ? 'bg-white text-blue-600 hover:bg-blue-50' : 'bg-gray-900 text-white hover:bg-black'}`}
-                  disabled={isCurrent}
-                >
-                  {isCurrent ? 'Current Plan' : (isSeller ? plan.cta : 'Start with this tier')}
-                </button>
-              </div>
-            );
-            })}
-        </div>
-          </div>
-      </section>
-
-      <ProductFooter product="IyonicBots" accentClass="text-blue-400" description="Train practical AI agents on your business knowledge and give your team more time for work that matters." />
-      <footer className="hidden">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 flex items-center justify-center">
-              <img src="/logo.png" alt="Iyonicorp Logo" className="w-10 h-10 object-contain" />
-            </div>
-            <span className="text-2xl font-black tracking-tighter text-gray-900 uppercase">IyonicBots</span>
-          </div>
-          <div className="flex flex-wrap justify-center gap-12 text-sm font-black uppercase tracking-widest text-gray-400">
-            <a href="#" className="hover:text-blue-600 transition-colors">Safety</a>
-            <a href="#" className="hover:text-blue-600 transition-colors">Privacy</a>
-            <a href="#" className="hover:text-blue-600 transition-colors">Terms</a>
-            <a href="#" className="hover:text-blue-600 transition-colors">Status</a>
-          </div>
-          <p className="text-gray-400 text-xs font-bold">© 2026 Iyonic AI Engine by Iyonicorp. All rights reserved.</p>
-        </div>
-      </footer>
     </div>
   );
 };

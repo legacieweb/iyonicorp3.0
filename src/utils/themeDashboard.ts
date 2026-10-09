@@ -1,12 +1,13 @@
 const THEME_DASHBOARD_ROUTES: Record<string, string> = {
   'event-planner': '/events/event-planner/admin',
   carnovga: '/events/event-planner/admin',
-  tspp: '/tspp/admin',
+  tspp: '/tspp/owner',
   'aura-salon': '/salon/aura-salon/admin',
   'craft-collective': '/marketplace/craft-collective/admin',
   'point-of-sale': '/pos/point-of-sale/admin',
   'apex-pos': '/pos/apex-pos/admin',
   'pulse-fit': '/fit/pulse-fit/admin',
+  'crown-stroke': '/pdp/crown-stroke/admin',
   evento: '/evento/admin',
   nlmsongs: '/nlmsongs/dashboard',
   ixstream: '/ixstream/dashboard',
@@ -22,6 +23,7 @@ const THEME_DASHBOARD_ROUTES: Record<string, string> = {
   'elite-consulting': '/seller/dashboard?tab=overview',
   'creative-studio': '/seller/dashboard?tab=overview',
   'modern-wellness': '/seller/dashboard?tab=overview',
+  sms: '/sms/owner',
 };
 
 const THEME_CLIENT_DASHBOARD_ROUTES: Record<string, string> = {
@@ -32,6 +34,7 @@ const THEME_CLIENT_DASHBOARD_ROUTES: Record<string, string> = {
   evento: '/evento/client',
   'tamira-salon': '/salon/tamira-salon/client',
   'pulse-fit': '/fit/pulse-fit/client',
+  'crown-stroke': '/pdp/crown-stroke/client',
   'homeworker': '/homeworker/student',
   'car-rental': '/car-rental/client',
   'restaurant': '/restaurant/client',
@@ -39,6 +42,7 @@ const THEME_CLIENT_DASHBOARD_ROUTES: Record<string, string> = {
   utorme: '/utorme/student',
   essayme: '/utorme/student',
   tspp: '/tspp/client',
+  sms: '/sms/parent',
 };
 
 export const normalizeThemeId = (themeId?: string | null) => {

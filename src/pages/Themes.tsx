@@ -23,6 +23,7 @@ const THEMES: ThemeOption[] = [
   { id: 'bakery-store', name: 'Bakery Store', description: 'An inviting, artisanal storefront for bakeries, cafes, and makers.', tags: ['Artisanal', 'Bakery', 'Food'], kind: 'product' },
   { id: 'couture-store', name: 'Couture Store', description: 'High-fashion minimalism for couture houses and designer labels.', tags: ['Fashion', 'Minimalist', 'Couture'], kind: 'product' },
   { id: 'tspp', name: 'TSPP', description: 'A premium, modern hiring platform for private schools and verified teachers, with a trust-first recruitment flow and contemporary deep-teal & gold design.', tags: ['Hiring', 'Schools', 'Verified', 'Premium', 'Modern'], kind: 'service' },
+  { id: 'sms', name: 'School Management System', description: 'A complete school management platform with SIS, faculty, grading, attendance, scheduling, fee management, and parent-teacher communication portals.', tags: ['School', 'Education', 'SIS', 'Attendance', 'Grading', 'Fees', 'Modern'], kind: 'education' },
   { id: 'event-planner', name: 'Event Flow', description: 'A sophisticated event planning platform with navy-and-gold branding, request-based booking, and dedicated workspaces.', tags: ['Events', 'Planning', 'Booking', 'Premium'], kind: 'service' },
   { id: 'carnovga', name: 'Carnovga', description: 'A refined luxury event brand experience with editorial storytelling, premium bookings, and an elevated client journey.', tags: ['Luxury', 'Events', 'Modern', 'Elegant'], kind: 'service' },
   { id: 'aura-salon', name: 'Aura Salon', description: 'A considered salon experience with service menus and client appointment management.', tags: ['Salon', 'Booking', 'Minimalist'], kind: 'service' },
@@ -43,12 +44,13 @@ const THEMES: ThemeOption[] = [
   { id: 'restaurant', name: 'The Restaurant', description: 'A restaurant platform with menu management, table reservations, and order tracking.', tags: ['Restaurant', 'Food', 'Booking'], kind: 'service' },
   { id: 'instagram-vip', name: 'Instagram VIP', description: 'A visual restaurant storefront with gallery storytelling and a reservation experience.', tags: ['Gallery', 'Restaurant', 'Reservations'], kind: 'service' },
   { id: 'evento', name: 'Evento', description: 'An event business platform for event listings, ticket requests, co-hosts, bookings, and venue operations.', tags: ['Events', 'Tickets', 'Co-hosts'], kind: 'service' },
+  { id: 'crown-stroke', name: 'Crown Stroke', description: 'A print-on-demand platform with a canvas-based design studio for custom apparel and merchandise.', tags: ['Print', 'Design', 'Merchandise', 'Canvas'], kind: 'product' },
 ];
 
 const CATEGORIES: ThemeCategory[] = ['All platforms', 'Product stores', 'Service platforms', 'Streaming platforms', 'Education platforms'];
 const kindLabel: Record<ThemeKind, string> = {
-  product: 'Product storefront',
-  service: 'Service platform',
+  product: 'Product storefront theme',
+  service: 'Service / storefront listing',
   streaming: 'Streaming platform',
   education: 'Education platform',
 };
@@ -168,7 +170,7 @@ const Themes: React.FC = () => {
   }, [isSeller]);
 
   const previewUrl = (themeId: string) => {
-    if (themeId === 'nlmsongs' || themeId === 'ixstream' || themeId === 'utorme' || themeId === 'tspp') {
+    if (themeId === 'nlmsongs' || themeId === 'ixstream' || themeId === 'utorme' || themeId === 'tspp' || themeId === 'sms') {
       return `${window.location.origin}/#/${themeId}`;
     }
     return `${window.location.origin}/#/shop/demo?theme=${encodeURIComponent(themeId)}`;
@@ -407,11 +409,11 @@ const Themes: React.FC = () => {
           <div className="theme-hero-copy">
             <p className="theme-eyebrow"><LayoutGrid size={14} /> CURATED FOR THE WAY YOU WORK</p>
             <h1>Your next<br /><em>business platform.</em></h1>
-            <p className="theme-hero-lede">From independent storefronts to full service platforms—choose a considered foundation, preview it in motion, then make it yours.</p>
+            <p className="theme-hero-lede">One Iyoni technology foundation, many business experiences. Explore storefront themes and specialist platform previews, then find the experience that fits your work.</p>
             <a className="theme-hero-link" href="#platform-catalog">Explore the collection <ArrowRight size={16} /></a>
           </div>
           <aside className="theme-hero-aside" aria-label="Collection facts">
-            <div className="theme-hero-stat"><strong>{THEMES.length.toString().padStart(2, '0')}</strong><span>working platforms<br />to make your own</span></div>
+            <div className="theme-hero-stat"><strong>{THEMES.length.toString().padStart(2, '0')}</strong><span>catalog listings<br />across business types</span></div>
             <div className="theme-hero-rule" />
             <p><Sparkles size={16} /> One-time license. No recurring theme fee.</p>
             <span className="theme-hero-price">USD 30—1500</span>
@@ -425,9 +427,9 @@ const Themes: React.FC = () => {
           <div>
             <p className="theme-eyebrow theme-eyebrow-dark">THE COLLECTION</p>
             <h2>Find your platform.</h2>
-            <p className="theme-catalog-intro">Every listing includes a live preview, a clear one-time price, and a real path into the platform.</p>
+            <p className="theme-catalog-intro">This collection mixes product storefront themes with service, education, and streaming platform experiences. A catalog listing does not always mean a separate operational workspace.</p>
           </div>
-          <div className="theme-catalog-count"><strong>{visibleThemes.length.toString().padStart(2, '0')}</strong><span>of {THEMES.length} platforms</span></div>
+          <div className="theme-catalog-count"><strong>{visibleThemes.length.toString().padStart(2, '0')}</strong><span>of {THEMES.length} listings</span></div>
         </div>
 
         <div className="theme-discovery">

@@ -44,6 +44,7 @@ const RestaurantSite = lazy(() => import('../platforms/services/restaurant/Resto
 const PosSite = lazy(() => import('../platforms/services/pos/point-of-sale/PosSite'));
 const ApexPosSite = lazy(() => import('../platforms/services/pos/apex-pos/ApexPosSite'));
 const InstagramVipRestaurant = lazy(() => import('../themes/instagram-vip/InstagramVipRestaurant'));
+const CrownStrokeSite = lazy(() => import('../platforms/print-on-demand/crownstroke/CrownStrokeSite'));
 
 const API_URL = getApiBaseUrl();
 
@@ -246,7 +247,13 @@ const MOCK_PRODUCTS: Record<string, any[]> = {
     { id: 'ev1', name: 'Full-Service Wedding', price: 3500, description: 'Complete wedding planning from concept to execution. Duration: 60 min', category: 'WEDDINGS', type: 'service', status: 'active', images: ['https://images.unsplash.com/photo-1519241026294-6ab6492a7c7c?auto=format&fit=crop&q=80&w=400'] },
     { id: 'ev2', name: 'Corporate Summit', price: 8500, description: 'End-to-end corporate event management for conferences and summits. Duration: 60 min', category: 'CORPORATE', type: 'service', status: 'active', images: ['https://images.unsplash.com/photo-1511571228318-85f1447d99b3?auto=format&fit=crop&q=80&w=400'] },
     { id: 'ev3', name: 'Birthday Celebration', price: 1200, description: 'Planning and styling for milestone birthday parties. Duration: 60 min', category: 'CELEBRATIONS', type: 'service', status: 'active', images: ['https://images.unsplash.com/photo-1532634862675-3f7e2a4d5bdc?auto=format&fit=crop&q=80&w=400'] },
-    { id: 'ev4', name: 'Social Gala', price: 4800, description: 'Black-tie event planning with design, catering, and entertainment coordination. Duration: 60 min', category: 'GALAS', type: 'service', status: 'active', images: ['https://images.unsplash.com/photo-1511767117316-2e9e9ab9f6e1?auto=format&fit=crop&q=80&w=400'] },
+    { id: 'ev4', name: 'Social Gala', price: 4800, description: 'Black-tie event planning...', category: 'GALAS', type: 'service', status: 'active', images: ['https://images.unsplash.com/photo-1511767117316-2e9e9ab9f6e1?auto=format&fit=crop&q=80&w=400'] },
+  ],
+  'crown-stroke': [
+    { id: 'cs1', name: 'Classic White Tee', price: 28, description: 'Soft cotton crewneck tee in crisp white. Customize with your own design.', images: ['https://images.unsplash.com/photo-1521541803423-989e13c33536?auto=format&fit=crop&q=80&w=400'], category: 'Apparel' },
+    { id: 'cs2', name: 'Essential Hoodie', price: 55, description: 'Cozy fleece pullover hoodie with front pouch pocket.', images: ['https://images.unsplash.com/photo-1556821840-3a63f5507468?auto=format&fit=crop&q=80&w=400'], category: 'Apparel' },
+    { id: 'cs3', name: 'Ceramic Mug', price: 18, description: 'Glossy white ceramic mug, 11oz. Perfect for your custom artwork.', images: ['https://images.unsplash.com/photo-1514228742463-3878e9435459?auto=format&fit=crop&q=80&w=400'], category: 'Drinkware' },
+    { id: 'cs4', name: 'Canvas Tote Bag', price: 22, description: 'Sturdy cotton canvas tote with rolled handles.', images: ['https://images.unsplash.com/photo-1590922366666-8fa6134cc3c1?auto=format&fit=crop&q=80&w=400'], category: 'Accessories' },
   ],
 };
 
@@ -626,9 +633,11 @@ export const Storefront: React.FC = () => {
           return <CarRentalSite seller={baseProps.seller} products={themeProducts} demoMode={t.id === 'demo-seller' || t.subdomain === 'demo'} />;
         case 'restaurant':
           return <RestaurantSite seller={baseProps.seller} products={themeProducts} demoMode={t.id === 'demo-seller' || t.subdomain === 'demo'} />;
-        case 'instagram-vip':
+       case 'instagram-vip':
           return <InstagramVipRestaurant {...baseProps} {...editProps} />;
-        case 'creative-studio':
+       case 'crown-stroke':
+          return <CrownStrokeSite seller={baseProps.seller} products={themeProducts} demoMode={t.id === 'demo-seller' || t.subdomain === 'demo'} />;
+       case 'creative-studio':
         console.log('Rendering CreativeStudio');
         return <CreativeStudio {...baseProps} {...editProps} />;
       case 'elite-consulting':

@@ -144,6 +144,15 @@ const VIP_AUTH_THEMES: Record<string, VipAuthTheme> = {
     headline: 'Verified teachers. Trusted schools.',
     description: 'Sign in to your TSPP workspace and manage verified hiring, shortlists, and interviews.'
   },
+  sms: {
+    id: 'sms',
+    name: 'School Management System',
+    primary: '#16a34a',
+    secondary: '#1e3a5f',
+    surface: '#f0fdf4',
+    headline: 'Every classroom connected.',
+    description: 'Sign in to your school workspace and manage classes, attendance, grades, and communications.'
+  },
 };
 
 const getVipThemeFromTarget = (pathname: string, params: URLSearchParams) => {
@@ -158,6 +167,7 @@ const getVipThemeFromTarget = (pathname: string, params: URLSearchParams) => {
   if (pathname.startsWith('/salon/tamira-salon')) return VIP_AUTH_THEMES['tamira-salon'];
   if (pathname.startsWith('/utorme')) return VIP_AUTH_THEMES.utorme;
   if (pathname.startsWith('/tspp')) return VIP_AUTH_THEMES.tspp;
+  if (pathname.startsWith('/sms')) return VIP_AUTH_THEMES.sms;
   return null;
 };
 

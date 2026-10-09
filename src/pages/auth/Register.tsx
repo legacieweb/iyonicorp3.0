@@ -307,7 +307,7 @@ export const Register: React.FC<RegisterProps> = ({
       'Custom Branded Domains (.com/.net)',
       'Zero Platform Transaction Fees',
     ],
-    seller_manager: [
+     seller_manager: [
       'Multi-Seller AI Command Center',
       'Real-time Revenue & Performance Tracking',
       'Customizable Pricing Plans for Sellers',

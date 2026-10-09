@@ -15,6 +15,9 @@ const Themes = lazy(() => import('./pages/Themes'));
 const SellerDashboard = lazy(() => import('./pages/seller/SellerDashboard').then(({ SellerDashboard }) => ({ default: SellerDashboard })));
 const SellerManagerDashboard = lazy(() => import('./pages/manager/SellerManagerDashboard').then(({ SellerManagerDashboard }) => ({ default: SellerManagerDashboard })));
 const ManagerAdminDashboard = lazy(() => import('./pages/admin/ManagerAdminDashboard').then(({ ManagerAdminDashboard }) => ({ default: ManagerAdminDashboard })));
+const IyonicMailer = lazy(() => import('./pages/IyonicMailer').then(({ IyonicMailer }) => ({ default: IyonicMailer })));
+const IyonicMailerDocs = lazy(() => import('./pages/IyonicMailerDocs').then(({ IyonicMailerDocs }) => ({ default: IyonicMailerDocs })));
+const IyonicMailerAuth = lazy(() => import('./pages/auth/IyonicMailerAuth').then(({ IyonicMailerAuth }) => ({ default: IyonicMailerAuth })));
 const CustomerDashboard = lazy(() => import('./pages/customer/CustomerDashboard'));
 const Storefront = lazy(() => import('./pages/Storefront'));
 const PulseFitAdmin = lazy(() => import('./platforms/services/fitness/pulse-fit/PulseFitAdmin'));
@@ -26,6 +29,11 @@ const AuraSalonServicePage = lazy(() => import('./platforms/services/beauty/salo
 const CraftCollectiveSite = lazy(() => import('./platforms/marketplace/craft-collective/CraftCollectiveSite'));
 const CraftCollectiveAdmin = lazy(() => import('./platforms/marketplace/craft-collective/CraftCollectiveAdmin'));
 const CraftCollectiveVendor = lazy(() => import('./platforms/marketplace/craft-collective/CraftCollectiveVendor'));
+const CrownStrokeSite = lazy(() => import('./platforms/print-on-demand/crownstroke/CrownStrokeSite'));
+const CrownStrokeAdmin = lazy(() => import('./platforms/print-on-demand/crownstroke/CrownStrokeAdmin'));
+const CrownStrokeClient = lazy(() => import('./platforms/print-on-demand/crownstroke/CrownStrokeClient'));
+const CrownStrokeProductPage = lazy(() => import('./platforms/print-on-demand/crownstroke/CrownStrokeProductPage'));
+const CrownStrokeStudioPage = lazy(() => import('./platforms/print-on-demand/crownstroke/CrownStrokeStudioPage'));
 const PosSite = lazy(() => import('./platforms/services/pos/point-of-sale/PosSite'));
 const ApexPosSite = lazy(() => import('./platforms/services/pos/apex-pos/ApexPosSite'));
 const ApexPosAdmin = lazy(() => import('./platforms/services/pos/apex-pos/ApexPosAdmin'));
@@ -37,8 +45,7 @@ const EventPlannerDetail = lazy(() => import('./platforms/services/events/event-
 const EventoAdmin = lazy(() => import('./platforms/services/events/evento/EventoAdmin'));
 const EventoClient = lazy(() => import('./platforms/services/events/evento/EventoClient'));
 const EventoServicePage = lazy(() => import('./platforms/services/events/evento/EventoServicePage'));
-const NLMSongs = lazy(() => import('./platforms/streaming/nlmsongs/NLMSongs'));
-const NLMSongsSite = lazy(() => import('./platforms/streaming/nlmsongs/NLMSongsSite'));
+const NLMSongsRouter = lazy(() => import('./platforms/streaming/nlmsongs/NLMSongsRouter'));
 const NLMSongsAdmin = lazy(() => import('./platforms/streaming/nlmsongs/NLMSongsAdmin'));
 const IxStreamSite = lazy(() => import('./platforms/streaming/ixstream/IxStreamSite'));
 const IxStreamAdmin = lazy(() => import('./platforms/streaming/ixstream/IxStreamAdmin'));
@@ -48,6 +55,8 @@ const HomeworkerStudent = lazy(() => import('./platforms/services/education/home
 const HomeworkerWorker = lazy(() => import('./platforms/services/education/homeworker/HomeworkerWorker'));
 const IyonicPay = lazy(() => import('./pages/IyonicPay'));
 const IyonicBots = lazy(() => import('./pages/IyonicBots'));
+const IyonicDB = lazy(() => import('./pages/IyonicDB').then(({ IyonicDB }) => ({ default: IyonicDB })));
+const IyonicDBConsole = lazy(() => import('./pages/IyonicDBConsole'));
 const InvoicePage = lazy(() => import('./pages/InvoicePage'));
 const IyonicShop = lazy(() => import('./pages/IyonicShop'));
 const Refunds = lazy(() => import('./pages/Refunds'));
@@ -55,6 +64,15 @@ const TsppLandingPage = lazy(() => import('./platforms/services/education/tspp/T
 const TsppOwnerDashboard = lazy(() => import('./platforms/services/education/tspp/TsppOwnerDashboard'));
 const TsppAdmin = lazy(() => import('./platforms/services/education/tspp/TsppAdmin'));
 const TsppClient = lazy(() => import('./platforms/services/education/tspp/TsppClient'));
+const SmsAdminDashboard = lazy(() => import('./platforms/services/education/sms/SmsAdminDashboard'));
+const SmsPlatformOwnerDashboard = lazy(() => import('./platforms/services/education/sms/SmsPlatformOwnerDashboard'));
+const SmsTeacherDashboard = lazy(() => import('./platforms/services/education/sms/SmsTeacherDashboard'));
+const SmsStudentDashboard = lazy(() => import('./platforms/services/education/sms/SmsStudentDashboard'));
+const SmsParentDashboard = lazy(() => import('./platforms/services/education/sms/SmsParentDashboard'));
+const SmsLogin = lazy(() => import('./platforms/services/education/sms/SmsLogin'));
+const SmsSchoolRegister = lazy(() => import('./platforms/services/education/sms/SmsSchoolRegister'));
+const SmsTeacherRegister = lazy(() => import('./platforms/services/education/sms/SmsTeacherRegister'));
+const SmsParentRegister = lazy(() => import('./platforms/services/education/sms/SmsParentRegister'));
 const About = lazy(() => import('./pages/static').then(({ About }) => ({ default: About })));
 const Careers = lazy(() => import('./pages/static').then(({ Careers }) => ({ default: Careers })));
 const Blog = lazy(() => import('./pages/static').then(({ Blog }) => ({ default: Blog })));
@@ -75,6 +93,8 @@ const getUserRedirectPath = (user: any, shopSubdomain?: string | null) => {
     case 'seller': return '/seller/dashboard';
     case 'seller_manager': return '/manager/dashboard';
     case 'manager_admin': return '/admin/dashboard';
+    case 'school_staff': return '/sms/admin';
+    case 'teacher': return '/sms/teacher';
     case 'customer': 
       if (shopSubdomain) {
         return `/shop/${shopSubdomain}`;
@@ -87,7 +107,7 @@ const getUserRedirectPath = (user: any, shopSubdomain?: string | null) => {
   }
 };
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles: string[] }> = ({ children, allowedRoles }) => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles: string[]; unauthorizedRedirectPath?: string }> = ({ children, allowedRoles, unauthorizedRedirectPath }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const shopSubdomain = searchParams.get('subdomain');
@@ -101,7 +121,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles: string
   }
   
   if (user && !allowedRoles.includes(user.role)) {
-    return <Navigate to={getUserRedirectPath(user, shopSubdomain)} replace />;
+    return <Navigate to={unauthorizedRedirectPath || getUserRedirectPath(user, shopSubdomain)} replace />;
   }
   
   return <>{children}</>;
@@ -152,6 +172,10 @@ const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       return <Navigate to={redirect} replace />;
     }
 
+    if (location.pathname.startsWith('/sms') && user.role === 'seller') {
+      return <Navigate to="/sms/owner" replace />;
+    }
+
     return <Navigate to={getUserRedirectPath(user, shopSubdomain)} replace />;
   }
   
@@ -163,6 +187,16 @@ const AppContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const directCrownStrokePath = !window.location.hash
+    && /^\/pdp\/crown-stroke\/(?:store|studio\/[^/]+|product\/[^/]+)\/?$/.test(window.location.pathname);
+
+  React.useEffect(() => {
+    if (!directCrownStrokePath) return;
+    const path = window.location.pathname.replace(/\/+$/, '');
+    window.location.replace(`${window.location.origin}/#${path}${window.location.search}`);
+  }, [directCrownStrokePath]);
+
+  if (directCrownStrokePath) return <GlobalPreloader message="Opening CrownStroke…" />;
 
   const hostname = window.location.hostname.toLowerCase();
   const hasStoreQuery = new URLSearchParams(window.location.search).has('store')
@@ -197,16 +231,24 @@ const AppContent: React.FC = () => {
     location.pathname.startsWith('/pos/point-of-sale') ||
     location.pathname.startsWith('/pos/apex-pos') ||
     location.pathname.startsWith('/marketplace/craft-collective') ||
+    location.pathname.startsWith('/pdp/crown-stroke') ||
     location.pathname.startsWith('/evento') ||
     location.pathname.startsWith('/nlmsongs') ||
     location.pathname.startsWith('/ixstream') ||
     location.pathname.startsWith('/utorme') ||
-    location.pathname.startsWith('/homeworker') ||
-    location.pathname.startsWith('/events/event-planner') ||
+     location.pathname.startsWith('/homeworker') ||
+     location.pathname.startsWith('/tspp') ||
+     location.pathname.startsWith('/sms') ||
+     location.pathname.startsWith('/iyonicdb') ||
+     location.pathname.startsWith('/events/event-planner') ||
     location.pathname.startsWith('/events/carnovga') ||
     location.pathname === '/login' ||
     location.pathname === '/register' ||
-    location.pathname === '/refunds';
+    location.pathname === '/refunds' ||
+    location.pathname === '/iyonic-mailer' ||
+     location.pathname === '/iyonic-mailer/docs' ||
+     location.pathname === '/iyonic-mailer/login' ||
+     location.pathname === '/iyonic-mailer/register';
 
   if (!isMainPlatform && tenant && !isPlatformRoute) {
     return <Storefront />;
@@ -250,6 +292,10 @@ const AppContent: React.FC = () => {
     navigate('/iyonicbots');
   };
 
+  const handleOpenIyonicMailer = () => {
+    navigate('/iyonic-mailer');
+  };
+
   return (
     <Routes location={location}>
       <Route path="/" element={
@@ -258,6 +304,7 @@ const AppContent: React.FC = () => {
           onSignIn={handleSignIn}
           onOpenIyonicPay={handleOpenIyonicPay}
           onOpenIyonicBots={handleOpenIyonicBots}
+          onOpenIyonicMailer={handleOpenIyonicMailer}
         />
       } />
       
@@ -286,10 +333,68 @@ const AppContent: React.FC = () => {
         </ProtectedRoute>
       } />
       <Route path="/tspp/client" element={
-        <ProtectedRoute allowedRoles={['customer']}>
-          <TsppClient />
-        </ProtectedRoute>
-      } />
+         <ProtectedRoute allowedRoles={['customer']}>
+           <TsppClient />
+         </ProtectedRoute>
+       } />
+
+      <Route path="/sms" element={
+          (isAuthenticated && user) ? (
+            user.role === 'teacher' ? <Navigate to="/sms/teacher" replace /> :
+            user.role === 'customer' ? <Navigate to="/sms/parent" replace /> :
+            user.role === 'school_staff' ? <Navigate to="/sms/admin" replace /> :
+            user.role === 'manager_admin' ? <Navigate to="/sms/owner" replace /> :
+            user.role === 'seller' ? <Navigate to="/sms/owner" replace /> :
+            <Navigate to="/sms/login" replace />
+          ) : <Navigate to="/sms/login" replace />
+        } />
+        <Route path="/sms/login" element={
+          <AuthRoute>
+            <SmsLogin />
+          </AuthRoute>
+        } />
+        <Route path="/sms/register/school" element={
+          <AuthRoute>
+            <SmsSchoolRegister />
+          </AuthRoute>
+        } />
+        <Route path="/sms/register/teacher" element={
+          <AuthRoute>
+            <SmsTeacherRegister />
+          </AuthRoute>
+        } />
+        <Route path="/sms/register/parent" element={
+          <AuthRoute>
+            <SmsParentRegister />
+          </AuthRoute>
+        } />
+        <Route path="/sms/owner/*" element={
+           <ProtectedRoute allowedRoles={['seller', 'manager_admin']}>
+             {user?.role === 'manager_admin'
+               ? <SmsPlatformOwnerDashboard />
+               : <LicensedPlatformRoute themeId="sms"><SmsPlatformOwnerDashboard /></LicensedPlatformRoute>}
+           </ProtectedRoute>
+         } />
+        <Route path="/sms/admin/*" element={
+           <ProtectedRoute allowedRoles={['school_staff']} unauthorizedRedirectPath="/sms/owner">
+           <LicensedPlatformRoute themeId="sms"><SmsAdminDashboard /></LicensedPlatformRoute>
+         </ProtectedRoute>
+       } />
+      <Route path="/sms/teacher/*" element={
+         <ProtectedRoute allowedRoles={['teacher']} unauthorizedRedirectPath="/sms">
+           <LicensedPlatformRoute themeId="sms"><SmsTeacherDashboard /></LicensedPlatformRoute>
+         </ProtectedRoute>
+       } />
+      <Route path="/sms/student/*" element={
+         <ProtectedRoute allowedRoles={['customer']} unauthorizedRedirectPath="/sms">
+           <LicensedPlatformRoute themeId="sms"><SmsStudentDashboard /></LicensedPlatformRoute>
+         </ProtectedRoute>
+       } />
+      <Route path="/sms/parent/*" element={
+         <ProtectedRoute allowedRoles={['customer']} unauthorizedRedirectPath="/sms">
+           <LicensedPlatformRoute themeId="sms"><SmsParentDashboard /></LicensedPlatformRoute>
+         </ProtectedRoute>
+       } />
 
       <Route path="/customer/*" element={
         <ProtectedRoute allowedRoles={['customer']}>
@@ -313,9 +418,9 @@ const AppContent: React.FC = () => {
         <ProtectedRoute allowedRoles={['manager_admin']}>
           <ManagerAdminDashboard />
         </ProtectedRoute>
-      } />
+       } />
 
-      <Route path="/fit/pulse-fit/admin" element={
+       <Route path="/fit/pulse-fit/admin" element={
         <ProtectedRoute allowedRoles={['seller']}>
           <LicensedPlatformRoute themeId="pulse-fit"><PulseFitAdmin /></LicensedPlatformRoute>
         </ProtectedRoute>
@@ -349,11 +454,22 @@ const AppContent: React.FC = () => {
         </ProtectedRoute>
       } />
       <Route path="/marketplace/craft-collective" element={<CraftCollectiveSite />} />
-      <Route path="/pos/point-of-sale/admin" element={
+      <Route path="/pdp/crown-stroke/store" element={<CrownStrokeSite />} />
+      <Route path="/pdp/crown-stroke/admin" element={
         <ProtectedRoute allowedRoles={['seller']}>
-          <LicensedPlatformRoute themeId="point-of-sale"><PosAdmin /></LicensedPlatformRoute>
+          <LicensedPlatformRoute themeId="crown-stroke"><CrownStrokeAdmin /></LicensedPlatformRoute>
         </ProtectedRoute>
       } />
+      <Route path="/pdp/crown-stroke/client" element={
+        <ProtectedRoute allowedRoles={['customer']}>
+          <CrownStrokeClient />
+        </ProtectedRoute>
+      } />
+      <Route path="/pdp/crown-stroke/studio/:productId" element={<CrownStrokeStudioPage />} />
+      <Route path="/pdp/crown-stroke/product/:serviceId" element={<CrownStrokeProductPage />} />
+      <Route path="/pos/point-of-sale/admin" element={<ProtectedRoute allowedRoles={['seller']}>
+        <LicensedPlatformRoute themeId="point-of-sale"><PosAdmin /></LicensedPlatformRoute>
+      </ProtectedRoute>} />
       <Route path="/pos/point-of-sale" element={<PosSite />} />
       <Route path="/pos/apex-pos/admin" element={
         <ProtectedRoute allowedRoles={['seller']}>
@@ -379,13 +495,11 @@ const AppContent: React.FC = () => {
       } />
       <Route path="/evento/event/:eventId" element={<EventoServicePage />} />
 
-      <Route path="/nlmsongs/dashboard" element={
+      <Route path="/nlmsongs/*" element={<NLMSongsRouter adminDashboard={
         <ProtectedRoute allowedRoles={['seller']}>
           <LicensedPlatformRoute themeId="nlmsongs"><NLMSongsAdmin /></LicensedPlatformRoute>
         </ProtectedRoute>
-      } />
-      <Route path="/nlmsongs/track/:trackId/*" element={<NLMSongs />} />
-      <Route path="/nlmsongs/*" element={<NLMSongsSite />} />
+      } />} />
 
       <Route path="/ixstream/dashboard" element={
         <ProtectedRoute allowedRoles={['seller']}>
@@ -443,6 +557,8 @@ const AppContent: React.FC = () => {
       <Route path="/iyonicpay/*" element={<IyonicPay />} />
       <Route path="/refunds" element={<Refunds />} />
       <Route path="/iyonicbots/*" element={<IyonicBots />} />
+      <Route path="/iyonicdb/console" element={<IyonicDBConsole />} />
+      <Route path="/iyonicdb" element={<IyonicDB />} />
       <Route path="/iyonicshop" element={
         isAuthenticated && user ? (
           <Navigate to={getUserRedirectPath(user)} replace />
@@ -460,6 +576,10 @@ const AppContent: React.FC = () => {
       <Route path="/press" element={<Press />} />
       <Route path="/documentation" element={<Documentation />} />
       <Route path="/api-reference" element={<APIReference />} />
+      <Route path="/iyonic-mailer" element={<IyonicMailer />} />
+      <Route path="/iyonic-mailer/docs" element={<IyonicMailerDocs />} />
+      <Route path="/iyonic-mailer/login" element={<IyonicMailerAuthWrapper mode="login" />} />
+      <Route path="/iyonic-mailer/register" element={<IyonicMailerAuthWrapper mode="register" />} />
       <Route path="/help-center" element={<HelpCenter />} />
       <Route path="/status" element={<Status />} />
       <Route path="/privacy" element={<Privacy />} />
@@ -504,17 +624,28 @@ const RegisterWrapper: React.FC = () => {
   const sellerId = searchParams.get('shop');
   const redirectParam = searchParams.get('redirect');
   const isTsppSignup = searchParams.get('theme') === 'tspp';
+  const isSmsSignup = searchParams.get('theme') === 'sms';
   
   return (
     <Register 
-      onSwitchToLogin={() => {
-        const params = new URLSearchParams(searchParams.toString());
-        navigate(`/login?${params.toString()}`);
-      }}
-      onBackToHomepage={() => navigate(isTsppSignup ? '/tspp' : redirectParam || '/')}
-      preselectedRole={roleParam}
+       onSwitchToLogin={() => {
+         const params = new URLSearchParams(searchParams.toString());
+         navigate(`/login?${params.toString()}`);
+       }}
+       onBackToHomepage={() => navigate(isTsppSignup ? '/tspp' : isSmsSignup ? '/sms' : redirectParam || '/')}
+       preselectedRole={roleParam}
       managerSlug={managerSlug}
       sellerId={sellerId}
+    />
+  );
+};
+
+const IyonicMailerAuthWrapper: React.FC<{ mode: 'login' | 'register' }> = ({ mode }) => {
+  const navigate = useNavigate();
+  return (
+    <IyonicMailerAuth
+      mode={mode}
+      onSwitchMode={() => navigate(mode === 'login' ? '/iyonic-mailer/register' : '/iyonic-mailer/login')}
     />
   );
 };

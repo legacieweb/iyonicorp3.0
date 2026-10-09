@@ -113,7 +113,7 @@ export const initDb = async () => {
         ALTER TABLE users ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT FALSE;
         ALTER TABLE users ADD COLUMN IF NOT EXISTS last_selected_store_id UUID REFERENCES sellers(id) ON DELETE SET NULL;
         ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
-        ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('seller', 'seller_manager', 'manager_admin', 'customer'));
+        ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('seller', 'seller_manager', 'manager_admin', 'customer', 'school_staff', 'teacher'));
         
         -- Update orders status check constraint
         ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check;
@@ -128,8 +128,16 @@ export const initDb = async () => {
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS theme JSONB DEFAULT '{"primaryColor": "#3b82f6", "secondaryColor": "#1e40af", "fontFamily": "Inter"}'::JSONB;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS acquired_themes JSONB NOT NULL DEFAULT '[]'::JSONB;
         UPDATE sellers SET acquired_themes = jsonb_build_array(theme->>'selectedTheme')
-          WHERE theme->>'selectedTheme' IN ('tamira-salon', 'spa-retreat', 'elite-consulting', 'creative-studio', 'modern-wellness', 'nlmsongs', 'utorme', 'homeworker', 'car-rental', 'restaurant', 'instagram-vip', 'ixstream', 'tspp')
+          WHERE theme->>'selectedTheme' IN ('tamira-salon', 'spa-retreat', 'elite-consulting', 'creative-studio', 'modern-wellness', 'nlmsongs', 'utorme', 'homeworker', 'car-rental', 'restaurant', 'instagram-vip', 'ixstream', 'tspp', 'sms')
             AND NOT (COALESCE(acquired_themes, '[]'::jsonb) ? (theme->>'selectedTheme'));
+        UPDATE sellers SET acquired_themes = COALESCE(acquired_themes, '[]'::jsonb) || '"sms"'::jsonb
+          WHERE theme->>'selectedTheme' = 'sms'
+            AND NOT (COALESCE(acquired_themes, '[]'::jsonb) ? 'sms');
+        UPDATE sellers SET acquired_themes = COALESCE((
+            SELECT jsonb_agg(elem) FROM jsonb_array_elements(acquired_themes) AS t(elem) WHERE elem::text != '"sms"'
+          ), '[]'::jsonb)
+          WHERE theme->>'selectedTheme' != 'sms'
+            AND COALESCE(acquired_themes, '[]'::jsonb) ? 'sms';
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS social_links JSONB DEFAULT '{"facebook": "", "instagram": "", "twitter": "", "linkedin": "", "youtube": "", "tiktok": ""}'::JSONB;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS contact_info JSONB DEFAULT '{"email": "", "phone": "", "address": "", "whatsapp": ""}'::JSONB;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS payment_gateways JSONB DEFAULT '[]'::JSONB;
@@ -139,6 +147,49 @@ export const initDb = async () => {
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS delivery_locations JSONB DEFAULT '[]'::JSONB;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS payment_terms JSONB DEFAULT '{"methods": ["site"], "depositPercentage": 50, "rules": "all"}'::JSONB;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS manager_id UUID REFERENCES seller_managers(id) ON DELETE SET NULL;
+
+        CREATE TABLE IF NOT EXISTS sms_subscription_plans (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name VARCHAR(100) NOT NULL,
+          description TEXT,
+          price_cents INTEGER NOT NULL,
+          currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+          interval_type VARCHAR(20) NOT NULL DEFAULT 'month' CHECK (interval_type IN ('month', 'year')),
+          features JSONB DEFAULT '[]'::JSONB,
+          max_students INTEGER,
+          max_teachers INTEGER,
+          max_classes INTEGER,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          is_active BOOLEAN NOT NULL DEFAULT TRUE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_sms_subscription_plans_active ON sms_subscription_plans(is_active);
+        CREATE INDEX IF NOT EXISTS idx_sms_subscription_plans_sort ON sms_subscription_plans(sort_order);
+        DROP TRIGGER IF EXISTS update_sms_subscription_plans_updated_at ON sms_subscription_plans;
+        CREATE TRIGGER update_sms_subscription_plans_updated_at BEFORE UPDATE ON sms_subscription_plans FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+
+        CREATE TABLE IF NOT EXISTS sms_school_subscriptions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          seller_id UUID NOT NULL UNIQUE REFERENCES sellers(id) ON DELETE CASCADE,
+          plan_id UUID NOT NULL REFERENCES sms_subscription_plans(id),
+          status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'past_due', 'cancelled', 'expired')),
+          current_period_start TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          current_period_end TIMESTAMP WITH TIME ZONE,
+          cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_sms_school_subscriptions_seller ON sms_school_subscriptions(seller_id);
+        CREATE INDEX IF NOT EXISTS idx_sms_school_subscriptions_plan ON sms_school_subscriptions(plan_id);
+        CREATE INDEX IF NOT EXISTS idx_sms_school_subscriptions_status ON sms_school_subscriptions(status);
+
+        INSERT INTO sms_subscription_plans (name, description, price_cents, currency, interval_type, features, max_students, max_teachers, max_classes, sort_order, is_active) VALUES
+          ('Starter', 'Perfect to get started with SMS', 0, 'USD', 'month', '["Up to 100 students", "Up to 10 teachers", "Up to 5 classes", "Basic attendance", "Student records"]', 100, 10, 5, 0, TRUE),
+          ('Growth', 'For growing schools needing more capacity', 4900, 'USD', 'month', '["Up to 500 students", "Up to 50 teachers", "Unlimited classes & sections", "Advanced attendance", "Fee management", "Grade tracking"]', 500, 50, NULL, 1, TRUE),
+          ('Pro', 'For established schools with full features', 9900, 'USD', 'month', '["Up to 2,000 students", "Up to 200 teachers", "Unlimited everything", "API access", "Timetable & scheduling", "Exam management", "Messaging & announcements"]', 2000, 200, NULL, 2, TRUE),
+          ('Enterprise', 'For large institutions with premium support', 29900, 'USD', 'month', '["Unlimited students & teachers", "White-label customization", "Dedicated account manager", "Custom integrations", "Priority 24/7 support"]', NULL, NULL, NULL, 3, TRUE)
+        ON CONFLICT DO NOTHING;
 
         CREATE TABLE IF NOT EXISTS vip_theme_purchases (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -681,6 +732,16 @@ CREATE INDEX IF NOT EXISTS idx_sellers_manager_id ON sellers(manager_id);
         CREATE INDEX IF NOT EXISTS idx_tspp_documents_type ON tspp_documents(document_type);
         CREATE INDEX IF NOT EXISTS idx_tspp_documents_status ON tspp_documents(status);
       `);
+
+      // Load and execute School Management System schema
+      const smsSchemaPath = path.join(__dirname, 'smsSchema.sql');
+      if (fs.existsSync(smsSchemaPath)) {
+        const smsSchema = fs.readFileSync(smsSchemaPath, 'utf8');
+        await pool.query(smsSchema);
+        console.log('✅ SMS schema loaded');
+      } else {
+        console.warn('⚠️ smsSchema.sql not found, skipping SMS schema init');
+      }
 
       await pool.query('COMMIT');
       console.log('✅ Database schema initialized and updated');

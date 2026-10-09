@@ -38,7 +38,7 @@ export interface User {
   lastName?: string;
   phoneNumber?: string;
   username?: string;
-  role: 'seller' | 'seller_manager' | 'manager_admin' | 'customer';
+   role: 'seller' | 'seller_manager' | 'manager_admin' | 'customer' | 'school_staff' | 'teacher';
   avatar?: string;
   createdAt: string;
   sellerId?: string;
@@ -48,9 +48,9 @@ export interface User {
   ownerEmail?: string;
   managerId?: string;
   managerSlug?: string;
-  iyonicpayOptIn: boolean;
-  isSuspended: boolean;
-  stores?: Store[];
+   iyonicpayOptIn: boolean;
+   isSuspended: boolean;
+   stores?: Store[];
   lastSelectedStoreId?: string;
 }
 
@@ -75,6 +75,22 @@ export interface NLMSong {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface NLMSongsAdminAnalytics {
+  summary: {
+    totalPlays: number;
+    totalListeners: number;
+    playsLast30Days: number;
+    listenersLast30Days: number;
+    listeningSeconds: number;
+  };
+  topTracks: Array<Pick<NLMSong, 'id' | 'title' | 'artist' | 'genre' | 'thumbnailUrl'> & {
+    plays: number;
+    listeners: number;
+    listeningSeconds: number;
+  }>;
+  dailyPlays: Array<{ day: string; plays: number }>;
 }
 
 export interface Message {
@@ -381,7 +397,7 @@ export const authAPI = {
     firstName: string;
     lastName: string;
     phoneNumber: string;
-    role: 'seller' | 'seller_manager' | 'customer';
+     role: 'seller' | 'seller_manager' | 'customer';
     storeName?: string;
     subdomain?: string;
     shopType?: 'product' | 'service' | 'payment';
@@ -695,6 +711,11 @@ export const nlmsongsAPI = {
     return response.data;
   },
 
+  async getAdminAnalytics(): Promise<NLMSongsAdminAnalytics> {
+    const response = await api.get('/nlmsongs/admin/analytics');
+    return response.data;
+  },
+
   async create(data: FormData): Promise<NLMSong> {
     const response = await api.post('/nlmsongs', data, { headers: { 'Content-Type': 'multipart/form-data' } });
     return response.data;
@@ -707,6 +728,11 @@ export const nlmsongsAPI = {
 
   async remove(id: string): Promise<void> {
     await api.delete(`/nlmsongs/${id}`);
+  },
+
+  async download(id: string): Promise<Blob> {
+    const response = await api.get(`/nlmsongs/${id}/stream`, { responseType: 'blob' });
+    return response.data;
   }
 };
 
@@ -730,6 +756,14 @@ export interface NLMPlaylistItem {
   addedAt: string;
 }
 
+export interface NLMPlaylistDetail extends NLMPlaylist {
+  items: NLMPlaylistItem[];
+}
+
+export interface NLMSharedPlaylist extends Omit<NLMPlaylist, 'userId'> {
+  tracks: Array<Pick<NLMSong, 'id' | 'title' | 'artist' | 'genre' | 'thumbnailUrl'>>;
+}
+
 export interface NLMListeningHistory {
   id: string;
   userId: string;
@@ -749,12 +783,16 @@ export interface NLMPlayCount {
 }
 
 export const playlistsAPI = {
+  async getShared(id: string): Promise<NLMSharedPlaylist> {
+    const response = await api.get(`/nlmsongs/shared-playlists/${encodeURIComponent(id)}`);
+    return response.data;
+  },
   async getAll(): Promise<NLMPlaylist[]> {
     const response = await api.get('/nlmsongs/playlists');
     return response.data;
   },
 
-  async getById(id: string): Promise<NLMPlaylist> {
+  async getById(id: string): Promise<NLMPlaylistDetail> {
     const response = await api.get(`/nlmsongs/playlists/${id}`);
     return response.data;
   },
@@ -1447,6 +1485,34 @@ export const marketingAPI = {
   },
 };
 
+export interface ApiKey {
+  id: string;
+  userId: string;
+  sellerId?: string;
+  apiKey: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export const apiKeysAPI = {
+  async getOrCreate(): Promise<{ apiKey: string; isActive: boolean; createdAt: string }> {
+    const response = await api.get('/user/api-key');
+    return response.data;
+  },
+
+  async regenerate(): Promise<{ apiKey: string; isActive: boolean; createdAt: string }> {
+    const response = await api.post('/user/api-key/regenerate');
+    return response.data;
+  },
+
+  async revoke(): Promise<{ message: string }> {
+    const response = await api.post('/user/api-key/revoke');
+    return response.data;
+  },
+};
+
+
+
 export const refundsAPI = {
   async getAll(): Promise<any[]> {
     const response = await api.get('/iyonicpay/refunds');
@@ -1808,9 +1874,10 @@ export default {
   categories: categoriesAPI,
   upload: uploadAPI,
   socialMedia: socialMediaAPI,
-  emailMarketing: emailMarketingAPI,
-  marketing: marketingAPI,
-  refunds: refundsAPI,
+   emailMarketing: emailMarketingAPI,
+   marketing: marketingAPI,
+   refunds: refundsAPI,
+   apiKeys: apiKeysAPI,
   bots: botsAPI,
   ixstream: ixstreamAPI,
   employees: employeesAPI,

@@ -13,8 +13,16 @@ async function runMigrations() {
     await db.query(`
       ALTER TABLE sellers ADD COLUMN IF NOT EXISTS acquired_themes JSONB NOT NULL DEFAULT '[]'::JSONB;
       UPDATE sellers SET acquired_themes = jsonb_build_array(theme->>'selectedTheme')
-        WHERE theme->>'selectedTheme' IN ('tamira-salon', 'spa-retreat', 'elite-consulting', 'creative-studio', 'modern-wellness', 'nlmsongs', 'utorme', 'homeworker', 'car-rental', 'restaurant', 'instagram-vip', 'ixstream', 'tspp')
+        WHERE theme->>'selectedTheme' IN ('tamira-salon', 'spa-retreat', 'elite-consulting', 'creative-studio', 'modern-wellness', 'nlmsongs', 'utorme', 'homeworker', 'car-rental', 'restaurant', 'instagram-vip', 'ixstream', 'tspp', 'sms')
           AND NOT (COALESCE(acquired_themes, '[]'::jsonb) ? (theme->>'selectedTheme'));
+      UPDATE sellers SET acquired_themes = COALESCE(acquired_themes, '[]'::jsonb) || '"sms"'::jsonb
+        WHERE theme->>'selectedTheme' = 'sms'
+          AND NOT (COALESCE(acquired_themes, '[]'::jsonb) ? 'sms');
+      UPDATE sellers SET acquired_themes = COALESCE((
+          SELECT jsonb_agg(elem) FROM jsonb_array_elements(acquired_themes) AS t(elem) WHERE elem::text != '"sms"'
+        ), '[]'::jsonb)
+        WHERE theme->>'selectedTheme' != 'sms'
+          AND COALESCE(acquired_themes, '[]'::jsonb) ? 'sms';
       CREATE TABLE IF NOT EXISTS vip_theme_purchases (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
@@ -89,6 +97,50 @@ async function runMigrations() {
         "billingCycle": "monthly",
         "customBranding": true
       }'::JSONB;
+    `);
+
+    // SMS subscription plans and school subscriptions
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS sms_subscription_plans (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(100) NOT NULL,
+        description TEXT,
+        price_cents INTEGER NOT NULL,
+        currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+        interval_type VARCHAR(20) NOT NULL DEFAULT 'month' CHECK (interval_type IN ('month', 'year')),
+        features JSONB DEFAULT '[]'::JSONB,
+        max_students INTEGER,
+        max_teachers INTEGER,
+        max_classes INTEGER,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_sms_subscription_plans_active ON sms_subscription_plans(is_active);
+      CREATE INDEX IF NOT EXISTS idx_sms_subscription_plans_sort ON sms_subscription_plans(sort_order);
+
+      CREATE TABLE IF NOT EXISTS sms_school_subscriptions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        seller_id UUID NOT NULL UNIQUE REFERENCES sellers(id) ON DELETE CASCADE,
+        plan_id UUID NOT NULL REFERENCES sms_subscription_plans(id),
+        status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'past_due', 'cancelled', 'expired')),
+        current_period_start TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        current_period_end TIMESTAMP WITH TIME ZONE,
+        cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_sms_school_subscriptions_seller ON sms_school_subscriptions(seller_id);
+      CREATE INDEX IF NOT EXISTS idx_sms_school_subscriptions_plan ON sms_school_subscriptions(plan_id);
+      CREATE INDEX IF NOT EXISTS idx_sms_school_subscriptions_status ON sms_school_subscriptions(status);
+
+      INSERT INTO sms_subscription_plans (name, description, price_cents, currency, interval_type, features, max_students, max_teachers, max_classes, sort_order, is_active) VALUES
+        ('Starter', 'Perfect to get started with SMS', 0, 'USD', 'month', '["Up to 100 students", "Up to 10 teachers", "Up to 5 classes", "Basic attendance", "Student records"]', 100, 10, 5, 0, TRUE),
+        ('Growth', 'For growing schools needing more capacity', 4900, 'USD', 'month', '["Up to 500 students", "Up to 50 teachers", "Unlimited classes & sections", "Advanced attendance", "Fee management", "Grade tracking"]', 500, 50, NULL, 1, TRUE),
+        ('Pro', 'For established schools with full features', 9900, 'USD', 'month', '["Up to 2,000 students", "Up to 200 teachers", "Unlimited everything", "API access", "Timetable & scheduling", "Exam management", "Messaging & announcements"]', 2000, 200, NULL, 2, TRUE),
+        ('Enterprise', 'For large institutions with premium support', 29900, 'USD', 'month', '["Unlimited students & teachers", "White-label customization", "Dedicated account manager", "Custom integrations", "Priority 24/7 support"]', NULL, NULL, NULL, 3, TRUE)
+      ON CONFLICT DO NOTHING;
     `);
 
     // Add manager-specific customer tracking

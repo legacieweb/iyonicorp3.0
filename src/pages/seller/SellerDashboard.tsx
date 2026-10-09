@@ -92,6 +92,7 @@ const SERVICE_THEMES = [
   { id: 'apex-pos', name: 'Apex POS', preview: 'https://images.unsplash.com/photo-1552667468-c66351295369?auto=format&fit=crop&q=80&w=400', description: 'An advanced terminal-first POS with table management, employee logins, split billing, tip suggestions, and real-time analytics.', tags: ['POS', 'Advanced', 'Terminal', 'Staff'], color: 'from-amber-800 to-neutral-900' },
   { id: 'tamira-salon', name: 'Tamira Salon', preview: 'https://images.unsplash.com/photo-1521590832167-7ae8efc79fce?auto=format&fit=crop&q=80&w=400', description: 'Luxury salon platform with premium booking flows, services, treatment menus, and client-led appointment management.', tags: ['Salon', 'Booking', 'Luxury'], color: 'from-rose-500 to-violet-600' },
   { id: 'pulse-fit', name: 'Pulse Fit', preview: 'https://images.unsplash.com/photo-1571019613454-6804572903d0?auto=format&fit=crop&q=80&w=400', description: 'A complete fitness platform with classes, trainer assignments, schedules, and a member session portal with request-based booking.', tags: ['Fitness', 'Classes', 'Booking'], color: 'from-emerald-600 to-indigo-700' },
+  { id: 'crown-stroke', name: 'Crown Stroke', preview: 'https://images.unsplash.com/photo-1542744095-fcf48d6245ce?auto=format&fit=crop&q=80&w=400', description: 'A print-on-demand platform with a canvas-based design studio for custom apparel and merchandise.', tags: ['Print', 'Design', 'Merchandise'], color: 'from-fuchsia-600 to-cyan-500' },
   { id: 'spa-retreat', name: 'Stillwater Spa', preview: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=400', description: 'A restorative spa platform with treatment menus, appointment requests, and a calm guest experience.', tags: ['Spa', 'Treatments', 'Booking'], color: 'from-emerald-800 to-rose-400' },
   { id: 'elite-consulting', name: 'Elite Consulting', preview: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&q=80&w=400', description: 'Corporate and professional theme for consulting and business services.', tags: ['Corporate', 'Consulting', 'Blue'], color: 'from-blue-700 to-indigo-900' },
   { id: 'creative-studio', name: 'Creative Studio', preview: 'https://images.unsplash.com/photo-1558655146-d09347e92766?auto=format&fit=crop&q=80&w=400', description: 'Bold and minimalist theme for creative agencies and studios.', tags: ['Creative', 'Bold', 'Modern'], color: 'from-pink-500 to-yellow-500' },
@@ -150,6 +151,10 @@ const SERVICE_THEME_DASHBOARDS: Record<string, ServiceDashboardProfile> = {
   'pulse-fit': {
     functions: ['overview', 'products', 'orders', 'customers', 'messages', 'reviews', 'marketing', 'analytics', 'billing', 'themes', 'settings'],
     labels: { products: 'Classes', orders: 'Bookings', customers: 'Members', messages: 'Member Inbox', reviews: 'Class Reviews', analytics: 'Studio Insights' }
+  },
+  'crown-stroke': {
+    functions: ['overview', 'products', 'orders', 'customers', 'messages', 'analytics', 'billing', 'themes', 'settings'],
+    labels: { products: 'Products', orders: 'Orders', customers: 'Customers', messages: 'Inbox', analytics: 'Studio Insights' }
   },
   'spa-retreat': {
     functions: ['overview', 'products', 'orders', 'customers', 'messages', 'reviews', 'marketing', 'analytics', 'billing', 'themes', 'settings'],

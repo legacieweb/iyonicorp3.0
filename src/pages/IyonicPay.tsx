@@ -8,12 +8,15 @@ import { authAPI, api, sellersAPI, Seller } from '../services/api';
 import { formatPrice } from '../utils/currency';
 import { getApiBaseUrl } from '../utils/apiUrl';
 import { motion, AnimatePresence } from 'framer-motion';
-import ProductFooter from '../components/ProductFooter';
+import { HomepageFooter } from '../components/HomepageFooter';
+import IyoniPlatformBand from '../components/IyoniPlatformBand';
+import './Homepage.css';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
   Wallet, 
-  ArrowUpRight, 
+  ArrowUpRight,
+  ArrowDown,
   ArrowDownLeft, 
   History, 
   Plus, 
@@ -40,6 +43,7 @@ import {
   Clock,
   AlertCircle,
   Play,
+  ArrowRight,
   ArrowLeft,
   Palette,
   Menu,
@@ -864,6 +868,7 @@ const IyonicPay: React.FC = () => {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isContinueModalOpen, setIsContinueModalOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   
   // Dashboard states
   const initialTab = searchParams.get('tab') as any;
@@ -4081,314 +4086,238 @@ const handleWithdraw = async (e: React.FormEvent) => {
   }
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden font-sans">
-      <SEO 
-        title="IyonicPay - Borderless Payments & Financial Infrastructure" 
-        description="Power your business with IyonicPay. Accept global payments, manage digital wallets, and execute instant payouts. The unified financial layer for the Iyonicorp ecosystem and beyond."
-        keywords="global payments, financial infrastructure, digital wallet, merchant services, instant payouts, fintech, IyonicPay"
+    <div className="home-shell platform-shell">
+      <IyoniPlatformBand />
+      <SEO
+        title="IyonicPay — Payment Infrastructure for Modern Businesses"
+        description="IyonicPay is the payment infrastructure inside Iyoni's modular Business Operating System — built to help businesses collect, move, and manage money across connected operations."
+        keywords="payment infrastructure, business operating system, wallet, checkout, IyonicPay"
         canonical="https://iyonicorp.com/iyonicpay"
       />
-      {/* Landing UI stays similar but modern */}
-      <nav className="flex justify-between items-center px-8 py-8 max-w-7xl mx-auto">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 flex items-center justify-center">
-            <img src="/logo.png" alt="Iyonicorp Logo" className="w-10 h-10 object-contain" />
+
+      <header className="home-header">
+        <nav className="home-nav" aria-label="Main navigation">
+          <Link to="/" className="home-brand" aria-label="Iyoni home" onClick={() => setMenuOpen(false)}>
+            <img src="/logo.png" alt="" />
+            <span>Iyoni<span className="brand-period">.</span></span>
+          </Link>
+          <div className="nav-links">
+            <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Platforms</button>
+            <Link to="/iyonicshop" onClick={() => setMenuOpen(false)}>Shop</Link>
+            <Link to="/iyonicbots" onClick={() => setMenuOpen(false)}>Bots</Link>
           </div>
-          <span className="text-2xl font-black tracking-tighter text-gray-900">IyonicPay</span>
-        </div>
-        <div className="hidden md:flex items-center space-x-8 text-sm font-black uppercase tracking-widest text-gray-400">
-          <a href="#" className="hover:text-indigo-600 transition-colors">Individual</a>
-          <a href="#" className="hover:text-indigo-600 transition-colors">Business</a>
-          <a href="#" className="hover:text-indigo-600 transition-colors">Developers</a>
-        </div>
-        <div className="flex items-center space-x-4">
-          <button onClick={() => setIsLoginModalOpen(true)} className="px-6 py-3 font-black text-gray-900 hover:text-indigo-600 transition-colors">Log In</button>
-          <button onClick={() => setIsRegisterModalOpen(true)} className="px-8 py-3 bg-gray-900 text-white font-black rounded-2xl shadow-xl shadow-gray-200 hover:bg-gray-800 transition-all active:scale-95">Sign Up</button>
-        </div>
-      </nav>
-
-      {/* Hero */}
-      <section className="px-8 py-24 max-w-7xl mx-auto flex flex-col lg:flex-row items-center relative">
-        <div className="lg:w-3/5 mb-16 lg:mb-0 relative z-10">
-          <div className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-50 rounded-full text-indigo-600 text-[10px] font-black uppercase tracking-[0.2em] mb-8">
-            <Zap className="w-4 h-4 fill-current" />
-            <span>Redefining Digital Payments</span>
-          </div>
-          <h1 className="text-7xl lg:text-8xl font-black text-gray-900 leading-[1] mb-10 tracking-tighter">
-            Money moves <br/> 
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 animate-gradient-x">smarter.</span>
-          </h1>
-          <p className="text-xl text-gray-500 mb-12 max-w-xl leading-relaxed font-medium">
-            The modern financial toolkit for Iyonicorp sellers and global explorers. Send, receive, and spend with absolute freedom.
-          </p>
-          <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-6">
-            {user ? (
-              !user.iyonicpayOptIn && (
-                <button 
-                  onClick={handleOptIn} 
-                  disabled={isOptingIn}
-                  className="px-10 py-5 bg-indigo-600 text-white font-black rounded-[2rem] text-lg shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-50"
-                >
-                  {isOptingIn ? 'Opting in...' : 'Opt-in to IyonicPay'}
-                </button>
-              )
-            ) : (
-              <>
-                <button onClick={() => setIsRegisterModalOpen(true)} className="px-10 py-5 bg-indigo-600 text-white font-black rounded-[2rem] text-lg shadow-2xl shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95">Get Started Now</button>
-                <button onClick={() => setIsContinueModalOpen(true)} className="px-10 py-5 bg-white border-2 border-gray-100 text-gray-900 font-black rounded-[2rem] text-lg hover:border-indigo-100 transition-all flex items-center justify-center space-x-4 active:scale-95">
-                  <div className="w-8 h-8 bg-indigo-600 p-1.5 rounded-xl">
-                    <img src="/shopright-logo.png" alt="" className="w-full h-full object-contain" />
-                  </div>
-                  <span>Connect store</span>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="lg:w-2/5 relative">
-          <motion.div 
-            initial={{ rotate: 12, y: 20 }}
-            animate={{ rotate: 6, y: 0 }}
-            transition={{ duration: 1, repeat: Infinity, repeatType: 'reverse' }}
-            className="relative z-10 bg-white rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.15)] p-12 border border-gray-50 max-w-sm mx-auto"
-          >
-            <div className="flex justify-between items-center mb-16">
-              <div className="w-14 h-14 bg-indigo-600 rounded-3xl flex items-center justify-center">
-                <Wallet className="w-8 h-8 text-white" />
-              </div>
-              <div className="flex space-x-1">
-                <div className="w-8 h-8 bg-gray-50 rounded-full"></div>
-                <div className="w-8 h-8 bg-gray-100 rounded-full"></div>
-              </div>
-            </div>
-            <p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-3">Your Balance</p>
-             <div className="flex items-baseline space-x-4 mb-12">
-               <h3 className="text-5xl font-black text-gray-900 tracking-tighter">
-                 {walletData
-                   ? formatPrice(convertAmount(Number(walletData.balance || 0), walletData.currency || 'USD', sellerCurrency), sellerCurrency)
-                    : formatPrice(24950, sellerCurrency)}
-               </h3>
-               {walletData && sellerCurrency !== 'USD' && (
-                 <span className="text-xl font-bold text-gray-500 opacity-60">
-                   ≈ {formatPrice(convertAmount(Number(walletData.balance || 0), walletData.currency || 'USD', 'USD'), 'USD')}
-                 </span>
-               )}
-             </div>
-            <div className="space-y-4">
-              <div className="p-5 bg-indigo-50 rounded-[2rem] flex items-center justify-between border border-indigo-100/50">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                    <ArrowUpRight className="w-6 h-6 text-white" />
-                  </div>
-                  <span className="font-black text-indigo-900">Send</span>
-                </div>
-                <div className="w-7 h-7 rounded-full border-4 border-indigo-200"></div>
-              </div>
-            </div>
-          </motion.div>
-          {/* Background decoration */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] bg-indigo-50 rounded-full blur-[120px] -z-10"></div>
-        </div>
-      </section>
-
-      {/* Trust Section */}
-      <section className="px-8 py-20 bg-gray-50/50">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-center text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-12">Trusted by global industry leaders</p>
-          <div className="flex flex-wrap justify-center items-center gap-12 md:gap-24 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
-            {['Stripe', 'Paypal', 'Visa', 'Mastercard', 'ApplePay', 'GooglePay'].map((brand) => (
-              <span key={brand} className="text-2xl font-black text-gray-900 tracking-tighter">{brand}</span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Modern Features Grid */}
-      <section className="px-8 py-32 max-w-7xl mx-auto">
-        <div className="text-center max-w-3xl mx-auto mb-24">
-          <h2 className="text-5xl md:text-6xl font-black text-gray-900 mb-8 tracking-tighter leading-tight">Everything you need to <span className="text-indigo-600">scale</span> globally.</h2>
-          <p className="text-xl text-gray-500 font-medium">A complete payment infrastructure designed for the modern internet. Built for speed, security, and global growth.</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            { 
-              icon: <Zap className="w-8 h-8" />, 
-              title: 'Instant Settlements', 
-              desc: 'Get your funds faster with our instant settlement network. No more waiting days for your money.',
-              color: 'bg-amber-50 text-amber-600'
-            },
-            { 
-              icon: <ShieldCheck className="w-8 h-8" />, 
-              title: 'Bank-grade Security', 
-              desc: 'Advanced fraud protection and end-to-end encryption for every transaction you process.',
-              color: 'bg-blue-50 text-blue-600'
-            },
-            { 
-              icon: <Globe className="w-8 h-8" />, 
-              title: 'Global Payouts', 
-              desc: 'Send money to over 150 countries in local currencies with the best exchange rates in the market.',
-              color: 'bg-indigo-50 text-indigo-600'
-            },
-            { 
-              icon: <Smartphone className="w-8 h-8" />, 
-              title: 'Mobile First', 
-              desc: 'Optimized for mobile commerce with one-tap checkout and seamless app integrations.',
-              color: 'bg-purple-50 text-purple-600'
-            },
-            { 
-              icon: <Activity className="w-8 h-8" />, 
-              title: 'Real-time Analytics', 
-              desc: 'Deep insights into your business performance with real-time tracking and reporting.',
-              color: 'bg-green-50 text-green-600'
-            },
-            { 
-              icon: <Code className="w-8 h-8" />, 
-              title: 'Developer APIs', 
-              desc: 'Robust, well-documented APIs and SDKs to integrate payments into any platform in minutes.',
-              color: 'bg-gray-900 text-white'
-            }
-          ].map((feature, i) => (
-            <motion.div 
-              key={i}
-              whileHover={{ y: -10 }}
-              className="p-10 bg-white border border-gray-100 rounded-[3rem] shadow-sm hover:shadow-2xl hover:shadow-indigo-100/50 transition-all duration-500 group"
+          <div className="nav-actions">
+            <button type="button" className="nav-login" onClick={() => setIsLoginModalOpen(true)}>Log In</button>
+            <button
+              type="button"
+              className="nav-cta"
+              onClick={() => (user && !user.iyonicpayOptIn ? handleOptIn() : setIsRegisterModalOpen(true))}
+              disabled={isOptingIn}
             >
-              <div className={`w-16 h-16 ${feature.color} rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-current/10 group-hover:scale-110 transition-transform`}>
-                {feature.icon}
-              </div>
-              <h3 className="text-2xl font-black text-gray-900 mb-4 tracking-tight">{feature.title}</h3>
-              <p className="text-gray-500 font-medium leading-relaxed">{feature.desc}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* Developer Experience Section */}
-      <section className="px-8 py-32 bg-gray-900 overflow-hidden relative">
-        <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-20">
-          <div className="lg:w-1/2">
-            <div className="inline-flex items-center space-x-2 px-4 py-2 bg-indigo-500/10 rounded-full text-indigo-400 text-[10px] font-black uppercase tracking-[0.2em] mb-8">
-              <Code className="w-4 h-4" />
-              <span>Built for developers</span>
-            </div>
-            <h2 className="text-5xl md:text-6xl font-black text-white mb-8 tracking-tighter leading-tight">Powerful APIs for <span className="text-indigo-500">modern</span> builders.</h2>
-            <p className="text-xl text-gray-400 font-medium mb-12 leading-relaxed">
-              Integrate IyonicPay in minutes with our elegant SDKs. We handle the complexity of global payments so you can focus on building your product.
-            </p>
-            <div className="space-y-6">
-              {[
-                'Simple RESTful API with clear documentation',
-                'Webhooks for real-time transaction updates',
-                'Customizable checkout UI components',
-                'Sandbox environment for rigorous testing'
-              ].map((item, i) => (
-                <div key={i} className="flex items-center space-x-4">
-                  <div className="w-6 h-6 bg-indigo-500/20 rounded-full flex items-center justify-center">
-                    <CheckCircle2 className="w-4 h-4 text-indigo-500" />
-                  </div>
-                  <span className="text-gray-300 font-medium">{item}</span>
-                </div>
-              ))}
-            </div>
-            <button className="mt-12 px-10 py-5 bg-indigo-600 text-white font-black rounded-[2rem] text-lg hover:bg-indigo-700 transition-all active:scale-95 shadow-2xl shadow-indigo-500/20">
-              Read the Docs
+              {user && !user.iyonicpayOptIn ? 'Opt-in to IyonicPay' : 'Build with Iyoni'} <ArrowUpRight size={15} />
             </button>
           </div>
-
-          <div className="lg:w-1/2 relative">
-            <div className="bg-[#0f172a] rounded-[2.5rem] p-8 shadow-2xl border border-white/5 relative z-10">
-              <div className="flex items-center space-x-2 mb-8 border-b border-white/5 pb-6">
-                <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
-                <div className="w-3 h-3 rounded-full bg-amber-500/50"></div>
-                <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
-                <span className="ml-4 text-xs font-mono text-gray-500 uppercase tracking-widest">checkout.js</span>
-              </div>
-              <pre className="font-mono text-sm leading-relaxed overflow-x-auto">
-                <code className="text-indigo-400">
-                  {`IyonicPay.initializePayment({
-  apiKey: 'pk_live_...',
-  amount: 2500,
-  currency: 'USD',
-  customer: 'customer@example.com',
-  metadata: {
-    order_id: '12345'
-  }
-}).then(result => {
-  console.log('Payment success!', result);
-});`}
-                </code>
-              </pre>
+          <button
+            type="button"
+            className="menu-toggle"
+            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+          </button>
+          {menuOpen && (
+            <div className="mobile-nav">
+              <button type="button" onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setMenuOpen(false); }}>Platforms</button>
+              <Link to="/iyonicshop" onClick={() => setMenuOpen(false)}>Shop</Link>
+              <Link to="/iyonicbots" onClick={() => setMenuOpen(false)}>Bots</Link>
+              <button type="button" onClick={() => { setIsLoginModalOpen(true); setMenuOpen(false); }}>Log In</button>
+              <button
+                type="button"
+                className="nav-cta"
+                onClick={() => { (user && !user.iyonicpayOptIn ? handleOptIn() : setIsRegisterModalOpen(true)); setMenuOpen(false); }}
+                disabled={isOptingIn}
+              >
+                {user && !user.iyonicpayOptIn ? 'Opt-in to IyonicPay' : 'Build with Iyoni'} <ArrowUpRight size={15} />
+              </button>
             </div>
-            {/* Background Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-indigo-600/20 rounded-full blur-[100px] -z-0"></div>
+          )}
+        </nav>
+      </header>
+
+      <section className="platform-hero" aria-labelledby="pay-hero-title">
+        <div className="platform-hero-copy">
+          <p className="eyebrow"><span className="eyebrow-mark" /> Payment infrastructure</p>
+          <h1 id="pay-hero-title">
+            Get paid.<br />
+            <em>Keep the business moving.</em>
+          </h1>
+          <p className="hero-lede">
+            IyonicPay is the payment infrastructure inside Iyoni's modular Business Operating System —
+            helping businesses collect payments, manage funds, and connect transactions to the wider
+            platform.
+          </p>
+          <div className="hero-actions">
+            <button
+              type="button"
+              className="button button-dark"
+              onClick={() => (user && !user.iyonicpayOptIn ? handleOptIn() : setIsRegisterModalOpen(true))}
+              disabled={isOptingIn}
+            >
+              {isOptingIn
+                ? 'Opting in...'
+                : user && !user.iyonicpayOptIn
+                  ? 'Opt-in to IyonicPay'
+                  : 'Find your platform'} <ArrowRight size={17} />
+            </button>
+            <button type="button" className="text-link" onClick={() => setIsContinueModalOpen(true)}>
+              Explore Iyoni <ArrowDown size={15} />
+            </button>
+          </div>
+          <div className="hero-footnote">
+            <span className="footnote-rule" />
+            <span><strong>One platform.</strong> Payments connected to commerce and automation.</span>
+          </div>
+        </div>
+
+        <div className="platform-hero-visual" aria-hidden="true">
+          <div className="map-topline"><span>RECEIVE</span><span>SEND</span></div>
+          <div className="map-industry-row">
+            <span>Payments</span>
+            <span>Transfers</span>
+            <span>Cards</span>
+            <span>Wallet</span>
+          </div>
+          <div className="map-connectors" aria-hidden="true">
+            <i /><i /><i /><i />
+          </div>
+          <div className="map-core">
+            <div className="core-symbol"><span /><span /><span /></div>
+            <div>
+              <span className="core-overline">IYONI</span>
+              <strong>Payments</strong>
+            </div>
+            <ArrowRight size={20} />
+          </div>
+          <div className="map-lower-label">CONNECTED SERVICES <span>↓</span></div>
+          <div className="map-capabilities">
+            <span>Commerce</span>
+            <span>Automation</span>
+            <span>Operations</span>
+            <span>Growth</span>
+          </div>
+          <div className="map-caption">
+            <span className="caption-dot" />
+            Payments flow through the same platform as commerce and automation.
           </div>
         </div>
       </section>
 
-      {/* Global Impact Section */}
-      <section className="px-8 py-32 max-w-7xl mx-auto text-center">
-        <h2 className="text-5xl md:text-6xl font-black text-gray-900 mb-8 tracking-tighter leading-tight">Seamlessly <span className="text-purple-600">borderless.</span></h2>
-        <p className="text-xl text-gray-500 font-medium max-w-3xl mx-auto mb-20">We're building the financial infrastructure for the world's most ambitious companies. No borders, no limits.</p>
-        
-        <div className="relative aspect-[21/9] bg-gray-50 rounded-[4rem] overflow-hidden border border-gray-100 group">
-          <div className="absolute inset-0 flex items-center justify-center opacity-10 group-hover:opacity-20 transition-opacity duration-1000">
-            <Globe className="w-full h-full text-indigo-900 p-24" />
+      <section className="section-wrap">
+        <div className="max-w-7xl mx-auto">
+          <p className="text-center text-[10px] font-black uppercase tracking-[0.3em] text-[#65736a]">
+            A core Iyoni platform service
+          </p>
+          <p className="mx-auto mt-5 max-w-2xl text-center text-lg leading-8 text-[#65736a]">
+            IyonicPay fits inside the same platform as commerce and automation — helping businesses
+            collect payments while the rest of the operation stays connected and visible.
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-6 text-sm font-semibold text-[#315e4b]">
+            <Link to="/themes" className="inline-flex items-center gap-2 hover:text-[#193d30]">
+              Explore all platforms <ArrowUpRight className="h-4 w-4" />
+            </Link>
+            <Link to="/iyonicshop" className="hover:text-[#193d30]">IyonicShop</Link>
+            <Link to="/iyonicbots" className="hover:text-[#193d30]">IyonicBots</Link>
           </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-20">
-              {[
-                { label: 'Countries', value: '150+' },
-                { label: 'Currencies', value: '135+' },
-                { label: 'Daily Trans.', value: '1.2M+' },
-                { label: 'Sellers', value: '10K+' }
-              ].map((stat, i) => (
-                <div key={i}>
-                  <p className="text-5xl font-black text-gray-900 mb-2 tracking-tighter">{stat.value}</p>
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-400">{stat.label}</p>
-                </div>
-              ))}
+        </div>
+      </section>
+
+      <section className="section-wrap" id="features" aria-labelledby="pay-features-title">
+        <div className="section-intro">
+          <p className="eyebrow">PAYMENT TOOLS</p>
+          <h2 id="pay-features-title">Everything you need to <em>scale</em> globally.</h2>
+          <p>
+            A complete payment infrastructure designed for the modern internet — built for speed,
+            security, and global growth.
+          </p>
+        </div>
+
+        <div className="capability-grid">
+          <Link to="/themes" className="capability-card">
+            <span className="capability-index">01</span>
+            <Zap size={21} strokeWidth={1.7} />
+            <strong>Payment tools</strong>
+            <p>Explore the payment and transfer options available to your account.</p>
+            <ArrowUpRight className="capability-arrow" size={16} />
+          </Link>
+          <Link to="/themes" className="capability-card">
+            <span className="capability-index">02</span>
+            <CreditCard size={21} strokeWidth={1.7} />
+            <strong>Account controls</strong>
+            <p>Review the account and transaction controls in your IyonicPay workspace.</p>
+            <ArrowUpRight className="capability-arrow" size={16} />
+          </Link>
+          <Link to="/themes" className="capability-card">
+            <span className="capability-index">03</span>
+            <Wallet size={21} strokeWidth={1.7} />
+            <strong>Wallet experience</strong>
+            <p>Access wallet and payment activity through the IyonicPay experience.</p>
+            <ArrowUpRight className="capability-arrow" size={16} />
+          </Link>
+        </div>
+      </section>
+
+      <section className="architecture-section" aria-labelledby="pay-architecture-title">
+        <div className="section-wrap architecture-inner">
+          <div className="architecture-stamp">
+            <span>CORE<br />SERVICE</span>
+            <Wallet size={24} />
+          </div>
+          <div className="architecture-copy">
+            <p className="eyebrow">A MODULAR WAY TO BUILD</p>
+            <h2 id="pay-architecture-title">One foundation.<br /><em>Payments in the picture.</em></h2>
+            <p>
+              IyonicPay is one of Iyoni's core services. Explore the business platforms around it
+              and check your account for currently available payment options.
+            </p>
+            <div className="architecture-steps">
+              <span><b>01</b> Find your platform</span>
+              <i />
+              <span><b>02</b> Explore available tools</span>
+              <i />
+              <span><b>03</b> Build from there</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="px-8 py-32">
-        <div className="max-w-7xl mx-auto bg-indigo-600 rounded-[4rem] p-12 md:p-32 text-center relative overflow-hidden group">
-          <div className="relative z-10">
-            <h2 className="text-5xl md:text-7xl font-black text-white mb-12 tracking-tighter leading-tight">Ready to join the future <br/> of payments?</h2>
-            <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
-              <button onClick={() => setIsRegisterModalOpen(true)} className="px-12 py-6 bg-white text-indigo-600 font-black rounded-[2rem] text-xl shadow-2xl shadow-black/10 hover:bg-gray-50 transition-all active:scale-95">Create Your Account</button>
-              <button onClick={() => setIsLoginModalOpen(true)} className="px-12 py-6 bg-indigo-700 text-white font-black rounded-[2rem] text-xl hover:bg-indigo-800 transition-all active:scale-95">Contact Sales</button>
-            </div>
+      <section className="closing-cta">
+        <div className="closing-orbit" aria-hidden="true"><span /><span /><span /></div>
+        <div className="closing-copy">
+          <p className="eyebrow">ONE FOUNDATION. YOUR BUSINESS.</p>
+          <h2>Build your payments<br />with <em>Iyoni.</em></h2>
+          <p>Find the platform that fits, then take your next step.</p>
+          <div className="hero-actions">
+            <Link className="button button-light" to="/themes">
+              Explore platforms <ArrowRight size={17} />
+            </Link>
+            <button
+              className="closing-login"
+              type="button"
+              onClick={() => (user && !user.iyonicpayOptIn ? handleOptIn() : setIsRegisterModalOpen(true))}
+              disabled={isOptingIn}
+            >
+              {user && !user.iyonicpayOptIn ? (isOptingIn ? 'Opting in...' : 'Opt-in to IyonicPay') : 'Get started'} <ArrowUpRight size={16} />
+            </button>
           </div>
-          
-          {/* Decorative Elements */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[100px] -mr-48 -mt-48"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-400/20 rounded-full blur-[100px] -ml-48 -mb-48"></div>
+        </div>
+        <div className="closing-foot">
+          IYONI CORP <span>—</span> RUN. SELL. GET PAID. AUTOMATE. GROW.
         </div>
       </section>
 
-      <ProductFooter product="IyonicPay" accentClass="text-indigo-400" description="A modern financial layer for sending, receiving, and moving money with clarity across borders." />
-      <footer className="hidden">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 flex items-center justify-center">
-              <img src="/logo.png" alt="Iyonicorp Logo" className="w-10 h-10 object-contain" />
-            </div>
-            <span className="text-2xl font-black tracking-tighter text-gray-900">IyonicPay</span>
-          </div>
-          <div className="flex flex-wrap justify-center gap-12 text-sm font-black uppercase tracking-widest text-gray-400">
-            <a href="#" className="hover:text-indigo-600 transition-colors">Privacy</a>
-            <a href="#" className="hover:text-indigo-600 transition-colors">Terms</a>
-            <a href="#" className="hover:text-indigo-600 transition-colors">Cookies</a>
-            <a href="#" className="hover:text-indigo-600 transition-colors">Contact</a>
-          </div>
-          <p className="text-gray-400 text-xs font-bold">© 2026 IyonicPay by Iyonicorp. All rights reserved.</p>
-        </div>
-      </footer>
+      <HomepageFooter />
+
 
       {/* Modals */}
       {/* Full Page Auth Overlays */}
@@ -4413,7 +4342,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                   Welcome back to the <span className="text-indigo-500">future</span> of finance.
                 </h2>
                 <p className="text-gray-400 text-xl max-w-md font-medium">
-                  Manage your global payments, track every transaction, and grow your business with bank-grade security.
+                  Return to the IyonicPay payment and wallet experience connected to your Iyoni account.
                 </p>
               </div>
               <div className="relative z-10 flex items-center space-x-4">
@@ -4424,7 +4353,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                     </div>
                   ))}
                 </div>
-                <span className="text-gray-400 text-sm font-bold">Joined by 10,000+ sellers worldwide</span>
+                <span className="text-gray-400 text-sm font-bold">One of Iyoni’s core platform services</span>
               </div>
               
               {/* Decorative Blobs */}
@@ -4520,15 +4449,15 @@ const handleWithdraw = async (e: React.FormEvent) => {
                   Start your global <span className="text-indigo-200">journey</span> today.
                 </h2>
                 <p className="text-indigo-100 text-xl max-w-md font-medium">
-                  Join thousands of merchants who trust IyonicPay to power their payments across the globe.
+                  Explore the payment and wallet options currently available to your account.
                 </p>
               </div>
               
               <div className="relative z-10 space-y-6">
                 {[
-                  { icon: <ShieldCheck className="w-5 h-5" />, title: 'Bank-grade Security', desc: 'End-to-end encryption' },
-                  { icon: <Globe className="w-5 h-5" />, title: 'Global Reach', desc: '150+ currencies supported' },
-                  { icon: <Zap className="w-5 h-5" />, title: 'Instant Settelment', desc: 'Fast and reliable' }
+                  { icon: <ShieldCheck className="w-5 h-5" />, title: 'Account access', desc: 'Review your current options' },
+                  { icon: <Globe className="w-5 h-5" />, title: 'Connected platform', desc: 'Part of Iyoni’s business platform' },
+                  { icon: <Zap className="w-5 h-5" />, title: 'Payment tools', desc: 'Availability varies by account' }
                 ].map((feat, i) => (
                   <div key={i} className="flex items-center space-x-4">
                     <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center text-white">

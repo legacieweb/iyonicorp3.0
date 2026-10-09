@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowDown, ArrowRight, BookOpenText, Check, MessageCircle, ShieldCheck, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SEO from '../../../../components/SEO';
+import IyoniPlatformBand from '../../../../components/IyoniPlatformBand';
 import './essayme-landing.css';
 
 const scrollToSection = (sectionId: string) => (event: React.MouseEvent<HTMLAnchorElement>) => {
@@ -11,8 +12,10 @@ const scrollToSection = (sectionId: string) => (event: React.MouseEvent<HTMLAnch
 };
 
 const EssayMeLanding: React.FC = () => (
+  <>
+  <IyoniPlatformBand />
   <main className="essayme-landing">
-    <SEO title="tutorme" description="Find a tutor who makes learning click. Discover subject experts, book tutoring sessions, and manage your learning in one place." keywords="tutors, tutoring marketplace, online tutoring, tutorme" />
+    <SEO title="TutorMe | Education platform in Iyoni" description="Discover TutorMe, a tutor-first learning experience within Iyoni’s modular business platform." keywords="tutors, tutoring marketplace, online tutoring, tutorme" />
 
     <header className="em-landing-header">
       <Link className="em-landing-brand" to="/utorme" aria-label="tutorme home">
@@ -22,7 +25,7 @@ const EssayMeLanding: React.FC = () => (
       <nav aria-label="tutorme navigation">
         <a href="#how-it-works" onClick={scrollToSection('how-it-works')}>How it works</a>
         <a href="#for-tutors" onClick={scrollToSection('for-tutors')}>For tutors</a>
-        <Link to="/themes">Platform themes</Link>
+        <Link to="/themes">Iyoni platforms</Link>
       </nav>
       <div className="em-header-actions"><Link to="/login?redirect=%2Futorme%2Fstudent">Student sign in</Link><Link className="em-header-cta" to="/login?theme=utorme&redirect=%2Futorme%2Ftutor">Tutor sign in <ArrowRight size={15} /></Link></div>
     </header>
@@ -30,7 +33,7 @@ const EssayMeLanding: React.FC = () => (
     <section className="em-hero">
       <div className="em-hero-inner">
         <div className="em-hero-copy">
-          <p className="em-eyebrow"><span /> THE RIGHT GUIDE CHANGES EVERYTHING</p>
+          <p className="em-eyebrow"><span /> A SPECIALIST EDUCATION EXPERIENCE WITHIN IYONI</p>
           <h1>tutorme<span>.</span></h1>
           <p className="em-hero-lede">Find your person.<br /><em>Make learning click.</em></p>
           <p className="em-hero-description">Meet tutors who know their subject, understand how you learn, and help you move forward one great session at a time.</p>
@@ -42,13 +45,13 @@ const EssayMeLanding: React.FC = () => (
         </div>
 
         <div className="em-hero-art" aria-label="Preview of a tutoring session and tutor guidance">
-          <div className="em-art-kicker"><Sparkles size={13} /> YOUR NEXT SESSION · BIOLOGY</div>
+          <div className="em-art-kicker"><Sparkles size={13} /> ILLUSTRATIVE SESSION PREVIEW</div>
           <article className="em-art-assignment">
             <span className="em-art-label">LEARNING WITH DR. MAYA</span>
             <h2>Cells, energy<br />& the big picture.</h2>
             <p>Connect each step of cellular respiration and see where the energy goes.</p>
             <div className="em-art-lines"><i /><i /><i /><i /></div>
-            <span className="em-art-page-number">1:1 SESSION · 45 MIN</span>
+            <span className="em-art-page-number">ILLUSTRATIVE 1:1 SESSION</span>
           </article>
           <article className="em-art-tutor-note">
             <span><span className="em-art-avatar">M</span><b>Maya <small>BIOLOGY TUTOR</small></b><Check size={14} /></span>
@@ -92,6 +95,7 @@ const EssayMeLanding: React.FC = () => (
 
     <footer className="em-landing-footer"><Link className="em-landing-brand" to="/utorme"><span className="em-landing-mark"><BookOpenText size={18} /></span><span>tutor<span>me</span><small>LEARNING, TOGETHER</small></span></Link><span>Learn your way.</span><span>Student and tutor accounts have separate workspaces.</span></footer>
   </main>
+  </>
 );
 
 export default EssayMeLanding;

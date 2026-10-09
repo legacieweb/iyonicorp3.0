@@ -22,15 +22,17 @@ export const THEME_PRICE_USD_CENTS = Object.freeze({
   'car-rental': 35000,
   'restaurant': 40000,
   'pulse-fit': 45000,
+  'crown-stroke': 35000,
   'nlmsongs': 50000,
   'utorme': 55000,
   'evento': 60000,
   'homeworker': 65000,
   'ixstream': 80000,
   tspp: 150000,
+  sms: 180000,
 });
 
 export const THEME_IDS = new Set(Object.keys(THEME_PRICE_USD_CENTS));
 
 export const isValidThemePrice = (amountCents) =>
-  Number.isInteger(amountCents) && amountCents >= 3000 && amountCents <= 150000;
+  Number.isInteger(amountCents) && amountCents >= 3000 && amountCents <= 180000;

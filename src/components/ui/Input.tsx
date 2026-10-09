@@ -39,7 +39,7 @@ export const Input: React.FC<InputProps> = ({
           id={inputId}
           className={twMerge(
             clsx(
-              'w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0',
+              'w-full px-4 py-3 rounded-xl border-2 text-black placeholder:text-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0',
               error
                 ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
                 : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200',
@@ -89,7 +89,7 @@ export const Textarea: React.FC<TextareaProps> = ({
         id={textareaId}
         className={twMerge(
           clsx(
-            'w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 resize-none',
+            'w-full px-4 py-3 rounded-xl border-2 text-black placeholder:text-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 resize-none',
             error
               ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
               : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200',
@@ -133,7 +133,7 @@ export const Select: React.FC<SelectProps> = ({
         id={selectId}
         className={twMerge(
           clsx(
-            'w-full px-4 py-3 rounded-xl border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 appearance-none bg-white',
+            'w-full px-4 py-3 rounded-xl border-2 text-black transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-0 appearance-none bg-white',
             error
               ? 'border-red-300 focus:border-red-500 focus:ring-red-200'
               : 'border-gray-200 focus:border-blue-500 focus:ring-blue-200',

@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
+﻿import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { ChevronUp, Github, Instagram, Linkedin, Twitter } from 'lucide-react';
-import { Button } from './ui';
+import { ArrowUpRight, ChevronUp } from 'lucide-react';
 
 const footerGroups = [
   {
-    title: 'Platform',
+    title: 'Iyoni platform',
     links: [
+      { name: 'Find your platform', href: '/themes' },
       { name: 'IyonicShop', href: '/iyonicshop' },
       { name: 'IyonicPay', href: '/iyonicpay' },
       { name: 'IyonicBots', href: '/iyonicbots' },
-      { name: 'Pricing', href: '/register?role=seller' },
+      { name: 'IyonicDB', href: '/iyonicdb' },
     ],
   },
   {
@@ -44,65 +44,70 @@ const footerGroups = [
   },
 ];
 
-const socialLinks = [
-  { icon: Twitter, label: 'Twitter' },
-  { icon: Instagram, label: 'Instagram' },
-  { icon: Linkedin, label: 'LinkedIn' },
-  { icon: Github, label: 'GitHub' },
-];
+const platformSignals = ['Run', 'Sell', 'Get Paid', 'Automate', 'Grow'];
 
 export const HomepageFooter: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [isSubscribed, setIsSubscribed] = useState(false);
-
-  const handleNewsletterSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!email.trim()) return;
-
-    setIsSubscribed(true);
-    setEmail('');
-    window.setTimeout(() => setIsSubscribed(false), 3000);
-  };
+  const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="relative overflow-hidden border-t border-gray-100 bg-white">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden opacity-30" aria-hidden="true">
-        <div className="absolute left-1/4 top-0 h-96 w-96 -translate-y-1/2 rounded-full bg-blue-50 blur-[100px]" />
-        <div className="absolute bottom-0 right-1/4 h-96 w-96 translate-y-1/2 rounded-full bg-purple-50 blur-[100px]" />
+    <footer className="relative overflow-hidden border-t border-[#d7d0c4] bg-[#f4efe6] text-[#1a2d2a]">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute -left-16 top-0 h-72 w-72 rounded-full bg-[#dfeadf] blur-[120px]" />
+        <div className="absolute right-0 top-12 h-80 w-80 rounded-full bg-[#e8d8bd] blur-[150px]" />
+        <div className="absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-[#dfeae3] blur-[140px]" />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-7xl px-6 pb-12 pt-20 lg:pt-24">
-        <div className="mb-16 grid grid-cols-1 gap-12 lg:mb-20 lg:grid-cols-12 lg:gap-8">
-          <div className="lg:col-span-4">
-            <Link to="/" className="group mb-6 inline-flex items-center gap-3">
-              <img src="/logo.png" alt="Iyonicorp" className="h-12 w-12 object-contain transition-transform duration-500 group-hover:scale-110" />
-              <span className="text-2xl font-black tracking-tight text-gray-900">Iyonicorp</span>
+      <div className="relative z-10 mx-auto max-w-7xl px-5 pb-10 pt-12 sm:px-6 lg:px-8">
+        <div className="mb-10 border-y border-[#c9c1b5] py-6 md:py-7">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="relative pl-5">
+              <span className="absolute inset-y-0 left-0 w-px bg-[#8da99b]" aria-hidden="true" />
+              <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-[#4b665d]">A shared foundation</p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-[-0.05em] text-[#122824] md:text-3xl">Build around the way your business works.</h2>
+            </div>
+            <Link
+              to="/themes"
+              style={{ color: '#ffffff' }}
+              className="inline-flex min-h-12 items-center justify-center gap-2 border border-[#163d36] bg-[#163d36] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0f2d29] hover:text-white focus-visible:bg-[#0f2d29] focus-visible:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#163d36] active:bg-[#0b2421] active:text-white"
+            >
+              Find your platform
+              <ArrowUpRight className="h-4 w-4" />
             </Link>
-            <p className="mb-8 max-w-sm text-lg leading-relaxed text-gray-500">
-              The next generation modular commerce platform. Engineered for growth, scale, and intelligence.
+          </div>
+        </div>
+
+        <div className="grid gap-10 pb-12 pt-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr] lg:gap-8">
+          <div className="lg:pr-8">
+            <Link to="/" className="group inline-flex items-center gap-3" aria-label="Iyoni home">
+              <img src="/logo.png" alt="Iyoni logo" className="h-12 w-12 object-contain transition-transform duration-500 group-hover:scale-110" />
+              <span className="text-2xl font-black tracking-[-0.06em] text-[#10221f]">Iyonicorp</span>
+            </Link>
+
+            <p className="mt-6 max-w-sm text-lg leading-8 text-[#425c57]">
+              One technology foundation for the platforms and services modern businesses need.
             </p>
-            <div className="flex items-center gap-3">
-              {socialLinks.map(({ icon: Icon, label }) => (
-                <span
-                  key={label}
-                  aria-label={`${label} coming soon`}
-                  title={`${label} coming soon`}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-400"
-                >
-                  <Icon className="h-5 w-5" />
-                </span>
+
+            <div className="mt-8 flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-[#49645f]">
+              {platformSignals.map((signal, index) => (
+                <React.Fragment key={signal}>
+                  <span>{signal}</span>
+                  {index < platformSignals.length - 1 && <span aria-hidden="true">•</span>}
+                </React.Fragment>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:col-span-8">
+          <nav aria-label="Iyoni footer navigation" className="grid gap-8 md:grid-cols-2 lg:col-span-4 lg:grid-cols-4">
             {footerGroups.map((group) => (
               <div key={group.title}>
-                <h2 className="mb-5 text-xs font-bold uppercase tracking-widest text-gray-900">{group.title}</h2>
-                <ul className="space-y-4">
+                <h2 className="mb-5 text-[11px] font-black uppercase tracking-[0.24em] text-[#1d2b28]">{group.title}</h2>
+                <ul className="space-y-3.5">
                   {group.links.map((item) => (
                     <li key={item.href}>
-                      <Link to={item.href} className="text-sm font-medium text-gray-500 transition-colors hover:text-gray-900">
+                      <Link
+                        to={item.href}
+                        className="flex min-h-11 items-center text-sm font-medium text-[#4d5d5a] transition-colors hover:text-[#152b28] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#163d36] md:min-h-0"
+                      >
                         {item.name}
                       </Link>
                     </li>
@@ -110,50 +115,21 @@ export const HomepageFooter: React.FC = () => {
                 </ul>
               </div>
             ))}
-          </div>
+          </nav>
         </div>
 
-        <div className="border-t border-gray-100 pt-10">
-          <div className="flex flex-col items-center justify-between gap-8 text-center lg:flex-row lg:text-left">
-            <div className="flex-1">
-              <h2 className="mb-2 text-xl font-bold text-gray-900">Join our newsletter</h2>
-              <p className="font-medium text-gray-500">Get the latest updates on new features and product releases.</p>
-            </div>
-            <form onSubmit={handleNewsletterSubmit} className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto" aria-label="Newsletter signup">
-              <label htmlFor="footer-newsletter-email" className="sr-only">Email address</label>
-              <input
-                id="footer-newsletter-email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="Enter your email"
-                className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-6 py-4 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 sm:w-80"
-                required
-              />
-              <Button type="submit" className="rounded-2xl bg-gray-900 px-8 py-4 font-bold text-white shadow-lg transition-all hover:bg-black">
-                {isSubscribed ? 'Subscribed!' : 'Subscribe'}
-              </Button>
-              <span className="sr-only" aria-live="polite">{isSubscribed ? 'Thanks for subscribing.' : ''}</span>
-            </form>
-          </div>
-
-          <div className="mt-12 flex flex-col items-center justify-between gap-5 border-t border-gray-50 pt-8 md:flex-row">
-            <p className="text-sm font-medium text-gray-400">© 2026 Iyonicorp Inc. All rights reserved.</p>
-            <div className="flex items-center gap-6 text-sm font-medium text-gray-400">
-              <span>Global Commerce</span>
-              <span>Carbon Neutral</span>
-            </div>
-            <motion.button
-              type="button"
-              whileHover={{ scale: 1.1, y: -4 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              aria-label="Back to top"
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-50 text-gray-400 shadow-sm transition-colors hover:bg-gray-100 hover:text-gray-900"
-            >
-              <ChevronUp className="h-5 w-5" />
-            </motion.button>
-          </div>
+        <div className="mt-2 flex flex-col gap-5 border-t border-[#d8d0c4] pt-8 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm font-medium text-[#5e6762]">© {currentYear} Iyonicorp Inc. All rights reserved.</p>
+          <motion.button
+            type="button"
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            aria-label="Back to top"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#c9c1b5] bg-[#fcfaf6] text-[#1f2d2b] shadow-[0_8px_20px_rgba(19,41,38,0.08)] transition-colors hover:border-[#9fb9af] hover:text-[#0d1d1b]"
+          >
+            <ChevronUp className="h-5 w-5" />
+          </motion.button>
         </div>
       </div>
     </footer>
