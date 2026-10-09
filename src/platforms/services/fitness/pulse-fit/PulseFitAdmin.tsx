@@ -1,26 +1,59 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Bot, CalendarDays, Check, ChevronDown, CreditCard, Dumbbell, DollarSign, LayoutDashboard, LogOut,
-  ListFilter, Loader2, Plus, Settings, Trash2, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BarChart3, CalendarDays, Check, ChevronDown, CreditCard, Dumbbell, DollarSign, LayoutDashboard, LogOut, Plus, Save, Settings, Tag, Trash2, Upload, Users, X } from 'lucide-react';
 import { useAuth } from '../../../../context/AuthContext';
 import { Order, ordersAPI, Product, productsAPI, Seller, sellersAPI, uploadAPI } from '../../../../services/api';
 import { formatPrice } from '../../../../utils/currency';
-import { defaultPulseFitSettings, getPulseFitSettings, isPulseFit, readPulseFitBooking, PulseFitSettings, savePulseFitSettings } from './pulseFitTypes';
+import { WEEKDAYS, classDuration, defaultPulseFitSettings, getPulseFitSettings, isPulseFit, readPulseFitBooking, PulseFitSettings, PulseFitPlan, savePulseFitSettings } from './pulseFitTypes';
 import './pulse-fit.css';
 
-type Section = 'overview' | 'classes' | 'bookings' | 'trainers' | 'settings' | 'store-settings' | 'billing' | 'themes' | 'bots' | 'pay';
+type Section = 'overview' | 'bookings' | 'classes' | 'trainers' | 'schedule' | 'memberships' | 'settings' | 'store-settings' | 'billing' | 'themes' | 'bots' | 'pay';
 const nav: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={18} /> },
   { id: 'bookings', label: 'Bookings', icon: <CalendarDays size={18} /> },
   { id: 'classes', label: 'Classes', icon: <Dumbbell size={18} /> },
   { id: 'trainers', label: 'Trainers', icon: <Users size={18} /> },
+  { id: 'schedule', label: 'Schedule', icon: <CalendarDays size={18} /> },
+  { id: 'memberships', label: 'Memberships', icon: <Tag size={18} /> },
   { id: 'settings', label: 'Hours', icon: <Settings size={18} /> },
   { id: 'store-settings', label: 'Store settings', icon: <Settings size={18} /> },
   { id: 'billing', label: 'Billing', icon: <CreditCard size={18} /> },
   { id: 'themes', label: 'Themes', icon: <LayoutDashboard size={18} /> },
-  { id: 'bots', label: 'IyonicBots', icon: <Bot size={18} /> },
+  { id: 'bots', label: 'IyonicBots', icon: <Dumbbell size={18} /> },
   { id: 'pay', label: 'IyonicPay', icon: <DollarSign size={18} /> },
 ];
+
+const statusOrder = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+const statusLabel: Record<string, string> = {
+  pending: 'Awaiting confirmation',
+  processing: 'Confirmed',
+  shipped: 'In session',
+  delivered: 'Completed',
+  cancelled: 'Cancelled',
+};
+
+interface TrainerForm {
+  name: string;
+  specialty: string;
+  bio: string;
+  photo: string;
+  certifications: string;
+  specialties: string;
+  instagram: string;
+}
+
+interface PlanForm {
+  name: string;
+  description: string;
+  credits: string;
+  price: string;
+  currency: string;
+  period: PulseFitPlan['period'];
+  features: string;
+}
+
+const emptyTrainerForm: TrainerForm = { name: '', specialty: '', bio: '', photo: '', certifications: '', specialties: '', instagram: '' };
+const emptyPlanForm: PlanForm = { name: '', description: '', credits: '', price: '', currency: 'USD', period: 'month', features: '' };
 
 const PulseFitAdmin: React.FC = () => {
   const { user, logout } = useAuth();
@@ -40,14 +73,20 @@ const PulseFitAdmin: React.FC = () => {
   const [classForm, setClassForm] = useState({ name: '', category: '', price: '', duration: '45', description: '', active: true });
   const [classImageFiles, setClassImageFiles] = useState<File[]>([]);
   const [classVideoFile, setClassVideoFile] = useState<File | null>(null);
-  const [trainerDraft, setTrainerDraft] = useState({ name: '', specialty: '' });
+  const [classScheduleSlots, setClassScheduleSlots] = useState<{ day: number; time: string }[]>([]);
+  const [classCapacity, setClassCapacity] = useState(12);
+  const [trainerDraft, setTrainerDraft] = useState<TrainerForm>(emptyTrainerForm);
+  const [editingTrainer, setEditingTrainer] = useState<string | null>(null);
+  const [planDraft, setPlanDraft] = useState<PlanForm>(emptyPlanForm);
+  const [editingPlan, setEditingPlan] = useState<string | null>(null);
   const [settings, setSettings] = useState<PulseFitSettings>(defaultPulseFitSettings);
 
   const setSection = (nextSection: Section) => {
     const destinations: Partial<Record<Section, string>> = {
       themes: '/themes',
+      billing: '/seller/dashboard?tab=billing',
       bots: '/iyonicbots',
-      pay: '/iyonicpay'
+      pay: '/iyonicpay',
     };
     const destination = destinations[nextSection];
     if (destination) {
@@ -58,39 +97,71 @@ const PulseFitAdmin: React.FC = () => {
   };
 
   const load = useCallback(async () => {
-    if (!user?.sellerId) { navigate('/seller/dashboard', { replace: true }); return; }
-    setLoading(true); setError('');
+    if (!user?.sellerId) {
+      navigate('/seller/dashboard', { replace: true });
+      return;
+    }
+    setLoading(true);
+    setError('');
     try {
-      const [owner, orders, products] = await Promise.all([sellersAPI.getMe(), ordersAPI.getBySellerId(user.sellerId), productsAPI.getBySellerId(user.sellerId)]);
-      if (!isPulseFit(owner) || owner.id !== user.sellerId) { navigate('/seller/dashboard', { replace: true }); return; }
+      const [owner, orders, products] = await Promise.all([
+        sellersAPI.getMe(),
+        ordersAPI.getBySellerId(user.sellerId),
+        productsAPI.getBySellerId(user.sellerId),
+      ]);
+      if (!isPulseFit(owner) || owner.id !== user.sellerId) {
+        navigate('/seller/dashboard', { replace: true });
+        return;
+      }
       setSeller(owner);
       setSettings(getPulseFitSettings(owner));
       setBookings(orders.filter((order) => !!readPulseFitBooking(order)).sort((a, b) => (readPulseFitBooking(a)?.sessionDate || '').localeCompare(readPulseFitBooking(b)?.sessionDate || '')));
       setClasses(products.filter((product) => product.type === 'service'));
-    } catch { setError('We could not load the studio workspace. Check your connection and try again.'); }
-    finally { setLoading(false); }
+    } catch {
+      setError('We could not load the studio workspace. Check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
   }, [navigate, user?.sellerId]);
 
   useEffect(() => { void load(); }, [load]);
-  const filtered = bookings.filter((order) => (!dateFilter || readPulseFitBooking(order)?.sessionDate === dateFilter) && (statusFilter === 'all' || order.status === statusFilter));
+
+  const filtered = bookings.filter(
+    (order) => (!dateFilter || readPulseFitBooking(order)?.sessionDate === dateFilter) && (statusFilter === 'all' || order.status === statusFilter)
+  );
   const today = new Date().toISOString().slice(0, 10);
   const todays = bookings.filter((order) => readPulseFitBooking(order)?.sessionDate === today);
-  const upcoming = bookings.filter((order) => (readPulseFitBooking(order)?.sessionDate || '') >= today && order.status !== 'cancelled');
+  const upcoming = bookings.filter((order) => (readPulseFitBooking(order)?.sessionDate || '') >= today && !['cancelled', 'delivered'].includes(order.status));
   const pending = bookings.filter((order) => order.status === 'pending');
   const revenue = bookings.filter((order) => ['processing', 'shipped', 'delivered'].includes(order.status)).reduce((sum, order) => sum + order.total, 0);
 
   const saveSettings = async (next: PulseFitSettings) => {
     if (!seller) return;
-    setSaving(true); setError(''); setNotice('');
-    try { const updated = await sellersAPI.updateMe(savePulseFitSettings(seller, next)); setSeller(updated); setSettings(getPulseFitSettings(updated)); setNotice('Changes saved.'); }
-    catch { setError('These changes could not be saved. Please try again.'); }
-    finally { setSaving(false); }
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      const updated = await sellersAPI.updateMe(savePulseFitSettings(seller, next));
+      setSeller(updated);
+      setSettings(getPulseFitSettings(updated));
+      setNotice('Changes saved.');
+    } catch {
+      setError('These changes could not be saved. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const setStatus = async (order: Order, status: Order['status']) => {
-    setError(''); setNotice('');
-    try { const updated = await ordersAPI.updateStatus(order.id, status); setBookings((items) => items.map((item) => item.id === order.id ? updated : item)); setNotice('Booking updated.'); }
-    catch { setError('The booking status was not changed. Please retry.'); }
+    setError('');
+    setNotice('');
+    try {
+      const updated = await ordersAPI.updateStatus(order.id, status);
+      setBookings((items) => items.map((item) => (item.id === order.id ? updated : item)));
+      setNotice('Booking updated.');
+    } catch {
+      setError('The booking status was not changed. Please retry.');
+    }
   };
 
   const assignTrainer = async (orderId: string, trainerName: string) => {
@@ -103,17 +174,42 @@ const PulseFitAdmin: React.FC = () => {
     setClassImageFiles([]);
     setClassVideoFile(null);
     const duration = cls?.description.match(/Duration:\s*(\d+)/i)?.[1] || '45';
-    setClassForm({ name: cls?.name || '', category: cls?.category || '', price: cls ? String(cls.price) : '', duration, description: cls?.description.replace(/\n?Duration:\s*\d+\s*min/i, '').trim() || '', active: cls?.status !== 'draft' && cls?.status !== 'archived' });
+    const schedule = cls?.id ? settings.classSchedules[cls.id] : undefined;
+    setClassForm({
+      name: cls?.name || '',
+      category: cls?.category || '',
+      price: cls ? String(cls.price) : '',
+      duration,
+      description: (cls?.description || '').replace(/\n?Duration:\s*\d+\s*min/i, '').trim() || '',
+      active: cls?.status !== 'draft' && cls?.status !== 'archived',
+    });
+    setClassScheduleSlots(schedule?.recurring || []);
+    setClassCapacity(schedule?.capacity || 12);
   };
 
   const resetClassForm = () => {
-    setClassEditing(null); setIsClassFormOpen(false); setClassImageFiles([]); setClassVideoFile(null);
+    setClassEditing(null);
+    setIsClassFormOpen(false);
+    setClassImageFiles([]);
+    setClassVideoFile(null);
     setClassForm({ name: '', category: '', price: '', duration: '45', description: '', active: true });
+    setClassScheduleSlots([]);
+    setClassCapacity(12);
   };
 
+  const addSlot = () => setClassScheduleSlots([...classScheduleSlots, { day: 1, time: '09:00' }]);
+  const updateSlot = (index: number, field: 'day' | 'time', value: string | number) => {
+    const slots = [...classScheduleSlots];
+    slots[index] = { ...slots[index], [field]: field === 'day' ? Number(value) : value };
+    setClassScheduleSlots(slots);
+  };
+  const removeSlot = (index: number) => setClassScheduleSlots(classScheduleSlots.filter((_, i) => i !== index));
+
   const saveClass = async (event: React.FormEvent) => {
-    event.preventDefault(); setError(''); setNotice('');
+    event.preventDefault();
     if (!seller) return;
+    setError('');
+    setNotice('');
     setSaving(true);
     let imageUrls: string[] = classEditing?.images || [];
     let videoUrls: string[] = classEditing?.videos || [];
@@ -123,71 +219,201 @@ const PulseFitAdmin: React.FC = () => {
         if (classImageFiles.length > 0) files.push(...classImageFiles);
         if (classVideoFile) files.push(classVideoFile);
         const uploaded = await uploadAPI.upload(files);
-        if (classImageFiles.length > 0) imageUrls = [...uploaded.slice(0, classImageFiles.length)];
+        if (classImageFiles.length > 0) imageUrls = uploaded.slice(0, classImageFiles.length);
         if (classVideoFile) videoUrls = [uploaded[uploaded.length - 1]];
       }
       const description = `${classForm.description.trim()}${classForm.description.trim() ? '\n' : ''}Duration: ${classForm.duration} min`;
-      const values = { sellerId: seller.id, name: classForm.name.trim(), description, price: Number(classForm.price), category: classForm.category.trim() || 'Class', type: 'service' as const, images: imageUrls, videos: videoUrls, stock: -1, status: classForm.active ? 'active' as const : 'draft' as const };
-      let result: Product;
-      if (classEditing) { result = await productsAPI.update(classEditing.id, values); setClasses((list) => list.map((item) => item.id === result.id ? result : item)); }
-      else { result = await productsAPI.create(values); setClasses((list) => [...list, result]); }
+      const values = {
+        sellerId: seller.id,
+        name: classForm.name.trim(),
+        description,
+        price: Number(classForm.price),
+        category: classForm.category.trim() || 'Class',
+        type: 'service' as const,
+        images: imageUrls,
+        videos: videoUrls,
+        stock: -1,
+        status: classForm.active ? ('active' as const) : ('draft' as const),
+      };
+      const result: Product = classEditing ? await productsAPI.update(classEditing.id, values) : await productsAPI.create(values);
+      setClasses((list) => (classEditing ? list.map((item) => (item.id === result.id ? result : item)) : [...list, result]));
+
+      const schedules = { ...settings.classSchedules, [result.id]: { classId: result.id, capacity: classCapacity, recurring: classScheduleSlots } };
+      await saveSettings({ ...settings, classSchedules: schedules });
+
       resetClassForm();
       setNotice('Class saved.');
-    } catch { setError('The class was not saved. Check the details and try again.'); }
-    finally { setSaving(false); }
+    } catch {
+      setError('The class was not saved. Check the details and try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const deleteClass = async (cls: Product) => {
     if (!window.confirm(`Delete ${cls.name}? This cannot be undone.`)) return;
-    try { await productsAPI.delete(cls.id); setClasses((list) => list.filter((item) => item.id !== cls.id)); setNotice('Class deleted.'); }
-    catch { setError('This class could not be deleted. Please try again.'); }
+    try {
+      await productsAPI.delete(cls.id);
+      setClasses((list) => list.filter((item) => item.id !== cls.id));
+      const schedules = { ...settings.classSchedules };
+      delete schedules[cls.id];
+      await saveSettings({ ...settings, classSchedules: schedules });
+      setNotice('Class deleted.');
+    } catch {
+      setError('This class could not be deleted. Please try again.');
+    }
   };
 
   const saveTrainer = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!trainerDraft.name.trim()) return;
-    await saveSettings({ ...settings, trainers: [...settings.trainers, { name: trainerDraft.name.trim(), specialty: trainerDraft.specialty.trim() }] });
-    setTrainerDraft({ name: '', specialty: '' });
+    const trainer = {
+      id: editingTrainer || trainerDraft.name,
+      name: trainerDraft.name.trim(),
+      specialty: trainerDraft.specialty.trim(),
+      bio: trainerDraft.bio.trim(),
+      photo: trainerDraft.photo.trim(),
+      certifications: trainerDraft.certifications ? trainerDraft.certifications.split(',').map((s) => s.trim()).filter(Boolean) : [],
+      specialties: trainerDraft.specialties ? trainerDraft.specialties.split(',').map((s) => s.trim()).filter(Boolean) : [],
+      instagram: trainerDraft.instagram.trim(),
+    };
+    let next: PulseFitSettings['trainers'];
+    if (editingTrainer) {
+      next = settings.trainers.map((t) => (t.id === editingTrainer ? trainer : t));
+    } else {
+      next = [...settings.trainers, trainer];
+    }
+    await saveSettings({ ...settings, trainers: next });
+    setTrainerDraft(emptyTrainerForm);
+    setEditingTrainer(null);
+  };
+
+  const editTrainer = (trainer: { id: string; name: string; specialty?: string; bio?: string; photo?: string; certifications?: string[]; specialties?: string[]; instagram?: string }) => {
+    setEditingTrainer(trainer.id);
+    setTrainerDraft({
+      name: trainer.name,
+      specialty: trainer.specialty || '',
+      bio: trainer.bio || '',
+      photo: trainer.photo || '',
+      certifications: (trainer.certifications || []).join(', '),
+      specialties: (trainer.specialties || []).join(', '),
+      instagram: trainer.instagram || '',
+    });
+  };
+
+  const deleteTrainer = async (id: string) => {
+    if (!window.confirm('Remove this trainer from the team?')) return;
+    await saveSettings({ ...settings, trainers: settings.trainers.filter((t) => t.id !== id) });
+  };
+
+  const savePlan = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!planDraft.name.trim() || !planDraft.price) return;
+    const plan: PulseFitPlan = {
+      id: editingPlan || planDraft.name.toLowerCase().replace(/\s+/g, '-'),
+      name: planDraft.name.trim(),
+      description: planDraft.description.trim(),
+      credits: Number(planDraft.credits) || 0,
+      price: Number(planDraft.price),
+      currency: planDraft.currency,
+      period: planDraft.period,
+      features: planDraft.features ? planDraft.features.split('\n').map((s) => s.trim()).filter(Boolean) : [],
+    };
+    let next: PulseFitPlan[];
+    if (editingPlan) {
+      next = settings.memberships.map((m) => (m.id === editingPlan ? plan : m));
+    } else {
+      next = [...settings.memberships, plan];
+    }
+    await saveSettings({ ...settings, memberships: next });
+    setPlanDraft(emptyPlanForm);
+    setEditingPlan(null);
+  };
+
+  const editPlan = (plan: PulseFitPlan) => {
+    setEditingPlan(plan.id);
+    setPlanDraft({
+      name: plan.name,
+      description: plan.description,
+      credits: String(plan.credits),
+      price: String(plan.price),
+      currency: plan.currency || 'USD',
+      period: plan.period,
+      features: (plan.features || []).join('\n'),
+    });
+  };
+
+  const deletePlan = async (id: string) => {
+    if (!window.confirm('Remove this membership plan?')) return;
+    await saveSettings({ ...settings, memberships: settings.memberships.filter((m) => m.id !== id) });
   };
 
   const updateSettings = (patch: Partial<PulseFitSettings>) => setSettings((current) => ({ ...current, ...patch }));
   const displayedTitle = useMemo(() => nav.find((item) => item.id === section)?.label || 'Overview', [section]);
 
-  if (loading) return <div className="pulse-admin-loading"><Loader2 className="admin-loading-spinner" /> Loading your studio workspace…</div>;
+  if (loading) return <div className="pulse-admin-loading"><span className="admin-loading-spinner" /> Loading your studio workspace…</div>;
   if (!seller) return <div className="pulse-admin-loading" role="alert">{error || 'This studio workspace is unavailable.'}</div>;
 
   return (
     <div className="pulse-admin">
       <aside className="admin-sidebar">
-        <a href={`/shop/${seller.subdomain}`} className="pulse-wordmark"><span className="wordmark-mark"><Dumbbell size={17} /></span><span>Pulse <em>Fit</em></span></a>
+        <a href={`/shop/${seller.subdomain}`} className="pulse-wordmark">
+          <span className="wordmark-mark"><Dumbbell size={17} /></span>
+          <span>Pulse <em>Fit</em></span>
+        </a>
         <p className="admin-sidebar-label">STUDIO DESK</p>
-        <nav aria-label="Studio workspace">{nav.map((item) => (
-          <button key={item.id} onClick={() => { setSection(item.id); setError(''); setNotice(''); }} className={section === item.id ? 'admin-nav-item active' : 'admin-nav-item'}>
-            {item.icon}{item.label}{item.id === 'bookings' && pending.length > 0 && <span className="admin-nav-count">{pending.length}</span>}
-          </button>
-        ))}</nav>
-        <div className="admin-sidebar-bottom"><span className="admin-avatar">{seller.storeName.slice(0, 1).toUpperCase()}</span><div><strong>{seller.storeName}</strong><span>Studio owner</span></div></div>
+        <nav aria-label="Studio workspace">
+          {nav.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => { setSection(item.id); setError(''); setNotice(''); }}
+              className={section === item.id ? 'admin-nav-item active' : 'admin-nav-item'}
+            >
+              {item.icon}{item.label}
+              {item.id === 'bookings' && pending.length > 0 && <span className="admin-nav-count">{pending.length}</span>}
+            </button>
+          ))}
+        </nav>
+        <div className="admin-sidebar-bottom">
+          <span className="admin-avatar">{seller.storeName.slice(0, 1).toUpperCase()}</span>
+          <div>
+            <strong>{seller.storeName}</strong>
+            <span>Studio owner</span>
+          </div>
+        </div>
       </aside>
+
       <main className="admin-main">
         <header className="admin-topbar">
-          <div><p className="pulse-kicker">PULSE FIT / STUDIO DESK</p><h1>{displayedTitle}</h1></div>
+          <div>
+            <p className="pulse-kicker">PULSE FIT / STUDIO DESK</p>
+            <h1>{displayedTitle}</h1>
+          </div>
           <div className="admin-top-actions">
             <span className="admin-system-state"><i /> SYSTEM ONLINE</span>
             <a href={`/shop/${seller.subdomain}`} target="_blank" rel="noreferrer">View site <ArrowLeft size={15} /></a>
-            <button aria-label="Refresh bookings and classes" onClick={() => void load()}><Loader2 size={17} /> Refresh</button>
+            <button aria-label="Refresh bookings and classes" onClick={() => void load()}><RefreshCw size={17} /></button>
             <button aria-label="Sign out" className="pulse-logout-button" onClick={logout}><LogOut size={16} /> Sign out</button>
           </div>
         </header>
-        {error && <div className="admin-alert" role="alert">{error}<button onClick={() => setError('')} aria-label="Dismiss error"><X size={15} /></button></div>}
-        {notice && <div className="admin-notice" role="status"><Check size={15} />{notice}</div>}
+
+        {error && (
+          <div className="admin-alert" role="alert">
+            {error}
+            <button onClick={() => setError('')} aria-label="Dismiss error"><X size={15} /></button>
+          </div>
+        )}
+        {notice && (
+          <div className="admin-notice" role="status"><Check size={15} />{notice}</div>
+        )}
 
         {section === 'overview' && (
           <section className="admin-section">
             <div className="admin-metrics">
-              <article><span>Todays sessions</span><strong>{todays.length}</strong><small>{todays.filter((item) => item.status === 'pending').length} awaiting confirmation</small></article>
-              <article><span>Pending requests</span><strong>{pending.length}</strong><small>Need a quick look</small></article>
-              <article><span>Upcoming sessions</span><strong>{upcoming.length}</strong><small>On your schedule</small></article>
-              <article><span>Booked revenue</span><strong>{formatPrice(revenue, seller.currency || 'USD')}</strong><small>Confirmed and completed</small></article>
+              <article className="admin-metric"><span>Todays sessions</span><strong>{todays.length}</strong><small>{todays.filter((item) => item.status === 'pending').length} awaiting confirmation</small></article>
+              <article className="admin-metric"><span>Pending requests</span><strong>{pending.length}</strong><small>Need a quick look</small></article>
+              <article className="admin-metric"><span>Upcoming sessions</span><strong>{upcoming.length}</strong><small>On your schedule</small></article>
+              <article className="admin-metric"><span>Booked revenue</span><strong>{formatPrice(revenue, seller.currency || 'USD')}</strong><small>Confirmed and completed</small></article>
             </div>
             <div className="admin-overview-grid">
               <section className="admin-panel">
@@ -206,12 +432,12 @@ const PulseFitAdmin: React.FC = () => {
                   <div><p className="pulse-kicker">JUST IN</p><h2>Recent requests</h2></div>
                   <span>{pending.length} pending</span>
                 </div>
-                {bookings.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4).length ? (
-                  bookings.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4).map((order) => (
+                {bookings.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5).length ? (
+                  bookings.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5).map((order) => (
                     <div className="admin-recent" key={order.id}>
                       <span className="recent-dot" />
                       <div><strong>{order.customerName}</strong><span>{order.items.map((item) => item.productName).join(', ')}</span></div>
-                      <span className={`appointment-status status-${order.status}`}>{order.status}</span>
+                      <span className={`appointment-status status-${order.status}`}>{order.status === 'processing' ? 'Confirmed' : statusLabel[order.status]}</span>
                     </div>
                   ))
                 ) : (
@@ -226,9 +452,13 @@ const PulseFitAdmin: React.FC = () => {
           <section className="admin-section">
             <div className="admin-toolbar">
               <p>{filtered.length} booking{filtered.length === 1 ? '' : 's'}</p>
-              <div>
+              <div className="filters">
                 <label><ListFilter size={15} /><select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                  <option value="all">All statuses</option><option value="pending">Pending</option><option value="processing">Confirmed</option><option value="delivered">Completed</option><option value="cancelled">Cancelled</option>
+                  <option value="all">All statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="processing">Confirmed</option>
+                  <option value="delivered">Completed</option>
+                  <option value="cancelled">Cancelled</option>
                 </select></label>
                 <input aria-label="Filter by date" type="date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} />
               </div>
@@ -259,7 +489,22 @@ const PulseFitAdmin: React.FC = () => {
                   <label>Price<input type="number" min="0" step="0.01" required value={classForm.price} onChange={(event) => setClassForm({ ...classForm, price: event.target.value })} /></label>
                   <label>Duration (minutes)<input type="number" min="15" step="15" required value={classForm.duration} onChange={(event) => setClassForm({ ...classForm, duration: event.target.value })} /></label>
                   <label className="admin-form-wide">Description<textarea rows={3} value={classForm.description} onChange={(event) => setClassForm({ ...classForm, description: event.target.value })} /></label>
-                  <label className="admin-toggle"><input type="checkbox" checked={classForm.active} onChange={(event) => setClassForm({ ...classForm, active: event.target.checked })} /> Available to book</label>
+                  <label className="admin-form-wide">
+                    Recurring availability
+                    <div className="schedule-slots">
+                      {classScheduleSlots.map((slot, index) => (
+                        <div key={index} className="schedule-slot-row">
+                          <select value={slot.day} onChange={(event) => updateSlot(index, 'day', event.target.value)} aria-label="Day of week">
+                            {WEEKDAYS.map((weekday) => <option key={weekday.key} value={weekday.key}>{weekday.full}</option>)}
+                          </select>
+                          <input type="time" value={slot.time} onChange={(event) => updateSlot(index, 'time', event.target.value)} />
+                          <button type="button" className="admin-form-cancel" aria-label="Remove slot" onClick={() => removeSlot(index)}><Trash2 size={14} /></button>
+                        </div>
+                      ))}
+                      <button type="button" className="pulse-text-button" onClick={addSlot}><Plus size={14} /> Add a slot</button>
+                    </div>
+                  </label>
+                  <label className="admin-form-wide">Class capacity<input type="number" min="1" value={classCapacity} onChange={(event) => setClassCapacity(Number(event.target.value) || 12)} /></label>
                   <label className="admin-form-wide">Class image<input type="file" accept="image/*" multiple onChange={(event) => setClassImageFiles(Array.from(event.target.files || []))} /></label>
                   {classImageFiles.length > 0 && (
                     <div className="upload-preview-row">{classImageFiles.map((file, index) => <img key={index} src={URL.createObjectURL(file)} alt="preview" className="upload-preview-thumb" />)}</div>
@@ -283,12 +528,16 @@ const PulseFitAdmin: React.FC = () => {
                       <h3>{cls.name}</h3>
                       <p className="class-category">{cls.category || 'Class'}</p>
                       <p className="class-description">{cls.description.replace(/\n?Duration:\s*\d+\s*min/i, '').trim()}</p>
-                      <span className="admin-duration">{cls.description.match(/Duration:\s*(\d+)/i) ? `${cls.description.match(/Duration:\s*(\d+)/i)![1]} min` : ''}</span>
+                      <span className="admin-duration">
+                        {classDuration(cls)} min · {formatPrice(cls.price, seller.currency || 'USD')}
+                        {' '}<span className={`service-availability ${cls.status === 'active' ? 'is-live' : 'is-draft'}`}>{cls.status === 'active' ? 'Live' : 'Draft'}</span>
+                      </span>
                     </div>
-                    <strong>{formatPrice(cls.price, seller.currency || 'USD')}</strong>
-                    <span className={`service-availability ${cls.status === 'active' ? 'is-live' : ''}`}>{cls.status === 'active' ? 'Live' : 'Draft'}</span>
-                    <button aria-label={`Edit ${cls.name}`} onClick={() => openClass(cls)}><Plus size={14} /></button>
-                    <button aria-label={`Delete ${cls.name}`} onClick={() => void deleteClass(cls)} className="admin-service-delete">Delete</button>
+                    <strong className="class-price-admin">{formatPrice(cls.price, seller.currency || 'USD')}</strong>
+                    <div className="admin-service-actions">
+                      <button aria-label={`Edit ${cls.name}`} onClick={() => openClass(cls)}><Plus size={14} /></button>
+                      <button aria-label={`Delete ${cls.name}`} onClick={() => void deleteClass(cls)} className="admin-service-delete"><Trash2 size={14} /></button>
+                    </div>
                   </article>
                 ))}
               </div>
@@ -301,25 +550,128 @@ const PulseFitAdmin: React.FC = () => {
         {section === 'trainers' && (
           <section className="admin-section">
             <div className="admin-section-toolbar">
-              <div><p className="pulse-kicker">GOOD PEOPLE, GOOD FORM</p><h2>Your trainers</h2><p>Members can request their favorite coach. Add team members and assign requests from Bookings.</p></div>
+              <div><p className="pulse-kicker">GOOD PEOPLE, GOOD FORM</p><h2>Your trainers</h2><p>Members can request their favorite coach. Add team members and their specialties below.</p></div>
             </div>
             <form className="admin-staff-form" onSubmit={saveTrainer}>
               <label>Trainer name<input value={trainerDraft.name} onChange={(event) => setTrainerDraft({ ...trainerDraft, name: event.target.value })} required /></label>
               <label>Specialty<input value={trainerDraft.specialty} onChange={(event) => setTrainerDraft({ ...trainerDraft, specialty: event.target.value })} placeholder="Strength, yoga, nutrition…" /></label>
-              <button className="admin-primary-button" type="submit" disabled={saving}><Plus size={16} /> Add to team</button>
+              <label className="admin-form-wide">Bio<textarea rows={2} value={trainerDraft.bio} onChange={(event) => setTrainerDraft({ ...trainerDraft, bio: event.target.value })} placeholder="A short note members will see." /></label>
+              <label>Photo URL<input value={trainerDraft.photo} onChange={(event) => setTrainerDraft({ ...trainerDraft, photo: event.target.value })} placeholder="https://…" /></label>
+              <label className="admin-form-wide">Specialties (comma separated)<input value={trainerDraft.specialties} onChange={(event) => setTrainerDraft({ ...trainerDraft, specialties: event.target.value })} placeholder="Strength, Mobility, Conditioning" /></label>
+              <label className="admin-form-wide">Certifications (comma separated)<input value={trainerDraft.certifications} onChange={(event) => setTrainerDraft({ ...trainerDraft, certifications: event.target.value })} placeholder="NASM CPT, TriggerPoint" /></label>
+              <button className="admin-primary-button" type="submit" disabled={saving}><Plus size={16} />{editingTrainer ? 'Update trainer' : 'Add to team'}</button>
             </form>
+            {editingTrainer && <button className="admin-form-cancel" style={{ marginTop: '0.5rem' }} onClick={() => { setEditingTrainer(null); setTrainerDraft(emptyTrainerForm); }}>Cancel edit</button>}
             {settings.trainers.length ? (
               <div className="admin-team-list">
-                {settings.trainers.map((person, index) => (
-                  <article key={`${person.name}-${index}`}>
+                {settings.trainers.map((person) => (
+                  <article key={person.id}>
                     <span className="team-avatar">{person.name.slice(0, 1).toUpperCase()}</span>
-                    <div><strong>{person.name}</strong><span>{person.specialty || 'Fitness coach'}</span></div>
-                    <button aria-label={`Remove ${person.name}`} onClick={() => void saveSettings({ ...settings, trainers: settings.trainers.filter((_, itemIndex) => itemIndex !== index) })}><Trash2 size={16} /></button>
+                    <div>
+                      <strong>{person.name}</strong>
+                      <span>{person.specialty || 'Fitness coach'}</span>
+                    </div>
+                    <div className="admin-service-actions">
+                      <button aria-label={`Edit ${person.name}`} onClick={() => editTrainer(person)}><Plus size={14} /></button>
+                      <button aria-label={`Remove ${person.name}`} onClick={() => void deleteTrainer(person.id)} className="admin-service-delete"><Trash2 size={14} /></button>
+                    </div>
                   </article>
                 ))}
               </div>
             ) : (
               <div className="admin-empty"><Users /><h2>A strong team makes a strong studio.</h2><p>Add your coaches so you can keep the schedule personal.</p></div>
+            )}
+          </section>
+        )}
+
+        {section === 'schedule' && (
+          <section className="admin-section">
+            <div className="admin-section-toolbar">
+              <div><p className="pulse-kicker">THE LINEUP</p><h2>This week's schedule</h2><p>Recurring class slots and capacity for the week ahead.</p></div>
+            </div>
+            <div className="pulse-calendar">
+              <div className="pulse-calendar-head">{WEEKDAYS.map((weekday) => <div key={weekday.key}>{weekday.short}</div>)}</div>
+              <div className="pulse-calendar-grid schedule-grid">
+                {WEEKDAYS.map((weekday) => {
+                  const daySlots = classes.flatMap((cls) => {
+                    const schedule = settings.classSchedules[cls.id];
+                    if (!schedule) return [];
+                    return schedule.recurring
+                      .filter((slot) => slot.day === weekday.key)
+                      .map((slot) => ({ cls, time: slot.time, capacity: schedule.capacity }));
+                  });
+                  daySlots.sort((a, b) => a.time.localeCompare(b.time));
+                  return (
+                    <div key={weekday.key} className="pulse-calendar-cell">
+                      <div className="cell-day">{weekday.short}</div>
+                      <div className="cell-date">{weekday.full}</div>
+                      {daySlots.map(({ cls, time, capacity }) => (
+                        <div key={`${cls.id}-${time}`} className="calendar-event">
+                          {time} · {cls.name} (cap {capacity})
+                        </div>
+                      ))}
+                      {!daySlots.length && <span className="calendar-empty">No classes</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {section === 'memberships' && (
+          <section className="admin-section">
+            <div className="admin-section-toolbar">
+              <div><p className="pulse-kicker">MEMBERSHIP</p><h2>Plans & pricing</h2><p>Offer recurring or pay-as-you-go plans members can book against.</p></div>
+              <button className="admin-primary-button" onClick={() => { setEditingPlan(null); setPlanDraft(emptyPlanForm); }}><Plus size={16} /> Add a plan</button>
+            </div>
+            <form className="admin-form" onSubmit={savePlan}>
+              <div className="admin-form-heading">
+                <h3>{editingPlan ? 'Edit plan' : 'New plan'}</h3>
+                <button type="button" onClick={() => { setEditingPlan(null); setPlanDraft(emptyPlanForm); }} aria-label="Close plan editor"><X /></button>
+              </div>
+              <div className="admin-form-grid">
+                <label>Plan name<input value={planDraft.name} onChange={(event) => setPlanDraft({ ...planDraft, name: event.target.value })} required /></label>
+                <label>Price<input type="number" min="0" step="0.01" value={planDraft.price} onChange={(event) => setPlanDraft({ ...planDraft, price: event.target.value })} required /></label>
+                <label>Currency<input value={planDraft.currency} onChange={(event) => setPlanDraft({ ...planDraft, currency: event.target.value })} required /></label>
+                <label>Period
+                  <select value={planDraft.period} onChange={(event) => setPlanDraft({ ...planDraft, period: event.target.value as PlanForm['period'] })}>
+                    <option value="week">Weekly</option>
+                    <option value="month">Monthly</option>
+                    <option value="quarter">Quarterly</option>
+                    <option value="year">Yearly</option>
+                  </select>
+                </label>
+                <label>Credits<input type="number" min="0" value={planDraft.credits} onChange={(event) => setPlanDraft({ ...planDraft, credits: event.target.value })} placeholder="e.g. 8" /></label>
+                <label className="admin-form-wide">Description<textarea rows={2} value={planDraft.description} onChange={(event) => setPlanDraft({ ...planDraft, description: event.target.value })} /></label>
+                <label className="admin-form-wide">Features (one per line)
+                  <textarea rows={3} value={planDraft.features} onChange={(event) => setPlanDraft({ ...planDraft, features: event.target.value })} placeholder="• 8 classes/mo&#10;• 1 personal session" />
+                </label>
+              </div>
+              <div className="admin-form-actions">
+                <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? 'Saving…' : editingPlan ? 'Update plan' : 'Create plan'}</button>
+                <button type="button" className="admin-form-cancel" onClick={() => { setEditingPlan(null); setPlanDraft(emptyPlanForm); }}>Cancel</button>
+              </div>
+            </form>
+            {settings.memberships.length ? (
+              <div className="admin-service-list">
+                {settings.memberships.map((plan) => (
+                  <article key={plan.id}>
+                    <div className="admin-service-icon"><Tag size={16} /></div>
+                    <div>
+                      <h3>{plan.name}</h3>
+                      <p className="class-category">{plan.credits} credits · {formatPrice(plan.price, plan.currency || 'USD')}/{plan.period}</p>
+                      <p className="class-description">{plan.description}</p>
+                    </div>
+                    <div className="admin-service-actions">
+                      <button aria-label={`Edit ${plan.name}`} onClick={() => editPlan(plan)}><Plus size={14} /></button>
+                      <button aria-label={`Delete ${plan.name}`} onClick={() => void deletePlan(plan.id)} className="admin-service-delete"><Trash2 size={14} /></button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-empty"><Tag /><h2>No membership plans yet.</h2><p>Add a plan and it will appear on your storefront.</p></div>
             )}
           </section>
         )}
@@ -333,23 +685,52 @@ const PulseFitAdmin: React.FC = () => {
               <div className="admin-form-grid">
                 <label>Opening time<input type="time" value={settings.openingTime} onChange={(event) => updateSettings({ openingTime: event.target.value })} required /></label>
                 <label>Closing time<input type="time" value={settings.closingTime} onChange={(event) => updateSettings({ closingTime: event.target.value })} required /></label>
-                <label>Slot interval<select value={settings.slotInterval} onChange={(event) => updateSettings({ slotInterval: Number(event.target.value) })}>
-                  <option value={15}>15 minutes</option><option value={30}>30 minutes</option><option value={45}>45 minutes</option><option value={60}>60 minutes</option>
-                </select></label>
-                <label>Booking lead time<select value={settings.leadTimeHours} onChange={(event) => updateSettings({ leadTimeHours: Number(event.target.value) })}>
-                  <option value={0}>No minimum</option><option value={2}>2 hours</option><option value={12}>12 hours</option><option value={24}>24 hours</option><option value={48}>48 hours</option>
-                </select></label>
+                <label>Slot interval
+                  <select value={settings.slotInterval} onChange={(event) => updateSettings({ slotInterval: Number(event.target.value) })}>
+                    <option value={15}>15 minutes</option><option value={30}>30 minutes</option><option value={45}>45 minutes</option><option value={60}>60 minutes</option>
+                  </select>
+                </label>
+                <label>Booking lead time
+                  <select value={settings.leadTimeHours} onChange={(event) => updateSettings({ leadTimeHours: Number(event.target.value) })}>
+                    <option value={0}>No minimum</option><option value={2}>2 hours</option><option value={12}>12 hours</option><option value={24}>24 hours</option><option value={48}>48 hours</option>
+                  </select>
+                </label>
+                <label>Brand accent (hex)<input type="color" value={settings.brand.color || '#00f0ff'} onChange={(event) => updateSettings({ brand: { ...settings.brand, color: event.target.value } })} aria-label="Brand color" /></label>
                 <fieldset className="admin-form-wide">
                   <legend>Closed days</legend>
-                  <div className="admin-days">{['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
-                    <label key={day}><input type="checkbox" checked={settings.closedDays.includes(index)} onChange={(event) => updateSettings({ closedDays: event.target.checked ? [...settings.closedDays, index] : settings.closedDays.filter((value) => value !== index) })} />{day}</label>
+                  <div className="admin-days">{WEEKDAYS.map((weekday) => (
+                    <label key={weekday.key}>
+                      <input
+                        type="checkbox"
+                        checked={settings.closedDays.includes(weekday.key)}
+                        onChange={(event) => updateSettings({ closedDays: event.target.checked ? [...settings.closedDays, weekday.key].sort((a, b) => a - b) : settings.closedDays.filter((value) => value !== weekday.key) })}
+                      />
+                      {weekday.short}
+                    </label>
                   ))}</div>
                 </fieldset>
                 <label className="admin-form-wide">Studio address<input value={settings.location} onChange={(event) => updateSettings({ location: event.target.value })} /></label>
-                <label className="admin-form-wide">Phone number<input value={settings.phone} onChange={(event) => updateSettings({ phone: event.target.value })} /></label>
+                <label className="admin-form-wide">Phone number<input type="tel" value={settings.phone} onChange={(event) => updateSettings({ phone: event.target.value })} /></label>
                 <label className="admin-form-wide">Email address<input type="email" value={settings.email} onChange={(event) => updateSettings({ email: event.target.value })} /></label>
               </div>
-              <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save hours & availability'}</button>
+              <div className="admin-form-actions">
+                <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save hours & availability'}</button>
+              </div>
+            </form>
+            <div className="admin-section-toolbar" style={{ marginTop: '2rem' }}>
+              <div><p className="pulse-kicker">YOUR STUDIO</p><h2>Brand</h2><p>Your studio name, tagline, and hero copy shown on the booking site.</p></div>
+            </div>
+            <form className="admin-form" onSubmit={(event) => { event.preventDefault(); void saveSettings(settings); }}>
+              <div className="admin-form-grid">
+                <label>Studio name<input value={settings.brand.studioName} onChange={(event) => updateSettings({ brand: { ...settings.brand, studioName: event.target.value } })} /></label>
+                <label>Tagline<input value={settings.brand.tagline} onChange={(event) => updateSettings({ brand: { ...settings.brand, tagline: event.target.value } })} /></label>
+                <label>Hero title<input value={settings.brand.heroTitle} onChange={(event) => updateSettings({ brand: { ...settings.brand, heroTitle: event.target.value } })} /></label>
+                <label>Hero accent<input value={settings.brand.heroAccent} onChange={(event) => updateSettings({ brand: { ...settings.brand, heroAccent: event.target.value } })} /></label>
+                <label className="admin-form-wide">Hero description<textarea rows={2} value={settings.brand.heroDescription} onChange={(event) => updateSettings({ brand: { ...settings.brand, heroDescription: event.target.value } })} /></label>
+              </div>
+              <div className="admin-form-actions">
+                <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save brand'}</button>
+              </div>
             </form>
           </section>
         )}
@@ -362,12 +743,17 @@ const PulseFitAdmin: React.FC = () => {
             <form className="admin-form" onSubmit={async (event) => {
               event.preventDefault();
               if (!seller) return;
-              setSaving(true); setError(''); setNotice('');
+              setSaving(true);
+              setError('');
+              setNotice('');
               try {
                 await sellersAPI.updateMe({ storeName: seller.storeName, description: seller.description, logo: seller.logo, subdomain: seller.subdomain, contactInfo: seller.contactInfo });
                 setNotice('Store settings saved.');
-              } catch { setError('These settings could not be saved. Please try again.'); }
-              finally { setSaving(false); }
+              } catch {
+                setError('These settings could not be saved. Please try again.');
+              } finally {
+                setSaving(false);
+              }
             }}>
               <div className="admin-form-grid">
                 <label>Store name<input value={seller.storeName || ''} onChange={(event) => setSeller({ ...seller, storeName: event.target.value })} required /></label>
@@ -376,12 +762,14 @@ const PulseFitAdmin: React.FC = () => {
                 <label>Phone<input type="tel" value={seller.contactInfo?.phone || ''} onChange={(event) => setSeller({ ...seller, contactInfo: { ...seller.contactInfo, phone: event.target.value } })} /></label>
                 <label className="admin-form-wide">Address<textarea rows={2} value={seller.contactInfo?.address || ''} onChange={(event) => setSeller({ ...seller, contactInfo: { ...seller.contactInfo, address: event.target.value } })} /></label>
               </div>
-              <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save store settings'}</button>
+              <div className="admin-form-actions">
+                <button className="admin-primary-button" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save store settings'}</button>
+              </div>
             </form>
           </section>
         )}
 
-        {(section === 'billing' || section === 'themes' || section === 'bots' || section === 'pay') && (
+        {['billing', 'themes', 'bots', 'pay'].includes(section) && (
           <section className="admin-section">
             <div className="admin-empty"><Dumbbell /><h2>{nav.find((item) => item.id === section)?.label || section} lives elsewhere</h2><p>Manage this from the main {seller.storeName} dashboard.</p><a className="pulse-text-button" href={`/seller/dashboard?tab=${section === 'billing' ? 'billing' : 'themes'}`}>Open dashboard <ArrowRight size={15} /></a></div>
           </section>
@@ -394,18 +782,42 @@ const PulseFitAdmin: React.FC = () => {
 const BookingRow: React.FC<{ order: Order; settings: PulseFitSettings; onStatus: (order: Order, status: Order['status']) => void; onAssign: (orderId: string, trainerName: string) => void }> = ({ order, settings, onStatus, onAssign }) => {
   const booking = readPulseFitBooking(order)!;
   const date = new Date(`${booking.sessionDate}T12:00:00`);
-  const isFuture = booking.sessionDate >= new Date().toISOString().slice(0, 10);
+  const isFuture = !date || booking.sessionDate >= new Date().toISOString().slice(0, 10);
+  const isDone = ['delivered', 'cancelled'].includes(order.status);
+  const canEditStatus = isFuture && !isDone;
+  const isLastStep = canEditStatus && !['cancelled', 'delivered'].includes(order.status) && !isFuture;
   return (
     <article className="admin-appointment-row">
-      <div className="agenda-time"><strong>{booking.sessionTime}</strong><span>{date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span></div>
-      <div className="agenda-client"><strong>{order.customerName}</strong><span>{order.customerEmail}{order.customerPhone && ` · ${order.customerPhone}`}</span></div>
-      <div className="agenda-service"><strong>{order.items.map((item) => item.productName).join(', ')}</strong><span>{formatPrice(order.total, order.currency || 'USD')}</span></div>
-      <label className="agenda-staff"><span className="sr-only">Assign trainer</span><select value={settings.assignments[order.id] || booking.trainerName || ''} onChange={(event) => onAssign(order.id, event.target.value)} aria-label={`Assign trainer to ${order.customerName}`}><option value="">No trainer</option>{settings.trainers.map((person) => <option key={person.name} value={person.name}>{person.name}</option>)}</select></label>
-      <span className={`appointment-status status-${order.status}`}>{order.status === 'processing' ? 'Confirmed' : order.status}</span>
+      <div className="agenda-time">
+        <strong>{booking.sessionTime}</strong><span>{date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+      </div>
+      <div className="agenda-client">
+        <strong>{order.customerName}</strong>
+        <span>{order.customerEmail}{order.customerPhone && ` · ${order.customerPhone}`}</span>
+      </div>
+      <div className="agenda-service">
+        <strong>{order.items.map((item) => item.productName).join(', ')}</strong>
+        <span>{formatPrice(order.total, order.currency || 'USD')}</span>
+      </div>
+      <label className="agenda-staff">
+        <span className="sr-only">Assign trainer</span>
+        <select
+          value={settings.assignments[order.id] || booking.trainerName || ''}
+          onChange={(event) => onAssign(order.id, event.target.value)}
+          aria-label={`Assign trainer to ${order.customerName}`}
+        >
+          <option value="">No trainer</option>
+          {settings.trainers.map((person) => (
+            <option key={person.id || person.name} value={person.name}>{person.name}</option>
+          ))}
+        </select>
+      </label>
+      <span className={`appointment-status status-${order.status}`}>{statusLabel[order.status] || order.status}</span>
       <div className="agenda-actions">
-        {order.status === 'pending' && <button aria-label="Confirm booking" onClick={() => onStatus(order, 'processing')}><Check size={16} /></button>}
-        {isFuture && !['cancelled', 'delivered'].includes(order.status) && <button aria-label="Cancel booking" onClick={() => onStatus(order, 'cancelled')}><X size={16} /></button>}
-        {!isFuture && !['cancelled', 'delivered'].includes(order.status) && <button aria-label="Mark session complete" onClick={() => onStatus(order, 'delivered')}><Check size={16} /></button>}
+        {order.status === 'pending' && <button aria-label="Confirm booking" title="Confirm booking" onClick={() => onStatus(order, 'processing')}><Check size={16} /></button>}
+        {canEditStatus && !['cancelled', 'delivered'].includes(order.status) && <button aria-label="Mark session complete" title="Mark session complete" onClick={() => onStatus(order, 'delivered')}><Check size={16} /></button>}
+        {canEditStatus && order.status !== 'cancelled' && <button aria-label="Cancel booking" title="Cancel booking" onClick={() => onStatus(order, 'cancelled')}><X size={16} /></button>}
+        {!canEditStatus && isLastStep && <button aria-label="Mark session complete" title="Mark session complete" onClick={() => onStatus(order, 'delivered')}><Check size={16} /></button>}
       </div>
     </article>
   );
