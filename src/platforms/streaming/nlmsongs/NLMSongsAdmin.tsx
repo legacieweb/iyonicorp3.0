@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   Activity, ArrowUpRight, Disc3, FileAudio2, Headphones, LayoutDashboard, LogOut, Music2, Plus, RefreshCw, Search, Trash2, Upload, X,
 } from 'lucide-react';
@@ -6,6 +6,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { nlmsongsAPI, type NLMSong, type NLMSongsAdminAnalytics } from '../../../services/api';
 import { getApiOrigin } from '../../../utils/apiUrl';
+import NLMMobileNavControls from './components/NLMMobileNavControls';
 import './nlmsongs.css';
 
 const API_ORIGIN = getApiOrigin();
@@ -30,6 +31,7 @@ const NLMSongsAdmin = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('overview');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [tracks, setTracks] = useState<NLMSong[]>([]);
   const [analytics, setAnalytics] = useState<NLMSongsAdminAnalytics | null>(null);
   const [analyticsUnavailable, setAnalyticsUnavailable] = useState(false);
@@ -50,6 +52,11 @@ const NLMSongsAdmin = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const isSubmittingRef = useRef(false);
+  const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
+  const navigateAdminTab = (nextTab: Tab) => {
+    setTab(nextTab);
+    closeMobileNav();
+  };
 
   const loadTracks = async () => {
     setIsLoading(true);
@@ -154,16 +161,23 @@ const NLMSongsAdmin = () => {
     : tracks;
 
   return (
-    <div className="nlm-admin-app">
-      <aside className="nlm-admin-sidebar">
-        <a className="nlm-brand" href="#catalogue" onClick={(e) => { e.preventDefault(); setTab('catalogue'); setEditingId(null); resetForm(); }} aria-label="NLM Songs admin">
+    <div className={`nlm-admin-app ${mobileNavOpen ? 'nlm-mobile-nav-open' : ''}`}>
+      <NLMMobileNavControls isOpen={mobileNavOpen} onToggle={() => setMobileNavOpen((open) => !open)} onClose={closeMobileNav} sidebarId="nlm-admin-sidebar" />
+      <aside
+        className={`nlm-admin-sidebar ${mobileNavOpen ? 'open' : ''}`}
+        id="nlm-admin-sidebar"
+        aria-label="NLM Songs admin navigation"
+        role={mobileNavOpen ? 'dialog' : undefined}
+        aria-modal={mobileNavOpen || undefined}
+      >
+        <a className="nlm-brand" href="#catalogue" onClick={(e) => { e.preventDefault(); navigateAdminTab('catalogue'); setEditingId(null); resetForm(); }} aria-label="NLM Songs admin">
           <span className="nlm-brand-mark"><Music2 size={20} strokeWidth={2.5} /></span>
           <span>nlm<span className="nlm-brand-light">songs</span></span>
         </a>
         <nav className="nlm-admin-nav" aria-label="Admin navigation">
-          <button className={tab === 'overview' ? 'is-active' : ''} onClick={() => setTab('overview')}><Activity size={17} />Overview</button>
-          <button className={tab === 'catalogue' ? 'is-active' : ''} onClick={() => setTab('catalogue')}><Disc3 size={17} />Catalogue</button>
-          <button className={tab === 'uploads' ? 'is-active' : ''} onClick={() => setTab('uploads')}><Upload size={17} />Uploads</button>
+          <button className={tab === 'overview' ? 'is-active' : ''} onClick={() => navigateAdminTab('overview')}><Activity size={17} />Overview</button>
+          <button className={tab === 'catalogue' ? 'is-active' : ''} onClick={() => navigateAdminTab('catalogue')}><Disc3 size={17} />Catalogue</button>
+          <button className={tab === 'uploads' ? 'is-active' : ''} onClick={() => navigateAdminTab('uploads')}><Upload size={17} />Uploads</button>
         </nav>
         <div className="nlm-admin-sidebar-foot"><span className="nlm-live-dot" /> ADMIN DASHBOARD</div>
       </aside>

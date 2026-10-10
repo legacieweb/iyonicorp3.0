@@ -51,6 +51,8 @@
   --_focus-ring: var(--nlm-indigo);
   display: grid;
   grid-template-columns: 230px minmax(0, 1fr);
+  width: 100%;
+  max-width: 100vw;
   min-height: 100vh;
   color: #f3f2ec;
   font-family: 'Space Grotesk', sans-serif;
@@ -255,6 +257,7 @@
   text-align: left;
   border-radius: 8px;
   transition: all var(--nlm-transition);
+  min-width: 0;
 }
 .nlm-nav button:hover { color: #f3f2ec; background: rgba(212, 175, 55, .06); transform: translateX(3px); }
 .nlm-nav button.is-active {
@@ -354,6 +357,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  width: 100%;
   min-width: 0;
   min-height: 100vh;
   background: radial-gradient(circle at top, rgba(213, 178, 102, 0.08), transparent 28%), var(--nlm-ink);
@@ -375,6 +379,9 @@
   background: rgba(18, 22, 29, 0.78);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+}
+.nlm-topbar > * {
+  min-width: 0;
 }
 
 /* ==================== Account ==================== */
@@ -508,6 +515,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   flex: 1;
+  width: 100%;
+  min-width: 0;
   min-height: 0;
   padding: 32px clamp(22px, 4vw, 54px) 40px;
   background: radial-gradient(circle at top, rgba(213, 178, 102, 0.06), transparent 25%);
@@ -696,6 +705,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1 1 440px;
+  max-width: 480px;
+  min-width: 0;
   padding: 0 12px;
   min-height: 42px;
   border: 1px solid var(--nlm-line);
@@ -2510,7 +2522,16 @@
 @media (max-width: 768px) {
   .nlm-app,
   .nlm-admin-app,
-  .nlm-site-app { grid-template-columns: 1fr; }
+  .nlm-site-app {
+    width: 100%;
+    max-width: 100vw;
+    grid-template-columns: 1fr;
+  }
+  .nlm-main,
+  .nlm-admin-main {
+    width: 100%;
+    min-width: 0;
+  }
   .nlm-sidebar,
   .nlm-admin-sidebar {
     position: fixed;
@@ -2531,10 +2552,175 @@
   .nlm-form-fields { grid-template-columns: 1fr; }
 }
 
+@media (max-width: 980px) {
+  .nlm-site-app.nlm-member-app {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+  .nlm-site-app.nlm-member-app > .nlm-sidebar {
+    width: 200px;
+  }
+  .nlm-site-app.nlm-member-app .nlm-workspace {
+    padding-left: clamp(18px, 3vw, 32px);
+    padding-right: clamp(18px, 3vw, 32px);
+  }
+  .nlm-site-app.nlm-member-app .nlm-topbar {
+    gap: 10px;
+  }
+  .nlm-site-app.nlm-member-app .nlm-account-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 768px) {
+  .nlm-topbar,
+  .nlm-admin-topbar {
+    min-height: 64px;
+    gap: 10px;
+    padding: 0 14px;
+  }
+  .nlm-search-panel {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .nlm-account-actions {
+    justify-content: flex-end;
+    width: 100%;
+  }
+  .nlm-account-name {
+    max-width: 140px;
+  }
+  .nlm-site-app.nlm-member-app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .nlm-site-app.nlm-member-app > .nlm-main {
+    grid-column: 1;
+  }
+  .nlm-site-app.nlm-member-app > .nlm-sidebar {
+    width: min(82vw, 280px);
+  }
+  .nlm-site-app.nlm-member-app .nlm-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    padding: 14px 16px 16px 58px;
+  }
+  .nlm-site-app.nlm-member-app .nlm-search-panel {
+    margin-bottom: 0;
+  }
+  .nlm-site-app.nlm-member-app .nlm-workspace {
+    padding: 18px 16px 32px;
+  }
+  .nlm-landing-hero,
+  .nlm-hero-panel {
+    grid-template-columns: 1fr;
+    padding: 22px 18px;
+  }
+  .nlm-landing-art {
+    width: 140px;
+    height: 140px;
+    justify-self: center;
+  }
+  .nlm-hero-art {
+    height: 180px;
+  }
+  .nlm-landing-copy {
+    max-width: 100%;
+  }
+  .nlm-page-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-bottom: 24px;
+  }
+  .nlm-grid,
+  .nlm-rec-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .nlm-card-meta h3 {
+    font-size: 11px;
+  }
+  .nlm-card-sub {
+    line-height: 1.5;
+  }
+  .nlm-genre-chips {
+    gap: 8px;
+  }
+  .nlm-genre-chip {
+    min-height: 32px;
+    line-height: 1;
+  }
+  .nlm-fresh-card {
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+  }
+}
+
 @media (max-width: 640px) {
   .nlm-topbar,
   .nlm-admin-topbar { padding: 0 14px; }
   .nlm-library-area { padding: 28px 14px; }
+  .nlm-site-app.nlm-member-app .nlm-topbar {
+    padding-left: 54px;
+  }
+  .nlm-site-app.nlm-member-app .nlm-hero-panel {
+    min-height: auto;
+  }
+  .nlm-site-app.nlm-member-app .nlm-hero-copy h1 {
+    letter-spacing: -0.045em;
+  }
+  .nlm-site-app.nlm-member-app .nlm-grid,
+  .nlm-site-app.nlm-member-app .nlm-rec-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .nlm-brand {
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
+  .nlm-brand-mark {
+    width: 30px;
+    height: 30px;
+  }
+  .nlm-account-button,
+  .nlm-auth-join,
+  .nlm-ghost-button,
+  .nlm-submit-button,
+  .nlm-add-button {
+    min-height: 40px;
+    padding-left: 12px;
+    padding-right: 12px;
+    font-size: 10px;
+  }
+  .nlm-search-panel {
+    padding: 0 10px;
+    min-height: 40px;
+  }
+  .nlm-search-panel input {
+    font-size: 11px;
+  }
+  .nlm-hero-copy h1,
+  .nlm-landing-copy h1 {
+    font-size: clamp(26px, 10vw, 36px);
+  }
+  .nlm-landing-hero {
+    padding: 20px 16px 24px;
+  }
+  .nlm-landing-note {
+    font-size: 10px;
+  }
+  .nlm-genre-chip {
+    flex: 1 1 calc(50% - 8px);
+    justify-content: center;
+  }
+  .nlm-fresh-card {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+  .nlm-fresh-play {
+    grid-column: 2;
+    justify-self: end;
+    margin-top: -8px;
+  }
 }
 
 /* ==================== Listener refinements ==================== */
@@ -3413,3 +3599,49 @@
 .nlm-playlist-play-button { display: inline-flex; align-items: center; gap: 7px; }
 @media (max-width: 900px) { .nlm-genre-directory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .nlm-genres-intro { padding: 25px 20px; } .nlm-genres-total { flex-wrap: wrap; } .nlm-genre-directory-grid { grid-template-columns: 1fr; } .nlm-genre-directory-card { grid-template-columns: 58px minmax(0,1fr) 17px; } .nlm-genre-card-art { width: 58px; } }
+
+@media (max-width: 768px) {
+  .nlm-app > .nlm-main,
+  .nlm-app > .nlm-player {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .nlm-admin-app > .nlm-admin-main {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .nlm-admin-app > .nlm-admin-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 84;
+    width: min(84vw, 280px);
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow-y: auto;
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition: transform .22s ease, visibility .22s ease;
+    box-shadow: none;
+  }
+
+  .nlm-admin-app > .nlm-admin-sidebar.open {
+    transform: translateX(0);
+    visibility: visible;
+    box-shadow: 12px 0 35px rgba(0, 0, 0, .32);
+  }
+
+  .nlm-admin-app .nlm-admin-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    padding: 12px 14px 14px 58px;
+  }
+
+  .nlm-admin-app .nlm-admin-topbar .nlm-account-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
