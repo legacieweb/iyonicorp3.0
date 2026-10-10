@@ -4082,8 +4082,12 @@ app.post('/api/nlmsongs/playlists/:id/tracks', authenticateToken, requireNlmUser
 
 app.delete('/api/nlmsongs/playlists/:id/tracks/:trackId', authenticateToken, requireNlmUser, async (req, res) => {
   try {
-    await db.query('DELETE FROM nlm_playlist_items WHERE playlist_id = $1 AND track_id = $2', [req.params.id, req.params.trackId]);
-    await db.query('UPDATE nlm_playlists SET track_count = GREATEST(track_count - 1, 0), updated_at = CURRENT_TIMESTAMP WHERE id = $1', [req.params.id]);
+    const ownership = await db.query('SELECT 1 FROM nlm_playlists WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (!ownership.rows.length) return res.status(404).json({ message: 'Playlist not found.' });
+    const removed = await db.query('DELETE FROM nlm_playlist_items WHERE playlist_id = $1 AND track_id = $2 RETURNING id', [req.params.id, req.params.trackId]);
+    if (removed.rowCount) {
+      await db.query('UPDATE nlm_playlists SET track_count = GREATEST(track_count - $2, 0), updated_at = CURRENT_TIMESTAMP WHERE id = $1', [req.params.id, removed.rowCount]);
+    }
     res.json({ message: 'Track removed from playlist.' });
   } catch (err) {
     console.error('NLM playlist remove track error:', err);
