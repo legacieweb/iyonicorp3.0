@@ -1,5 +1,5 @@
 import {
-  Download, Heart, List, Lock, Pause, Play, Repeat, Share2, Shuffle,
+  Heart, List, Pause, Play, Repeat, Share2, Shuffle,
   SkipBack, SkipForward, Volume2, VolumeX,
 } from 'lucide-react';
 import type { RepeatMode, Track } from '../types';
@@ -13,7 +13,6 @@ interface Props {
   volume: number;
   shuffleMode: boolean;
   repeatMode: RepeatMode;
-  hasUser: boolean;
   isAdminMode: boolean;
   isFavorite: boolean;
   copied: boolean;
@@ -26,7 +25,6 @@ interface Props {
   onSeek: (time: number) => void;
   onSetVolume: (volume: number) => void;
   onToggleFavorite: () => void;
-  onDownload: () => void;
   onShare: () => void;
   onOpenPlaylist: () => void;
 }
@@ -39,7 +37,6 @@ export const NLMAudioPlayer = ({
   volume,
   shuffleMode,
   repeatMode,
-  hasUser,
   isAdminMode,
   isFavorite,
   copied,
@@ -52,7 +49,6 @@ export const NLMAudioPlayer = ({
   onSeek,
   onSetVolume,
   onToggleFavorite,
-  onDownload,
   onShare,
   onOpenPlaylist,
 }: Props) => (
@@ -121,16 +117,6 @@ export const NLMAudioPlayer = ({
       >
         <Heart size={15} fill={isFavorite ? 'currentColor' : 'none'} />
         <span>{isFavorite ? 'Favorited' : 'Favorite'}</span>
-      </button>
-      <button
-        className="nlm-player-action nlm-player-action-download"
-        onClick={onDownload}
-        disabled={!track}
-        aria-label={hasUser ? `Download ${track?.title || 'track'}` : `Sign up to download ${track?.title || 'track'}`}
-        title={hasUser ? 'Download track' : 'Sign up to download'}
-      >
-        {hasUser ? <Download size={15} /> : <Lock size={15} />}
-        <span>Download</span>
       </button>
       <button
         className="nlm-player-action"

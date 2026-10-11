@@ -64,7 +64,15 @@ const SharedPlaylistPage = ({ isVisible = true }: { isVisible?: boolean }) => {
     return filtered;
   }, [tracks, trackQuery, trackSort]);
   const coverUrl = playlist?.coverUrl ? resolveAssetUrl(playlist.coverUrl) : '';
-  const collageTracks = playlist?.tracks.filter((track) => track.thumbnailUrl).slice(0, 3) ?? [];
+  const collageTracks = useMemo(() => {
+    const seen = new Set<string>();
+    return (playlist?.tracks ?? []).filter((track) => {
+      const artwork = track.thumbnailUrl?.trim();
+      if (!artwork || seen.has(artwork)) return false;
+      seen.add(artwork);
+      return true;
+    }).slice(0, 3);
+  }, [playlist?.tracks]);
   return <div hidden={!isVisible} className={`nlm-member-app nlm-app-shell ${mobileNavOpen ? 'nlm-mobile-nav-open' : ''}`}>
     <NLMMobileNavControls isOpen={mobileNavOpen} onToggle={() => setMobileNavOpen((open) => !open)} onClose={closeMobileNav}/>
     <NLMSidebar view="Listen" trackCount={0} isAdminMode={false} onNavigate={navigateView} onNavigateDiscovery={navigateDiscovery} mobileOpen={mobileNavOpen} onMobileClose={closeMobileNav}/>
@@ -73,7 +81,7 @@ const SharedPlaylistPage = ({ isVisible = true }: { isVisible?: boolean }) => {
         {state === 'loading' ? <p className="nlm-empty-state" role="status">Loading shared playlist…</p> : state === 'error' || !playlist ? <section className="nlm-shared-state"><span className="nlm-eyebrow">NLM SONGS / SHARED COLLECTION</span><h1>Playlist unavailable</h1><p>This playlist may be private or no longer available.</p><div className="nlm-shared-playlist-actions"><button className="nlm-submit-button" onClick={() => setRetryCount((count) => count + 1)}>Try again</button><button className="nlm-ghost-button" onClick={() => navigate('/nlmsongs/listen')}>Explore NLM Songs</button></div></section> : <section className="nlm-shared-playlist">
           <div className="nlm-shared-hero">
             <div className="nlm-shared-art-stack" aria-hidden="true">
-              {coverUrl ? <img src={coverUrl} alt="" /> : collageTracks.length ? <span className="nlm-shared-art-collage">{collageTracks.map((track) => <img key={track.id} src={resolveAssetUrl(track.thumbnailUrl)} alt="" />)}</span> : <Music2 size={44} />}
+              {coverUrl ? <img src={coverUrl} alt="" /> : collageTracks.length ? <span className="nlm-shared-art-collage">{collageTracks.map((track, index) => <img key={`${track.id}-${index}`} src={resolveAssetUrl(track.thumbnailUrl)} alt="" />)}</span> : <Music2 size={44} />}
             </div>
             <div className="nlm-shared-hero-copy">
               <span className="nlm-eyebrow">PUBLIC PLAYLIST · NLM SONGS</span>
@@ -101,7 +109,7 @@ const SharedPlaylistPage = ({ isVisible = true }: { isVisible?: boolean }) => {
             <label className="nlm-shared-search"><Search size={15}/><span className="nlm-sr-only">Search this playlist</span><input value={trackQuery} onChange={(event) => setTrackQuery(event.target.value)} placeholder="Find a track, artist, or genre" /></label>
             <label className="nlm-shared-sort"><span>Sort</span><select value={trackSort} onChange={(event) => setTrackSort(event.target.value as typeof trackSort)} aria-label="Sort playlist tracks"><option value="playlist">Playlist order</option><option value="title">Title</option><option value="artist">Artist</option></select></label>
           </div>}
-          <div className="nlm-shared-track-list">{playlist.tracks.length ? visibleTracks.length ? visibleTracks.map(({ track, index }) => <article className="nlm-shared-track" key={track.id}>
+          <div className="nlm-shared-track-list">{playlist.tracks.length ? visibleTracks.length ? visibleTracks.map(({ track, index }) => <article className="nlm-shared-track" key={`${track.id}-${index}`}>
             <span className="nlm-shared-index">{String(index + 1).padStart(2, '0')}</span><span className="nlm-shared-art">{track.thumbnailUrl ? <img src={resolveAssetUrl(track.thumbnailUrl)} alt=""/> : <Music2 size={18}/>}</span><span className="nlm-shared-track-copy"><strong>{track.title}</strong><small>{track.artist}{track.genre ? ` · ${track.genre}` : ''}</small></span><span className="nlm-shared-track-actions"><button onClick={() => playTracks([track.id])} aria-label={`Play ${track.title}`} title={`Play ${track.title}`}><Play size={14} fill="currentColor"/></button><button className="nlm-shared-play-next" onClick={() => playFromTrack(index)} aria-label={`Play ${track.title} and queue the remaining playlist tracks`} title="Play from here and queue the remaining tracks"><ListMusic size={15}/></button></span>
           </article>) : <p className="nlm-shared-filter-empty" role="status">No tracks match “{trackQuery}”. Try another title, artist, or genre.</p> : <p className="nlm-empty-state">This playlist does not have any tracks yet.</p>}</div>
           <small className="nlm-share-privacy">Only public playlist details and track metadata are shown here.</small>

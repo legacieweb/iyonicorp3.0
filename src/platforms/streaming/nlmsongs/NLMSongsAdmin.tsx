@@ -81,7 +81,7 @@ const NLMSongsAdmin = () => {
     return () => URL.revokeObjectURL(url);
   }, [coverFile]);
 
-  const openAccount = () => navigate(user?.role === 'manager_admin' ? '/admin/dashboard' : '/nlmsongs/dashboard');
+  const openAccount = () => navigate('/nlmsongs/listen');
   const signOut = () => { logout(); navigate('/nlmsongs'); };
 
   const resetForm = () => {

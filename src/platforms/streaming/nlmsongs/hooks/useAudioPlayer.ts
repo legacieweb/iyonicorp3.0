@@ -20,6 +20,7 @@ export const useAudioPlayer = ({
   const [duration, setDuration] = useState(0);
   const [volume, setVolumeState] = useState(DEFAULT_VOLUME);
   const [playerError, setPlayerError] = useState('');
+  const playAttemptedRef = useRef(false);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -32,9 +33,13 @@ export const useAudioPlayer = ({
     setCurrentTime(0);
     setDuration(0);
     setPlayerError('');
+    playAttemptedRef.current = false;
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current.load();
+      if (pendingAutoplayRef.current) {
+        playAttemptedRef.current = true;
+        audioRef.current.load();
+      }
     }
   }, [selectedTrack?.id, audioRef]);
 
@@ -46,6 +51,7 @@ export const useAudioPlayer = ({
     onCanPlay: () => {
       if (!pendingAutoplayRef.current) return;
       pendingAutoplayRef.current = false;
+      playAttemptedRef.current = true;
       void audioRef.current?.play().catch(() => {
         setPlayerError('Playback failed. Check the audio file and media server, then try again.');
       });
@@ -57,7 +63,9 @@ export const useAudioPlayer = ({
       onEnded();
     },
     onError: (event: React.SyntheticEvent<HTMLAudioElement>) => {
-      const errorCode = event.currentTarget.error?.code;
+      const media = event.currentTarget;
+      const errorCode = media.error?.code;
+      if (!errorCode || !playAttemptedRef.current) return;
       const message = errorCode === 4
         ? 'This audio format is not supported by your browser. Use MP3, WAV, or M4A.'
         : errorCode === 3
@@ -73,11 +81,23 @@ export const useAudioPlayer = ({
     setPlayerError('');
     try {
       if (audioRef.current.paused) {
+        playAttemptedRef.current = true;
         await audioRef.current.play();
       } else {
         audioRef.current.pause();
       }
     } catch {
+      setPlayerError('Playback failed. Check the audio file and media server, then try again.');
+      setIsPlaying(false);
+    }
+  }, [selectedTrack, audioRef]);
+
+  const play = useCallback(async () => {
+    if (!selectedTrack || !audioRef.current) return;
+    setPlayerError('');
+    playAttemptedRef.current = true;
+    try { await audioRef.current.play(); }
+    catch {
       setPlayerError('Playback failed. Check the audio file and media server, then try again.');
       setIsPlaying(false);
     }
@@ -104,6 +124,7 @@ export const useAudioPlayer = ({
     playerError,
     handlers,
     togglePlayback,
+    play,
     seek,
     setVolume,
     clearError,

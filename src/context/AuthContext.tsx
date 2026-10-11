@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authAPI, User } from '../services/api';
+import { authAPI, userAPI, User } from '../services/api';
+
+type ProfileUpdates = { name?: string; firstName?: string; lastName?: string; phoneNumber?: string; avatar?: string };
 
 export type UserRole = 'seller' | 'seller_manager' | 'manager_admin';
 
@@ -11,6 +13,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
+  updateProfile: (updates: ProfileUpdates) => Promise<User>;
   linkStore: (data: any) => Promise<void>;
   selectStore: (sellerId: string) => Promise<void>;
   logout: () => void;
@@ -111,6 +114,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateProfile = async (updates: ProfileUpdates): Promise<User> => {
+    if (!user) throw new Error('Sign in to update your profile.');
+    const savedUser = await userAPI.updateProfile(updates);
+    const nextUser = { ...user, ...updates, ...savedUser };
+    setUser(nextUser);
+    return nextUser;
+  };
+
   const linkStore = async (data: any): Promise<void> => {
     setIsLoading(true);
     try {
@@ -152,7 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isInitializing, isLoading, login, register, linkStore, selectStore, logout, setAuthenticatedUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isInitializing, isLoading, login, register, updateProfile, linkStore, selectStore, logout, setAuthenticatedUser }}>
       {children}
     </AuthContext.Provider>
   );

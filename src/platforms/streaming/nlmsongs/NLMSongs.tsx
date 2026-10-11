@@ -1,5 +1,5 @@
 import { FileAudio2, Loader2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import {
@@ -12,8 +12,6 @@ import {
   toTrack,
   extractRouteTrackId,
   activeLyricIndex,
-  getAudioExtension,
-  sanitizeFilename,
 } from './utils';
 import {
   useAudioPlayer,
@@ -45,6 +43,7 @@ import type { Track } from './types';
 import NLMEqualizerControl from './components/NLMEqualizerControl';
 import NLMMobileNavControls from './components/NLMMobileNavControls';
 import './nlmsongs.css';
+import { readOfflineAudio, storeOfflineAudio, supportsOfflineAudio } from './offlineAudio';
 
 type View = 'Listen' | 'Your Library' | 'Settings';
 
@@ -55,7 +54,7 @@ const viewForPath = (pathname: string): View => {
 };
 
 const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'admin'; isVisible?: boolean }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -73,7 +72,6 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
-  const [downloadError, setDownloadError] = useState('');
   const [showEqualizer, setShowEqualizer] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   const [showVisualizer, setShowVisualizer] = useState(false);
@@ -82,6 +80,14 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
   const [copied, setCopied] = useState(false);
   const [catalogError, setCatalogError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [offlineState, setOfflineState] = useState<'idle' | 'loading' | 'saved' | 'error' | 'unsupported'>(supportsOfflineAudio() ? 'idle' : 'unsupported');
+  const [offlineProgress, setOfflineProgress] = useState<number | null>(0);
+  const [offlineMessage, setOfflineMessage] = useState('');
+  const [offlineSource, setOfflineSource] = useState<{ trackId: string; url: string } | null>(null);
+  const offlineObjectUrlRef = useRef<{ trackId: string; url: string } | null>(null);
+  const [profileDraft, setProfileDraft] = useState({ firstName: '', lastName: '', phoneNumber: '' });
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileFeedback, setProfileFeedback] = useState('');
 
   const isAdminMode = mode === 'admin' || user?.role === 'manager_admin';
 
@@ -91,12 +97,94 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
   const sleepTimer = useSleepTimer();
   const visualizerCanvasRef = useVisualizer(showVisualizer, audioRef);
 
+  useEffect(() => {
+    if (!user) {
+      setProfileDraft({ firstName: '', lastName: '', phoneNumber: '' });
+      setProfileFeedback('');
+      return;
+    }
+    const nameParts = (user.name || '').trim().split(/\s+/);
+    setProfileDraft({
+      firstName: user.firstName || nameParts[0] || '',
+      lastName: user.lastName || nameParts.slice(1).join(' '),
+      phoneNumber: user.phoneNumber || '',
+    });
+  }, [user]);
+
   const routeTrackId = extractRouteTrackId(location.pathname);
   const isDetailRoute = routeTrackId !== null && view !== 'Settings';
   const selectedTrack = tracks.find((track) => track.id === selectedId) ?? null;
   const detailTrack = routeTrackId
     ? tracks.find((track) => track.id === routeTrackId) ?? null
     : null;
+
+  const activateOfflineBlob = useCallback((trackId: string, blob: Blob) => {
+    const previous = offlineObjectUrlRef.current;
+    if (previous) URL.revokeObjectURL(previous.url);
+    const url = URL.createObjectURL(blob);
+    offlineObjectUrlRef.current = { trackId, url };
+    setOfflineSource({ trackId, url });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setOfflineMessage('');
+    setOfflineProgress(0);
+    setOfflineState(supportsOfflineAudio() ? 'idle' : 'unsupported');
+    if (!selectedTrack) return;
+    void readOfflineAudio(selectedTrack.id).then((saved) => {
+      if (cancelled || !saved) return;
+      setOfflineState('saved');
+      setOfflineMessage('Available offline in this browser.');
+      // Never replace the media source underneath a playing track. It will be
+      // picked up the next time this track is selected or the app is reopened.
+      const audio = audioRef.current;
+      if (pendingAutoplayRef.current || (audio && (!audio.paused || audio.currentTime > 0))) return;
+      activateOfflineBlob(selectedTrack.id, saved.blob);
+    }).catch(() => {
+      if (!cancelled) setOfflineMessage('Offline storage could not be checked.');
+    });
+    return () => {
+      cancelled = true;
+      const current = offlineObjectUrlRef.current;
+      if (current?.trackId === selectedTrack.id) {
+        URL.revokeObjectURL(current.url);
+        offlineObjectUrlRef.current = null;
+      }
+    };
+  }, [selectedTrack?.id, activateOfflineBlob]);
+
+  useEffect(() => () => {
+    if (offlineObjectUrlRef.current) URL.revokeObjectURL(offlineObjectUrlRef.current.url);
+    offlineObjectUrlRef.current = null;
+  }, []);
+
+  const saveTrackOffline = async () => {
+    if (!detailTrack || offlineState === 'loading' || offlineState === 'saved') return;
+    if (!supportsOfflineAudio()) {
+      setOfflineState('unsupported');
+      setOfflineMessage('This browser does not support app-managed offline storage.');
+      return;
+    }
+    setOfflineState('loading');
+    setOfflineMessage('Audio is being saved in this browser for offline playback.');
+    setOfflineProgress(null);
+    try {
+      const audioBlob = await nlmsongsAPI.download(detailTrack.id);
+      setOfflineProgress(92);
+      await storeOfflineAudio(detailTrack.id, detailTrack.title, audioBlob);
+      setOfflineProgress(100);
+      const audio = audioRef.current;
+      if (selectedId === detailTrack.id && audio?.paused && audio.currentTime === 0) {
+        activateOfflineBlob(detailTrack.id, audioBlob);
+      }
+      setOfflineState('saved');
+      setOfflineMessage('Available offline in this browser.');
+    } catch (error) {
+      setOfflineState('error');
+      setOfflineMessage(error instanceof Error ? error.message : 'Could not save this track for offline listening.');
+    }
+  };
 
   useEffect(() => {
     setView(viewForPath(location.pathname));
@@ -242,14 +330,14 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
         navigate(`/nlmsongs/track/${encodeURIComponent(ordered[0].id)}`);
         if (alreadySelected && audioRef.current) {
           audioRef.current.currentTime = 0;
-          audioRef.current.play().catch(() => {});
+          void audioPlayer.play();
         }
       };
       void start();
     };
     window.addEventListener('nlm:play-playlist', handlePlaylistPlay);
     return () => window.removeEventListener('nlm:play-playlist', handlePlaylistPlay);
-  }, [tracks, selectedId, queue.clearQueue, queue.addToQueue, navigate]);
+  }, [tracks, selectedId, audioPlayer.play, queue.clearQueue, queue.addToQueue, navigate]);
 
   const seekBackward = () => {
     if (audioRef.current && audioPlayer.duration) {
@@ -412,36 +500,6 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
     }
   };
 
-  const downloadTrack = async (track: Track | null = selectedTrack) => {
-    if (!track || !track.audioUrl) return;
-    setDownloadError('');
-    if (!user) {
-      navigate(
-        `/register?role=customer&redirect=${encodeURIComponent(
-          `/nlmsongs/track/${encodeURIComponent(track.id)}`,
-        )}`,
-      );
-      return;
-    }
-
-    try {
-      const audio = await nlmsongsAPI.download(track.id);
-      const extension = getAudioExtension(track.audioUrl);
-      const filename = `${sanitizeFilename(track.title, track.artist)}.${extension}`;
-      const objectUrl = URL.createObjectURL(audio);
-      const anchor = document.createElement('a');
-      anchor.href = objectUrl;
-      anchor.download = filename;
-      anchor.style.display = 'none';
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-    } catch {
-      setDownloadError('This track could not be downloaded right now. Please try again.');
-    }
-  };
-
   const shareTrack = async () => {
     if (!selectedTrack) return;
 
@@ -486,16 +544,30 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
     }
   };
 
-  const openAccount = () =>
-    navigate(
-      user?.role === 'manager_admin'
-        ? '/admin/dashboard'
-        : user?.role === 'seller_manager'
-          ? '/manager/dashboard'
-          : user?.role === 'seller'
-            ? '/nlmsongs/dashboard'
-            : '/customer/dashboard',
-    );
+  const openAccount = () => navigate(user?.role === 'seller' ? '/nlmsongs/dashboard' : '/nlmsongs/listen');
+
+  const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!user) return;
+    setProfileSaving(true);
+    setProfileFeedback('');
+    const firstName = profileDraft.firstName.trim();
+    const lastName = profileDraft.lastName.trim();
+    try {
+      await updateProfile({
+        firstName,
+        lastName,
+        name: `${firstName} ${lastName}`.trim(),
+        phoneNumber: profileDraft.phoneNumber.trim(),
+      });
+      setProfileFeedback('Your account details are up to date.');
+    } catch (error) {
+      const responseMessage = (error as { response?: { data?: { message?: unknown } } })?.response?.data?.message;
+      setProfileFeedback(typeof responseMessage === 'string' ? responseMessage : 'We couldn’t save your details. Please try again.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
 
   const signOut = () => {
     setAccountMenuOpen(false);
@@ -506,18 +578,18 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
   const openThemes = () => {
     setAccountMenuOpen(false);
     navigate('/themes', {
-      state: { from: user?.role === 'manager_admin' ? '/admin/dashboard' : '/nlmsongs/dashboard' },
+      state: { from: '/nlmsongs/listen' },
     });
   };
 
   const openSignIn = () => {
     setAccountMenuOpen(false);
-    navigate(`/login?redirect=${encodeURIComponent('/nlmsongs')}`);
+    navigate(`/nlmsongs/login?redirect=${encodeURIComponent('/nlmsongs/listen')}`);
   };
 
   const openRegistration = () => {
     setAccountMenuOpen(false);
-    navigate(`/register?role=customer&redirect=${encodeURIComponent('/nlmsongs')}`);
+    navigate(`/nlmsongs/register?redirect=${encodeURIComponent('/nlmsongs/listen')}`);
   };
 
   const handleSleepTimerStart = (seconds: number) => {
@@ -533,8 +605,8 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
       <audio
         ref={audioRef}
         crossOrigin="anonymous"
-        src={resolveAssetUrl(selectedTrack?.audioUrl)}
-        preload="metadata"
+        src={selectedTrack && offlineSource?.trackId === selectedTrack.id ? offlineSource.url : resolveAssetUrl(selectedTrack?.audioUrl)}
+        preload="none"
         {...audioPlayer.handlers}
       />
 
@@ -639,11 +711,19 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
               </div>
 
               <div className="nlm-settings-group">
-                <div className="nlm-settings-group-heading"><span>ACCOUNT</span><small>Your NLM Songs profile</small></div>
-                <div className="nlm-settings-controls nlm-settings-rows">
-                  <div className="nlm-settings-row"><span><strong>Signed in as</strong><small>{user?.name || user?.email || 'Guest listener'}</small></span>{user ? <button className="nlm-settings-action" onClick={openAccount}>Manage account</button> : <button className="nlm-settings-action" onClick={openSignIn}>Sign in</button>}</div>
-                  <div className="nlm-settings-row"><span><strong>Catalogue</strong><small>{tracks.length} published tracks available</small></span><button className="nlm-settings-action" onClick={() => navigateToView('Listen')}>Browse listening</button></div>
-                </div>
+                <div className="nlm-settings-group-heading"><span>ACCOUNT DETAILS</span><small>Update your NLM Songs profile here.</small></div>
+                {user ? <form className="nlm-profile-form" onSubmit={saveProfile}>
+                  <div className="nlm-profile-form-grid">
+                    <label>First name<input autoComplete="given-name" value={profileDraft.firstName} onChange={(event) => setProfileDraft((draft) => ({ ...draft, firstName: event.target.value }))} required /></label>
+                    <label>Last name<input autoComplete="family-name" value={profileDraft.lastName} onChange={(event) => setProfileDraft((draft) => ({ ...draft, lastName: event.target.value }))} required /></label>
+                    <label>Email address<input type="email" value={user.email || ''} readOnly aria-readonly="true" /></label>
+                    <label>Phone number<input type="tel" autoComplete="tel" value={profileDraft.phoneNumber} onChange={(event) => setProfileDraft((draft) => ({ ...draft, phoneNumber: event.target.value }))} /></label>
+                  </div>
+                  <div className="nlm-profile-form-footer">
+                    <span className="nlm-profile-feedback" role="status">{profileFeedback || `Signed in as ${user.name || user.email}`}</span>
+                    <button className="nlm-profile-save" type="submit" disabled={profileSaving}>{profileSaving ? 'Saving…' : 'Save changes'}</button>
+                  </div>
+                </form> : <div className="nlm-settings-row"><span><strong>Your NLM Songs account</strong><small>Sign in to manage your profile and personal listening settings.</small></span><button className="nlm-settings-action" onClick={openSignIn}>Sign in</button></div>}
               </div>
 
               <div className="nlm-settings-group">
@@ -661,6 +741,10 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
               currentTime={audioPlayer.currentTime}
               onBack={() => navigate('/nlmsongs/listen')}
               onShowLyrics={() => setShowLyrics(true)}
+              offlineState={offlineState}
+              offlineProgress={offlineProgress}
+              offlineMessage={offlineMessage}
+              onSaveOffline={saveTrackOffline}
             />
           )}
 
@@ -697,12 +781,6 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
           <NLMPlayerError
             message={audioPlayer.playerError}
             onDismiss={audioPlayer.clearError}
-          />
-        )}
-        {downloadError && (
-          <NLMPlayerError
-            message={downloadError}
-            onDismiss={() => setDownloadError('')}
           />
         )}
 
@@ -748,7 +826,6 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
         volume={audioPlayer.volume}
         shuffleMode={queue.shuffleMode}
         repeatMode={queue.repeatMode}
-        hasUser={Boolean(user)}
         isAdminMode={isAdminMode}
         isFavorite={selectedTrack ? favorites.isFavorite(selectedTrack.id) : false}
         copied={copied}
@@ -761,7 +838,6 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
         onSeek={audioPlayer.seek}
         onSetVolume={audioPlayer.setVolume}
         onToggleFavorite={() => selectedTrack && favorites.toggleFavorite(selectedTrack.id)}
-        onDownload={() => void downloadTrack(selectedTrack)}
         onShare={shareTrack}
         onOpenPlaylist={() => setShowPlaylistModal(true)}
       />

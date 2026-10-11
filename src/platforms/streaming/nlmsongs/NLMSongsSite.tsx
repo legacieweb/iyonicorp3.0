@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ArrowUpRight, Headphones, Home, ListMusic, LogIn, LogOut, Music2, Play, Search, Settings, Sparkles, UserRound,
+  ArrowUpRight, Headphones, Home, Library, ListMusic, LogIn, LogOut, Music2, Play, Search, Settings, Sparkles, UserRound,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -12,11 +12,12 @@ import './nlmsongs.css';
 
 const API_ORIGIN = getApiOrigin();
 
-type View = 'Home' | 'Genres' | 'My List' | 'Playlists' | 'Settings';
+type View = 'Home' | 'Genres' | 'My List' | 'Your Library' | 'Playlists' | 'Settings';
 
 const viewForPath = (pathname: string): View => {
   if (pathname.endsWith('/genres')) return 'Genres';
   if (pathname.endsWith('/my-list')) return 'My List';
+  if (pathname.endsWith('/library')) return 'Your Library';
   if (pathname.endsWith('/playlists')) return 'Playlists';
   if (pathname.endsWith('/settings')) return 'Settings';
   return 'Home';
@@ -55,7 +56,7 @@ const NLMSongsSite = ({ isVisible = true }: { isVisible?: boolean }) => {
   }, [selectedGenre]);
   const navigateView = (nextView: View) => {
     setView(nextView);
-    const path = nextView === 'Home' ? '/nlmsongs/listen' : nextView === 'My List' ? '/nlmsongs/my-list' : `/nlmsongs/${nextView.toLowerCase()}`;
+    const path = nextView === 'Home' ? '/nlmsongs/listen' : nextView === 'My List' ? '/nlmsongs/my-list' : nextView === 'Your Library' ? '/nlmsongs/library' : `/nlmsongs/${nextView.toLowerCase()}`;
     if (location.pathname !== path) navigate(path);
   };
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
@@ -74,7 +75,7 @@ const NLMSongsSite = ({ isVisible = true }: { isVisible?: boolean }) => {
   const filteredTracks = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const matches = catalog.filter((item) => {
-      const matchesView = view === 'My List' ? savedIds.includes(item.id) : true;
+      const matchesView = view === 'My List' || view === 'Your Library' ? savedIds.includes(item.id) : true;
       const matchesSearch = !query || [item.title, item.artist, item.description, item.genre, ...(Array.isArray(item.tags) ? item.tags : [])]
         .some((value) => String(value).toLowerCase().includes(query));
       const matchesGenre = view !== 'Genres' || !selectedGenre || item.genre === selectedGenre;
@@ -83,12 +84,10 @@ const NLMSongsSite = ({ isVisible = true }: { isVisible?: boolean }) => {
     return matches;
   }, [searchQuery, catalog, view, savedIds, selectedGenre]);
 
-  const openAccount = () => navigate(user?.role === 'manager_admin'
-    ? '/admin/dashboard'
-    : user?.role === 'seller' ? '/nlmsongs/dashboard' : '/customer/dashboard');
+  const openAccount = () => navigate(user?.role === 'seller' ? '/nlmsongs/dashboard' : '/nlmsongs/listen');
   const signOut = () => { logout(); navigate('/nlmsongs'); };
-  const openSignIn = () => navigate(`/login?redirect=${encodeURIComponent('/nlmsongs')}`);
-  const openRegistration = () => navigate(`/register?role=customer&redirect=${encodeURIComponent('/nlmsongs')}`);
+  const openSignIn = () => navigate(`/nlmsongs/login?redirect=${encodeURIComponent('/nlmsongs/listen')}`);
+  const openRegistration = () => navigate(`/nlmsongs/register?redirect=${encodeURIComponent('/nlmsongs/listen')}`);
   const openAdmin = () => navigate('/nlmsongs/dashboard');
 
   const loadTracks = async () => {
@@ -132,6 +131,7 @@ const NLMSongsSite = ({ isVisible = true }: { isVisible?: boolean }) => {
           <button aria-label="Home" title="Home" className={view === 'Home' ? 'is-active' : ''} onClick={() => navigateFromSidebar('Home')}><Home size={17} strokeWidth={1.8} /><span>Home</span></button>
           <button aria-label="Genres" title="Genres" className={view === 'Genres' ? 'is-active' : ''} onClick={() => navigateFromSidebar('Genres')}><Music2 size={17} strokeWidth={1.8} /><span>Genres</span></button>
           <button aria-label={`My list, ${savedIds.length} saved`} title="My List" className={view === 'My List' ? 'is-active' : ''} onClick={() => navigateFromSidebar('My List')}><Headphones size={17} strokeWidth={1.8} /><span>My List</span><small>{savedIds.length}</small></button>
+          <button aria-label="Your Library" title="Your Library" className={view === 'Your Library' ? 'is-active' : ''} onClick={() => navigateFromSidebar('Your Library')}><Library size={17} strokeWidth={1.8} /><span>Your Library</span></button>
           <button aria-label="My Playlists" title="Playlists" className={view === 'Playlists' ? 'is-active' : ''} onClick={() => navigateFromSidebar('Playlists')}><ListMusic size={17} strokeWidth={1.8} /><span>Playlists</span></button>
           <button aria-label="Settings" title="Settings" className={view === 'Settings' ? 'is-active' : ''} onClick={() => { navigate('/nlmsongs/settings'); closeMobileNav(); }}><Settings size={17} strokeWidth={1.8} /><span>Settings</span></button>
         </nav>
@@ -225,7 +225,7 @@ const NLMSongsSite = ({ isVisible = true }: { isVisible?: boolean }) => {
           )}
 
           <section className="nlm-content-grid" aria-label="Catalogue">
-            <div className="nlm-section-head"><div><span className="nlm-eyebrow">{view === 'My List' ? 'YOUR LIBRARY' : view === 'Genres' ? 'ACTIVE CATALOGUE' : 'HAND-PICKED FOR YOU'}</span><h2>{view === 'Genres' ? selectedGenre || 'All sounds' : view === 'My List' ? 'Saved for later' : 'Stories with a pulse'}</h2></div><span className="nlm-track-count">{filteredTracks.length} tracks <span>↗</span></span></div>
+            <div className="nlm-section-head"><div><span className="nlm-eyebrow">{view === 'My List' || view === 'Your Library' ? 'YOUR LIBRARY' : view === 'Genres' ? 'ACTIVE CATALOGUE' : 'HAND-PICKED FOR YOU'}</span><h2>{view === 'Genres' ? selectedGenre || 'All sounds' : view === 'My List' || view === 'Your Library' ? 'Saved for later' : 'Stories with a pulse'}</h2></div><span className="nlm-track-count">{filteredTracks.length} tracks <span>↗</span></span></div>
             <div className="nlm-grid">
               {filteredTracks.length ? filteredTracks.map((item) => (
                 <article key={item.id} className={`nlm-card ${selectedId === item.id ? 'is-selected' : ''}`}>
@@ -241,7 +241,6 @@ const NLMSongsSite = ({ isVisible = true }: { isVisible?: boolean }) => {
                       <Headphones size={15} />
                     </button>
                   )}
-                  {item.id.startsWith('demo-') && <span className="nlm-demo-label">DEMO PREVIEW</span>}
                 </article>
               )) : <p className="nlm-empty-state" role="status">{isLoading ? 'Loading the NLM Songs catalogue…' : catalogError ? 'The catalogue could not be reached. Check your connection and try again.' : catalog.length ? 'No tracks match this selection. Try another search or genre.' : 'No tracks have been published yet.'}</p>}
             </div>

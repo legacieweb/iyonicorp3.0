@@ -1,3 +1,4 @@
+import { Check, Download, Loader2 } from 'lucide-react';
 import { resolveAssetUrl, activeLyricIndex } from '../utils';
 import type { Track } from '../types';
 
@@ -6,6 +7,10 @@ interface Props {
   currentTime: number;
   onBack: () => void;
   onShowLyrics: () => void;
+  offlineState?: 'idle' | 'loading' | 'saved' | 'error' | 'unsupported';
+  offlineProgress?: number | null;
+  offlineMessage?: string;
+  onSaveOffline?: () => void;
 }
 
 export const NLMTrackDetail = ({
@@ -13,7 +18,13 @@ export const NLMTrackDetail = ({
   currentTime,
   onBack,
   onShowLyrics,
-}: Props) => (
+  offlineState = 'idle',
+  offlineProgress = null,
+  offlineMessage = '',
+  onSaveOffline,
+}: Props) => {
+  const tags = Array.isArray(track.tags) ? track.tags.filter(Boolean) : [];
+  return (
   <section className="nlm-detail-page" aria-labelledby="nlm-details-title">
     <button className="nlm-detail-back" onClick={onBack}>
       Back to discovery
@@ -29,11 +40,21 @@ export const NLMTrackDetail = ({
         {track.description && (
           <p className="nlm-details-description">{track.description}</p>
         )}
-        {track.tags.length > 0 && (
+        {tags.length > 0 && (
           <div className="nlm-details-tags">
-            {track.tags.map((tag) => (
+            {tags.map((tag) => (
               <span key={tag} className="nlm-details-tag">{tag}</span>
             ))}
+          </div>
+        )}
+        {onSaveOffline && (
+          <div className="nlm-offline-action-wrap">
+            <button className={`nlm-offline-action ${offlineState === 'saved' ? 'is-saved' : ''}`} onClick={onSaveOffline} disabled={offlineState === 'loading' || offlineState === 'saved' || offlineState === 'unsupported'}>
+              {offlineState === 'loading' ? <Loader2 size={16} className="nlm-spinner" /> : offlineState === 'saved' ? <Check size={16} /> : <Download size={16} />}
+              <span>{offlineState === 'loading' ? 'Saving for offline…' : offlineState === 'saved' ? 'Saved for offline' : offlineState === 'unsupported' ? 'Offline storage unavailable' : 'Save for offline'}</span>
+              {offlineState === 'loading' && offlineProgress !== null && <small>{offlineProgress}%</small>}
+            </button>
+            {offlineMessage && <small className={`nlm-offline-message ${offlineState === 'error' ? 'is-error' : ''}`} role="status">{offlineMessage}</small>}
           </div>
         )}
       </div>
@@ -41,7 +62,8 @@ export const NLMTrackDetail = ({
       <DetailLyrics track={track} currentTime={currentTime} onShowLyrics={onShowLyrics} />
     </div>
   </section>
-);
+  );
+};
 
 const TrackArtwork = ({ track }: { track: Track }) => (
   <div className="nlm-details-art-wrap">
