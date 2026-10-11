@@ -529,8 +529,8 @@ app.post('/api/auth/register', async (req, res) => {
       await client.query('BEGIN');
 
       const userRes = await client.query(
-        'INSERT INTO users (name, email, password_hash, role, first_name, last_name, phone_number, username, last_selected_store_id, iyonicpay_opt_in) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, name, email, role, created_at, iyonicpay_opt_in',
-        [name, email, passwordHash, role, firstName || null, lastName || null, phoneNumber || null, finalUsername, role === 'customer' ? requestSellerId : null, role === 'seller']
+        'INSERT INTO users (name, email, password_hash, role, first_name, last_name, phone_number, username, last_selected_store_id, selected_theme_id, iyonicpay_opt_in) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id, name, email, role, created_at, selected_theme_id, iyonicpay_opt_in',
+        [name, email, passwordHash, role, firstName || null, lastName || null, phoneNumber || null, finalUsername, role === 'customer' ? requestSellerId : null, themeId && VIP_THEME_IDS.has(themeId) ? themeId : null, role === 'seller']
       );
       const user = userRes.rows[0];
       console.log('✅ User created:', user.id);
@@ -756,7 +756,8 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     const userRes = await db.query(`
-      SELECT u.*, s.id as seller_id, s.store_name, s.currency as "storeCurrency", sm.id as manager_id 
+      SELECT u.*, s.id as seller_id, s.store_name, s.currency as "storeCurrency", sm.id as manager_id,
+             COALESCE(u.selected_theme_id, s.theme->>'selectedTheme') AS effective_theme_id
       FROM users u 
       LEFT JOIN sellers s ON u.id = s.user_id 
       LEFT JOIN seller_managers sm ON u.id = sm.user_id 
@@ -804,7 +805,8 @@ app.post('/api/auth/login', async (req, res) => {
     let stores = [];
     if (user.role === 'customer') {
       const storesRes = await db.query(`
-        SELECT s.id, s.store_name, s.subdomain, s.logo, s.currency as "storeCurrency"
+        SELECT s.id, s.store_name, s.subdomain, s.logo, s.currency as "storeCurrency",
+               s.theme, s.theme->>'selectedTheme' AS theme_id
         FROM sellers s
         JOIN customers c ON s.id = c.seller_id
         WHERE c.user_id = $1
@@ -821,9 +823,9 @@ app.post('/api/auth/login', async (req, res) => {
       managerId: user.manager_id 
     }, JWT_SECRET, { expiresIn: '1d' });
 
-    const { password_hash, seller_id, manager_id, ...userWithoutPassword } = user;
+    const { password_hash, seller_id, manager_id, effective_theme_id, ...userWithoutPassword } = user;
     res.json({ 
-      user: toCamel({ ...userWithoutPassword, seller_id: currentSellerId, manager_id, stores }), 
+      user: toCamel({ ...userWithoutPassword, selected_theme_id: effective_theme_id || user.selected_theme_id, seller_id: currentSellerId, manager_id, stores }),
       token 
     });
   } catch (err) {
@@ -1034,6 +1036,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 
     const userRes = await db.query(`
        SELECT u.id, u.name, u.email, u.role, u.created_at, u.first_name, u.last_name, u.phone_number, u.username, u.last_selected_store_id, u.iyonicpay_opt_in,
+             COALESCE(u.selected_theme_id, s.theme->>'selectedTheme') AS selected_theme_id,
              s.id as seller_id, s.store_name, s.currency as "storeCurrency", sm.id as manager_id, sm.slug as manager_slug 
       FROM users u 
       LEFT JOIN sellers s ON u.id = s.user_id 
@@ -1050,7 +1053,8 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     let stores = [];
     if (user.role === 'customer') {
       const storesRes = await db.query(`
-        SELECT s.id, s.store_name, s.subdomain, s.logo, s.currency as "storeCurrency"
+        SELECT s.id, s.store_name, s.subdomain, s.logo, s.currency as "storeCurrency",
+               s.theme, s.theme->>'selectedTheme' AS theme_id
         FROM sellers s
         JOIN customers c ON s.id = c.seller_id
         WHERE c.user_id = $1

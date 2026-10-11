@@ -42,6 +42,7 @@ export interface User {
   avatar?: string;
   createdAt: string;
   sellerId?: string;
+  selectedThemeId?: string;
   storeName?: string;
   storeCurrency?: string;
   ownerName?: string;
@@ -60,6 +61,8 @@ export interface Store {
   subdomain: string;
   logo?: string;
   storeCurrency?: string;
+  themeId?: string;
+  theme?: { selectedTheme?: string };
 }
 
 export interface NLMSong {

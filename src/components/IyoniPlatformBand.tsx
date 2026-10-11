@@ -3,7 +3,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const serviceLinks = [
-  { label: 'IyonicShop', to: '/iyonicshop' },
+  { label: 'BizHub', to: '/bizhub' },
   { label: 'IyonicPay', to: '/iyonicpay' },
   { label: 'IyonicBots', to: '/iyonicbots' },
 ];

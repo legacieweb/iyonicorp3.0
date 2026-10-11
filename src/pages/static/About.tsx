@@ -27,7 +27,7 @@ const About: React.FC = () => {
               <h2 className="mt-3 text-2xl font-bold text-gray-950">Core services, within a wider platform.</h2>
               <div className="mt-8 divide-y divide-gray-200 border-y border-gray-200">
                 {[
-                  { icon: Layers, name: 'IyonicShop', description: 'The commerce engine for storefront and product experiences.' },
+                  { icon: Layers, name: 'BizHub', description: 'Discover the platform built for your business and create its customer experience.' },
                   { icon: ShieldCheck, name: 'IyonicPay', description: 'Payment infrastructure and experiences within the Iyoni platform.' },
                   { icon: Sparkles, name: 'IyonicBots', description: 'Iyoni’s AI and automation engine.' },
                 ].map(({ icon: Icon, name, description }) => (

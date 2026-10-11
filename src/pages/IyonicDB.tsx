@@ -22,6 +22,7 @@ import SEO from '../components/SEO';
 import { HomepageFooter } from '../components/HomepageFooter';
 import { api } from '../services/api';
 import './iyonicdb.css';
+import './product-marketing.css';
 
 type Plan = {
   id: string;

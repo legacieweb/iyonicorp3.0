@@ -15,6 +15,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import SEO from '../components/SEO';
+import './product-marketing.css';
 
 interface IyonicMailerProps {
   onGetStarted?: (role: 'seller' | 'seller_manager') => void;
@@ -90,7 +91,7 @@ export const IyonicMailer: React.FC<IyonicMailerProps> = ({ onGetStarted }) => {
         description="White-label email marketing platform with SMTP integration, campaign management, API access, and reseller program. Create, send, and track email campaigns."
       />
 
-      <div className="min-h-screen bg-white text-gray-900 antialiased">
+      <div className="mailer-site min-h-screen bg-white text-gray-900 antialiased">
         {/* Header */}
         <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-6 lg:px-8">

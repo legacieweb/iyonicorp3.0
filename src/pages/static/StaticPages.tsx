@@ -79,7 +79,7 @@ export const Press: React.FC = () => (
           Iyoni is a modular Business Operating System: one technology foundation for distinct business experiences and shared platform services.
         </SectionHeading>
         <div className="space-y-6 leading-7 text-gray-600">
-          <p>IyonicShop is the commerce engine, IyonicPay is payment infrastructure, and IyonicBots is Iyoni’s AI and automation engine. Dedicated vertical experiences and storefront themes are available through the platform catalog.</p>
+          <p>BizHub is the commerce engine, IyonicPay is payment infrastructure, and IyonicBots is Iyoni’s AI and automation engine. Dedicated vertical experiences and storefront themes are available through the platform catalog.</p>
           <p>For accurate product details, current availability, or interview requests, please contact the press team before publication.</p>
         </div>
         <div className="mt-12 border-t border-gray-200 pt-8">
@@ -110,7 +110,7 @@ export const Documentation: React.FC = () => (
       <ol className="grid gap-x-10 divide-y divide-gray-200 border-y border-gray-200 md:grid-cols-3 md:divide-y-0">
         {[
           { number: '01', title: 'Create your account', text: 'Choose a seller or manager account and complete your business profile.', to: '/register?role=seller', link: 'Create account' },
-          { number: '02', title: 'Shape your store', text: 'Add products or services, set your store details, and review your customer-facing pages.', to: '/iyonicshop', link: 'Explore IyonicShop' },
+          { number: '02', title: 'Shape your store', text: 'Add products or services, set your store details, and review your customer-facing pages.', to: '/bizhub', link: 'Explore BizHub' },
           { number: '03', title: 'Prepare to sell', text: 'Review checkout, payment, delivery, and return information before sharing your store.', to: '/help-center', link: 'Visit help center' },
         ].map((step) => (
           <li key={step.number} className="py-6 md:py-8">
@@ -127,7 +127,7 @@ export const Documentation: React.FC = () => (
         <SectionHeading eyebrow="Guides" title="Find your next step" />
         <div className="divide-y divide-gray-200 border-y border-gray-200">
           {[
-            { title: 'Store setup and product catalog', text: 'Store identity, product details, categories, and customer-facing information.', to: '/iyonicshop' },
+            { title: 'Store setup and product catalog', text: 'Store identity, product details, categories, and customer-facing information.', to: '/bizhub' },
             { title: 'Payments and checkout', text: 'Understand the checkout options available in your account and prepare for payment setup.', to: '/iyonicpay' },
             { title: 'Seller and manager workflows', text: 'Learn how sellers and managers work together across the platform.', to: '/register?role=seller_manager' },
             { title: 'Troubleshooting and common questions', text: 'Browse answers to setup, account, store, and order questions.', to: '/help-center' },

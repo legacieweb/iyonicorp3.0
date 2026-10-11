@@ -6,12 +6,13 @@ import { DataProvider } from './context/DataContext';
 import { ToastProvider } from './context/ToastContext';
 import { Homepage } from './pages/Homepage';
 import { sellersAPI } from './services/api';
-import { normalizeThemeId } from './utils/themeDashboard';
+import { getThemeClientDashboardRoute, getThemeDashboardRoute, normalizeThemeId } from './utils/themeDashboard';
 import GlobalPreloader from './components/GlobalPreloader';
 
 const Login = lazy(() => import('./pages/auth/Login').then(({ Login }) => ({ default: Login })));
 const Register = lazy(() => import('./pages/auth/Register').then(({ Register }) => ({ default: Register })));
 const Themes = lazy(() => import('./pages/Themes'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 const SellerDashboard = lazy(() => import('./pages/seller/SellerDashboard').then(({ SellerDashboard }) => ({ default: SellerDashboard })));
 const SellerManagerDashboard = lazy(() => import('./pages/manager/SellerManagerDashboard').then(({ SellerManagerDashboard }) => ({ default: SellerManagerDashboard })));
 const ManagerAdminDashboard = lazy(() => import('./pages/admin/ManagerAdminDashboard').then(({ ManagerAdminDashboard }) => ({ default: ManagerAdminDashboard })));
@@ -86,11 +87,11 @@ const Terms = lazy(() => import('./pages/static').then(({ Terms }) => ({ default
 const Cookies = lazy(() => import('./pages/static').then(({ Cookies }) => ({ default: Cookies })));
 const Licenses = lazy(() => import('./pages/static').then(({ Licenses }) => ({ default: Licenses })));
 
-const getUserRedirectPath = (user: any, shopSubdomain?: string | null) => {
+const getUserRedirectPath = (user: any, shopSubdomain?: string | null, themeId?: string | null) => {
   if (!user) return '/login';
   
   switch (user.role) {
-    case 'seller': return '/seller/dashboard';
+    case 'seller': return themeId || user.selectedThemeId ? getThemeDashboardRoute(themeId || user.selectedThemeId) : '/seller/dashboard';
     case 'seller_manager': return '/manager/dashboard';
     case 'manager_admin': return '/admin/dashboard';
     case 'school_staff': return '/sms/admin';
@@ -98,6 +99,20 @@ const getUserRedirectPath = (user: any, shopSubdomain?: string | null) => {
     case 'customer': 
       if (shopSubdomain) {
         return `/shop/${shopSubdomain}`;
+      }
+      // Customer accounts can belong to multiple stores. Keep their next sign-in
+      // anchored to the store they last selected, falling back to their first store.
+      if (Array.isArray(user.stores) && user.stores.length > 0) {
+        const selectedStore = user.stores.find((store: any) =>
+          store.id === (user.lastSelectedStoreId || user.sellerId),
+        ) || user.stores[0];
+        if (selectedStore.subdomain) return `/shop/${selectedStore.subdomain}`;
+        if (selectedStore.themeId || selectedStore.theme?.selectedTheme) {
+          return getThemeClientDashboardRoute(selectedStore.themeId || selectedStore.theme.selectedTheme);
+        }
+      }
+      if (themeId || user.selectedThemeId) {
+        return getThemeClientDashboardRoute(themeId || user.selectedThemeId);
       }
       if (user.email.toLowerCase().includes('bot')) {
         return '/iyonicbots';
@@ -111,6 +126,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles: string
   const { user, isAuthenticated, isLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const shopSubdomain = searchParams.get('subdomain');
+  const themeId = searchParams.get('theme') || searchParams.get('platform');
   
   if (isLoading) {
     return <GlobalPreloader message="Loading your dashboard…" />;
@@ -121,7 +137,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles: string
   }
   
   if (user && !allowedRoles.includes(user.role)) {
-    return <Navigate to={unauthorizedRedirectPath || getUserRedirectPath(user, shopSubdomain)} replace />;
+    return <Navigate to={unauthorizedRedirectPath || getUserRedirectPath(user, shopSubdomain, themeId)} replace />;
   }
   
   return <>{children}</>;
@@ -156,6 +172,7 @@ const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const shopSubdomain = searchParams.get('subdomain');
+  const themeId = searchParams.get('theme') || searchParams.get('platform');
   
   if (isInitializing) {
     return <GlobalPreloader message="Checking your session…" />;
@@ -176,7 +193,7 @@ const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       return <Navigate to="/sms/owner" replace />;
     }
 
-    return <Navigate to={getUserRedirectPath(user, shopSubdomain)} replace />;
+    return <Navigate to={getUserRedirectPath(user, shopSubdomain, themeId)} replace />;
   }
   
   return <>{children}</>;
@@ -284,29 +301,9 @@ const AppContent: React.FC = () => {
     navigate('/');
   };
 
-  const handleOpenIyonicPay = () => {
-    navigate('/iyonicpay');
-  };
-
-  const handleOpenIyonicBots = () => {
-    navigate('/iyonicbots');
-  };
-
-  const handleOpenIyonicMailer = () => {
-    navigate('/iyonic-mailer');
-  };
-
   return (
     <Routes location={location}>
-      <Route path="/" element={
-        <Homepage
-          onGetStarted={handleGetStarted}
-          onSignIn={handleSignIn}
-          onOpenIyonicPay={handleOpenIyonicPay}
-          onOpenIyonicBots={handleOpenIyonicBots}
-          onOpenIyonicMailer={handleOpenIyonicMailer}
-        />
-      } />
+      <Route path="/" element={<Homepage />} />
       
       <Route path="/login" element={
         <AuthRoute>
@@ -559,7 +556,7 @@ const AppContent: React.FC = () => {
       <Route path="/iyonicbots/*" element={<IyonicBots />} />
       <Route path="/iyonicdb/console" element={<IyonicDBConsole />} />
       <Route path="/iyonicdb" element={<IyonicDB />} />
-      <Route path="/iyonicshop" element={
+      <Route path="/bizhub" element={
         isAuthenticated && user ? (
           <Navigate to={getUserRedirectPath(user)} replace />
         ) : (
@@ -569,6 +566,7 @@ const AppContent: React.FC = () => {
           />
         )
       } />
+      <Route path="/iyonicshop" element={<Navigate to="/bizhub" replace />} />
       
       <Route path="/about" element={<About />} />
       <Route path="/careers" element={<Careers />} />
@@ -591,7 +589,7 @@ const AppContent: React.FC = () => {
       <Route path="/shop/:subdomain" element={<Storefront />} />
       <Route path="/m/:slug" element={<ManagerPublicPage />} />
       
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };

@@ -29,6 +29,7 @@ export const Register: React.FC<RegisterProps> = ({
   const location = useLocation();
   const signupParams = new URLSearchParams(location.search);
   const storeSubdomain = signupParams.get('subdomain');
+  const selectedThemeId = signupParams.get('theme') || signupParams.get('platform');
   const isUtormeSignup = signupParams.get('platform') === 'utorme';
   const isUtormeTutorSignup = isUtormeSignup && preselectedRole === 'seller';
   const isUtormeStudentSignup = isUtormeSignup && preselectedRole === 'customer';
@@ -189,7 +190,7 @@ export const Register: React.FC<RegisterProps> = ({
         password: formData.password,
         role: accountRole as any,
         sellerId: initialSellerId || undefined,
-        themeId: isTsppSignup ? 'tspp' : undefined,
+        themeId: selectedThemeId || (isTsppSignup ? 'tspp' : undefined),
         ...(accountRole === 'seller' ? {
           storeName: formData.storeName,
           ...(!isTsppSignup ? {
@@ -349,19 +350,19 @@ export const Register: React.FC<RegisterProps> = ({
     } as React.CSSProperties;
   };
 
-  const themePrimary = vipTheme?.primary || '#4f46e5';
-  const themeSecondary = vipTheme?.secondary || '#581c87';
+  const themePrimary = vipTheme?.primary || '#c6f04a';
+  const themeSecondary = vipTheme?.secondary || '#171a16';
   const getAuthStyles = () => ({
     ...getThemeStyles(),
     ...(vipTheme ? { '--vip-surface': vipTheme.surface } : {}),
   } as React.CSSProperties);
 
   return (
-    <div className={`min-h-screen flex flex-col md:flex-row bg-white ${vipTheme ? 'vip-auth-shell' : ''}`} data-vip-theme={vipTheme?.id} style={getAuthStyles()}>
+    <div className={`auth-page-shell min-h-screen flex flex-col md:flex-row bg-white ${vipTheme ? 'vip-auth-shell' : ''}`} data-vip-theme={vipTheme?.id} style={getAuthStyles()}>
       {/* Left Side - Information & Benefits */}
       <div 
         className="vip-auth-brand-panel hidden md:flex md:w-2/5 p-12 text-white flex-col justify-between relative overflow-hidden"
-        style={{ background: isTsppSignup ? 'linear-gradient(145deg, #123b3b, #1f5a55)' : `linear-gradient(145deg, ${themeSecondary}, ${themePrimary})` }}
+        style={vipTheme || isTsppSignup ? { background: isTsppSignup ? 'linear-gradient(145deg, #123b3b, #1f5a55)' : `linear-gradient(145deg, ${themeSecondary}, ${themePrimary})` } : undefined}
       >
         <div className="relative z-10">
           <div className="flex items-center space-x-2 mb-12">
@@ -507,7 +508,7 @@ export const Register: React.FC<RegisterProps> = ({
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Role Selection Tabs */}
-            {!isShopSignup && !managerSlug && !isInvitation && !isUtormeSignup && !isTsppSignup && preselectedRole !== 'customer' && (
+            {!selectedThemeId && !isShopSignup && !managerSlug && !isInvitation && !isUtormeSignup && !isTsppSignup && preselectedRole !== 'customer' && (
               <div className="bg-gray-100 p-1 rounded-2xl flex max-w-lg mx-auto md:mx-0">
                 <button
                   type="button"

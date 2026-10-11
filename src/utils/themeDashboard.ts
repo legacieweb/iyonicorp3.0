@@ -43,6 +43,8 @@ const THEME_CLIENT_DASHBOARD_ROUTES: Record<string, string> = {
   essayme: '/utorme/student',
   tspp: '/tspp/client',
   sms: '/sms/parent',
+  nlmsongs: '/nlmsongs',
+  ixstream: '/ixstream',
 };
 
 export const normalizeThemeId = (themeId?: string | null) => {

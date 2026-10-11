@@ -45,6 +45,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { HomepageFooter } from '../components/HomepageFooter';
 import IyoniPlatformBand from '../components/IyoniPlatformBand';
 import './Homepage.css';
+import './product-marketing.css';
 
 const IyonicBots: React.FC = () => {
   const { user, login, register, setAuthenticatedUser, logout } = useAuth();
@@ -1456,7 +1457,7 @@ const IyonicBots: React.FC = () => {
   };
 
   return (
-    <div className="home-shell platform-shell min-h-screen">
+    <div className="home-shell platform-shell product-marketing product-bots min-h-screen">
       <IyoniPlatformBand />
       <SEO 
         title="IyonicBots — AI & Automation for Modern Business"

@@ -1,0 +1,407 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
+/*Product marketing: one Iyoni system, expressed through distinct product accents.*/
+.product-marketing {
+  --pm-bg: #10120f;
+  --pm-panel: #181b16;
+  --pm-panel-2: #20241d;
+  --pm-ink: #f4f4eb;
+  --pm-muted: #a3a99b;
+  --pm-line: #343a30;
+  --pm-accent: #d5ff45;
+  background: var(--pm-bg);
+  color: var(--pm-ink);
+  font-family: 'Manrope', sans-serif;
+  overflow: clip;
+}
+.product-marketing.product-bots {
+  --pm-accent: #b5f2c2;
+}
+.product-marketing.product-pay {
+  --pm-accent: #baf4ec;
+}
+.product-marketing .home-header {
+  background: rgba(16,18,15,.92);
+  border-color: var(--pm-line);
+}
+.product-marketing .home-brand, .product-marketing .home-brand > span {
+  color: var(--pm-ink);
+}
+.product-marketing .nav-links button, .product-marketing .nav-links a, .product-marketing .nav-login {
+  color: var(--pm-muted);
+}
+.product-marketing .nav-links a:hover, .product-marketing .nav-links button:hover, .product-marketing .nav-login:hover {
+  color: var(--pm-accent);
+}
+.product-marketing .nav-cta {
+  background: var(--pm-accent);
+  color: #12150e;
+  border-color: var(--pm-accent);
+}
+.product-marketing .menu-toggle {
+  color: var(--pm-ink);
+}
+.product-marketing .mobile-nav {
+  background: #191c16;
+  border-color: var(--pm-line);
+}
+.product-marketing .mobile-nav a, .product-marketing .mobile-nav button {
+  color: var(--pm-ink);
+  border-color: var(--pm-line);
+}
+.product-marketing .platform-hero {
+  position: relative;
+  isolation: isolate;
+  background: radial-gradient(ellipse at 78% 50%, color-mix(in srgb,var(--pm-accent) 9%,transparent),transparent 43%), var(--pm-bg);
+  color: var(--pm-ink);
+}
+.product-marketing .platform-hero::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  opacity: .17;
+  background-image: linear-gradient(rgba(255,255,255,.08) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.08) 1px,transparent 1px);
+  background-size: 56px 56px;
+  mask-image: linear-gradient(90deg,transparent,black 70%);
+}
+.product-marketing .eyebrow {
+  color: var(--pm-accent);
+  font: 700 10px 'Space Mono',monospace;
+  letter-spacing: .13em;
+}
+.product-marketing .eyebrow-mark {
+  background: var(--pm-accent);
+}
+.product-marketing .platform-hero h1 {
+  color: var(--pm-ink);
+  font: 800 clamp(52px,7vw,92px)/.96 'Manrope',sans-serif;
+  letter-spacing: -.075em;
+}
+.product-marketing .platform-hero h1 em {
+  color: var(--pm-accent);
+  font-style: normal;
+}
+.product-marketing .hero-lede, .product-marketing .hero-footnote {
+  color: var(--pm-muted);
+}
+.product-marketing .hero-footnote strong {
+  color: var(--pm-ink);
+}
+.product-marketing .button-dark {
+  background: var(--pm-accent);
+  color: #11140d;
+  border-color: var(--pm-accent);
+}
+.product-marketing .text-link {
+  color: var(--pm-ink);
+}
+.product-marketing .platform-hero-visual {
+  background: linear-gradient(145deg,#22271e,#141712 76%);
+  border: 1px solid #42483a;
+  box-shadow: 0 35px 100px #0008;
+  color: var(--pm-ink);
+}
+.product-marketing .platform-hero-visual::before {
+  border-color: #41483a;
+}
+.product-marketing .map-topline, .product-marketing .map-caption {
+  color: #a6ae9c;
+}
+.product-marketing .map-industry-row span, .product-marketing .map-capabilities span {
+  background: #252a21;
+  border-color: #454b3d;
+  color: #e8ecdd;
+}
+.product-marketing .map-core {
+  background: #d5ff45;
+  color: #15180f;
+  border-color: #efffa6;
+}
+.product-marketing.product-bots .map-core {
+  background: #b5f2c2;
+}
+.product-marketing.product-pay .map-core {
+  background: #baf4ec;
+}
+.product-marketing .core-overline {
+  color: #434b36;
+}
+.product-marketing .core-symbol span {
+  background: #1b2115;
+}
+.product-marketing .caption-dot {
+  background: var(--pm-accent);
+}
+.product-marketing .section-wrap {
+  background: #10120f;
+  color: var(--pm-ink);
+}
+.product-marketing .section-wrap:nth-of-type(even) {
+  background: #141711;
+}
+.product-marketing .section-intro .eyebrow {
+  color: var(--pm-accent);
+}
+.product-marketing .section-intro h2, .product-marketing .section-intro h2 em, .product-marketing .architecture-copy h2, .product-marketing .architecture-copy h2 em {
+  color: var(--pm-ink);
+}
+.product-marketing .section-intro h2 em, .product-marketing .architecture-copy h2 em {
+  color: var(--pm-accent);
+}
+.product-marketing .section-intro > p:not(.eyebrow), .product-marketing .architecture-copy > p {
+  color: var(--pm-muted);
+}
+.product-marketing .capability-card {
+  background: var(--pm-panel);
+  border-color: var(--pm-line);
+  color: var(--pm-ink);
+  transition: transform .25s,border-color .25s,background .25s;
+}
+.product-marketing .capability-card:hover {
+  transform: translateY(-5px);
+  background: #20241c;
+  border-color: var(--pm-accent);
+}
+.product-marketing .capability-card svg {
+  color: var(--pm-accent);
+}
+.product-marketing .capability-card p {
+  color: var(--pm-muted);
+}
+.product-marketing .capability-index {
+  color: #8e9588;
+}
+.product-marketing .architecture-section {
+  background: #d5ff45;
+  color: #13160e;
+}
+.product-marketing.product-bots .architecture-section {
+  background: #b5f2c2;
+}
+.product-marketing.product-pay .architecture-section {
+  background: #baf4ec;
+}
+.product-marketing .architecture-copy h2, .product-marketing .architecture-copy h2 em, .product-marketing .architecture-copy > p {
+  color: #15180f;
+}
+.product-marketing .architecture-copy h2 em {
+  opacity: .66;
+}
+.product-marketing .architecture-stamp {
+  border-color: #707f4c;
+}
+.product-marketing .architecture-steps {
+  border-color: #78834f;
+}
+.product-marketing .architecture-steps i {
+  background: #78834f;
+}
+.product-marketing .architecture-steps span {
+  color: #313a21;
+}
+.product-marketing .closing-cta {
+  background: #181b16;
+  color: var(--pm-ink);
+}
+.product-marketing .closing-cta::before {
+  border-color: #32382e;
+}
+.product-marketing .closing-copy .eyebrow {
+  color: var(--pm-accent);
+}
+.product-marketing .closing-copy h2, .product-marketing .closing-copy h2 em {
+  color: var(--pm-ink);
+}
+.product-marketing .closing-copy h2 em {
+  color: var(--pm-accent);
+}
+.product-marketing .closing-copy > p:not(.eyebrow), .product-marketing .closing-foot {
+  color: var(--pm-muted);
+}
+.product-marketing .button-light {
+  background: var(--pm-accent);
+  color: #14170e;
+}
+.product-marketing .closing-login {
+  color: var(--pm-ink);
+}
+.product-marketing .closing-orbit {
+  border-color: color-mix(in srgb,var(--pm-accent) 40%,transparent);
+}
+.product-marketing .closing-orbit span {
+  background: var(--pm-accent);
+}
+.product-marketing .icorp-footer {
+  background: #0b0d0a;
+  color: #899184;
+  border-color: #282d25;
+}
+.product-marketing .icorp-footer a {
+  color: #c4cbbd;
+}
+/*DB marketing shell, deliberately excluding the separate console experience.*/
+.idb-site {
+  --idb-paper: #10120f;
+  --idb-white: #181b16;
+  --idb-ink: #f3f3e9;
+  --idb-muted: #a5ad9d;
+  --idb-line: #343a30;
+  --idb-green: #d5ff45;
+  --idb-teal: #a9d9c5;
+  --idb-gold: #d5ff45;
+  background: #10120f;
+  color: #f3f3e9;
+  font-family: 'Manrope',sans-serif;
+}
+.idb-site .idb-header {
+  background: #10120f;
+  border-color: #343a30;
+}
+.idb-site .idb-logo, .idb-site .idb-header nav a, .idb-site .idb-quiet-link {
+  color: #f3f3e9;
+}
+.idb-site .idb-logo-mark {
+  border-color: #83916d;
+}
+.idb-site .idb-logo-mark i {
+  background: #d5ff45;
+}
+.idb-site .idb-button {
+  background: #d5ff45;
+  color: #12150d !important;
+  border-color: #d5ff45;
+}
+.idb-site .idb-hero, .idb-site .idb-capabilities, .idb-site .idb-dual-section, .idb-site .idb-onboarding, .idb-site .idb-plans, .idb-site .idb-faq {
+  background: #10120f;
+  color: #f3f3e9;
+}
+.idb-site .idb-hero h1, .idb-site .idb-section-intro h2, .idb-site .idb-dual-heading h2, .idb-site .idb-onboarding-intro h2, .idb-site .idb-plan-heading h2, .idb-site .idb-faq h2 {
+  color: #f3f3e9;
+}
+.idb-site .idb-hero h1 em, .idb-site h2 em {
+  color: #d5ff45;
+}
+.idb-site .idb-hero-lede, .idb-site .idb-section-intro > p, .idb-site .idb-plan-heading > p, .idb-site .idb-onboarding-intro > p {
+  color: #a5ad9d;
+}
+.idb-site .idb-architecture {
+  background: #1b2019;
+  border-color: #42483a;
+  box-shadow: 0 22px 60px #0008;
+}
+.idb-site .idb-engine-card, .idb-site .idb-feature-row, .idb-site .idb-model, .idb-site .idb-plan {
+  background: #181b16;
+  border-color: #343a30;
+  color: #f3f3e9;
+}
+.idb-site .idb-feature-copy p, .idb-site .idb-model p, .idb-site .idb-plan-intro, .idb-site .idb-plan li {
+  color: #a5ad9d;
+}
+.idb-site .idb-signal-rail {
+  background: #d5ff45;
+  color: #15180e;
+}
+.idb-site .idb-dual-section, .idb-site .idb-onboarding, .idb-site .idb-plans, .idb-site .idb-faq {
+  border-color: #343a30;
+}
+.idb-site .idb-closing {
+  background: #d5ff45;
+  color: #14170e;
+}
+.idb-site .idb-closing h2, .idb-site .idb-closing p {
+  color: #14170e;
+}
+.idb-site .icorp-footer {
+  background: #0b0d0a;
+  border-color: #282d25;
+  color: #899184;
+}
+/*Mailer keeps its campaign preview as the hero focal point, with an ink canvas.*/
+.mailer-site {
+  --mail-accent: #d5ff45;
+  background: #10120f !important;
+  color: #f3f3e9 !important;
+  font-family: 'Manrope',sans-serif;
+}
+.mailer-site header {
+  background: #10120f !important;
+  border-color: #343a30 !important;
+}
+.mailer-site header span, .mailer-site header a, .mailer-site header nav button {
+  color: #f3f3e9 !important;
+}
+.mailer-site header svg {
+  color: #d5ff45 !important;
+}
+.mailer-site header button:last-child {
+  background: #d5ff45 !important;
+  color: #12150d !important;
+}
+.mailer-site > section {
+  background: #10120f !important;
+  color: #f3f3e9 !important;
+}
+.mailer-site > section:nth-of-type(even) {
+  background: #151812 !important;
+}
+.mailer-site > section h1, .mailer-site > section h2, .mailer-site > section h3 {
+  color: #f3f3e9 !important;
+}
+.mailer-site > section p, .mailer-site > section li {
+  color: #a5ad9d !important;
+}
+.mailer-site > section .bg-white, .mailer-site > section [class*="bg-white"] {
+  background: #1c2019 !important;
+  border-color: #343a30 !important;
+}
+.mailer-site > section [class*="bg-indigo"], .mailer-site > section [class*="bg-purple"] {
+  background: #252b1c !important;
+  border-color: #59683c !important;
+}
+.mailer-site > section [class*="text-indigo"], .mailer-site > section [class*="text-purple"] {
+  color: #d5ff45 !important;
+}
+.mailer-site > section [class*="bg-gradient"] {
+  background: #d5ff45 !important;
+}
+.mailer-site > section button[class*="bg-indigo"], .mailer-site > section button[class*="bg-white"] {
+  background: #d5ff45 !important;
+  color: #12150d !important;
+}
+.mailer-site footer {
+  background: #0b0d0a !important;
+  border-top: 1px solid #343a30;
+}
+.mailer-site button, .mailer-site a {
+  transition: transform .2s ease,border-color .2s ease,background-color .2s ease;
+}
+.mailer-site button:hover {
+  transform: translateY(-2px);
+}
+.product-marketing a:focus-visible, .product-marketing button:focus-visible, .mailer-site a:focus-visible, .mailer-site button:focus-visible {
+  outline: 2px solid var(--pm-accent,#d5ff45);
+  outline-offset: 4px;
+}
+@media (max-width:760px) {
+  .product-marketing .platform-hero {
+    padding-top: 60px;
+  }
+  .product-marketing .platform-hero-visual {
+    margin-top: 8px;
+  }
+  .product-marketing .mobile-nav {
+    background: #181b16;
+  }
+  .idb-site .idb-header {
+    padding-inline: 20px;
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  .product-marketing *, .product-marketing *::before, .product-marketing *::after, .mailer-site *, .mailer-site *::before, .mailer-site *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+

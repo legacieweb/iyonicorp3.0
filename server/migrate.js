@@ -26,6 +26,7 @@ async function migrate() {
       ['phone_number', 'VARCHAR(50)'],
       ['username', 'VARCHAR(255) UNIQUE'],
       ['last_selected_store_id', 'UUID REFERENCES sellers(id) ON DELETE SET NULL'],
+      ['selected_theme_id', 'VARCHAR(100)'],
       ['iyonicpay_opt_in', 'BOOLEAN DEFAULT FALSE']
     ];
 

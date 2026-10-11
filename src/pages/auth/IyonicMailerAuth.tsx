@@ -17,6 +17,7 @@ import {
 import { authAPI } from '../../services/api';
 import { getAuthErrorDetails } from '../../utils/authErrors';
 import SEO from '../../components/SEO';
+import './vip-auth.css';
 
 interface IyonicMailerAuthProps {
   mode?: 'login' | 'register';
@@ -156,7 +157,7 @@ export const IyonicMailerAuth: React.FC<IyonicMailerAuthProps> = ({
         title={mode === 'login' ? 'Sign In to IyonicMailer' : 'Create IyonicMailer Account'}
         description="Sign in to IyonicMailer email marketing platform or create a new account. Manage campaigns, track analytics, and grow your business."
       />
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="mailer-auth-shell min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Left side - Benefits */}
           <div className="space-y-8">

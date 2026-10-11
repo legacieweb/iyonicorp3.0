@@ -19,10 +19,23 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin || NEVER_CACHE.test(url.pathname)) return;
 
   if (request.mode === 'navigate') {
-    event.respondWith(fetch(request).then((response) => {
-      if (response.ok) void caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', response.clone()));
-      return response;
-    }).catch(async () => (await caches.match(request)) || (await caches.match('/index.html')) || (await caches.match('/'))));
+    let cacheWrite = Promise.resolve();
+    const responsePromise = (async () => {
+      try {
+        const response = await fetch(request);
+        if (response.ok && !response.bodyUsed) {
+          const cacheCopy = response.clone();
+          cacheWrite = caches.open(CACHE_NAME)
+            .then((cache) => cache.put('/index.html', cacheCopy))
+            .catch(() => {});
+        }
+        return response;
+      } catch {
+        return (await caches.match(request)) || (await caches.match('/index.html')) || (await caches.match('/'));
+      }
+    })();
+    event.respondWith(responsePromise);
+    event.waitUntil(responsePromise.then(() => cacheWrite).catch(() => {}));
     return;
   }
 
@@ -30,11 +43,21 @@ self.addEventListener('fetch', (event) => {
     || /\.(?:m?js|css|woff2?|png|jpe?g|svg|webp|ico)$/i.test(url.pathname);
   if (!isAppAsset) return;
 
-  event.respondWith(caches.match(request).then((cached) => {
-    const fresh = fetch(request).then((response) => {
-      if (response.ok && response.type === 'basic') void caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
+  let cacheWrite = Promise.resolve();
+  const responsePromise = (async () => {
+    try {
+      const response = await fetch(request);
+      if (response.ok && response.type === 'basic' && !response.bodyUsed) {
+        const cacheCopy = response.clone();
+        cacheWrite = caches.open(CACHE_NAME)
+          .then((cache) => cache.put(request, cacheCopy))
+          .catch(() => {});
+      }
       return response;
-    });
-    return cached || fresh;
-  }).catch(() => caches.match(request)));
+    } catch {
+      return caches.match(request);
+    }
+  })();
+  event.respondWith(responsePromise);
+  event.waitUntil(responsePromise.then(() => cacheWrite).catch(() => {}));
 });

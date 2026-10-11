@@ -1,16 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowDownLeft, ArrowRight, BadgeCheck, Check, ExternalLink, Eye, LayoutGrid, Search, Send, Sparkles, Store, Ticket } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Check, ExternalLink, Eye, LayoutGrid, Search, Send, Sparkles, Store, Ticket } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { Seller, sellersAPI } from '../services/api';
 import { getThemeDashboardRoute } from '../utils/themeDashboard';
 import ThemeLaunchOverlay, { ThemeLaunchState } from '../components/ThemeLaunchOverlay';
+import GlobalHeader from '../components/GlobalHeader';
 import { THEME_PRICES_USD_CENTS } from '../utils/vipThemes';
 import './theme-catalog.css';
 
 type ThemeKind = 'product' | 'service' | 'streaming' | 'education';
-type ThemeCategory = 'All platforms' | 'Product stores' | 'Service platforms' | 'Streaming platforms' | 'Education platforms';
+type ThemeCategory = 'All collections' | 'Free templates' | 'VIP SaaS platforms' | 'Private platforms';
 type ThemeOption = { id: string; name: string; description: string; tags: string[]; kind: ThemeKind };
 
 const THEMES: ThemeOption[] = [
@@ -47,7 +48,15 @@ const THEMES: ThemeOption[] = [
   { id: 'crown-stroke', name: 'Crown Stroke', description: 'A print-on-demand platform with a canvas-based design studio for custom apparel and merchandise.', tags: ['Print', 'Design', 'Merchandise', 'Canvas'], kind: 'product' },
 ];
 
-const CATEGORIES: ThemeCategory[] = ['All platforms', 'Product stores', 'Service platforms', 'Streaming platforms', 'Education platforms'];
+// These IDs have matching template components under src/themes and are free to use.
+const FREE_TEMPLATE_IDS = new Set([
+  'neon-pulse', 'modern-ecommerce', 'luxury-boutique', 'beauty-store', 'shoe-store',
+  'jewelry-store', 'bakery-store', 'couture-store', 'instagram-vip',
+  'elite-consulting', 'creative-studio', 'modern-wellness',
+]);
+// Streaming services stay privately operated; the remaining platform-folder products are acquirable SaaS.
+const PRIVATE_PLATFORM_IDS = new Set(['nlmsongs', 'ixstream']);
+const CATEGORIES: ThemeCategory[] = ['All collections', 'Free templates', 'VIP SaaS platforms', 'Private platforms'];
 const kindLabel: Record<ThemeKind, string> = {
   product: 'Product storefront theme',
   service: 'Service / storefront listing',
@@ -123,7 +132,7 @@ const Themes: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [category, setCategory] = useState<ThemeCategory>('All platforms');
+  const [category, setCategory] = useState<ThemeCategory>('All collections');
   const [query, setQuery] = useState('');
   const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
@@ -179,11 +188,10 @@ const Themes: React.FC = () => {
   const visibleThemes = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return THEMES.filter((theme) => {
-      const matchesCategory = category === 'All platforms' ||
-        (category === 'Product stores' && theme.kind === 'product') ||
-        (category === 'Service platforms' && theme.kind === 'service') ||
-        (category === 'Streaming platforms' && theme.kind === 'streaming') ||
-        (category === 'Education platforms' && theme.kind === 'education');
+      const matchesCategory = category === 'All collections' ||
+        (category === 'Free templates' && FREE_TEMPLATE_IDS.has(theme.id)) ||
+        (category === 'VIP SaaS platforms' && !FREE_TEMPLATE_IDS.has(theme.id) && !PRIVATE_PLATFORM_IDS.has(theme.id)) ||
+        (category === 'Private platforms' && PRIVATE_PLATFORM_IDS.has(theme.id));
       const matchesQuery = !normalizedQuery || [theme.name, theme.description, ...theme.tags].join(' ').toLowerCase().includes(normalizedQuery);
       return matchesCategory && matchesQuery;
     });
@@ -208,7 +216,7 @@ const Themes: React.FC = () => {
       const acquiredThemes = seller.acquiredThemes || [];
       setAcquiredThemeIds(acquiredThemes);
       const selectedTheme = seller.themeId || seller.theme?.selectedTheme;
-      if (!acquiredThemes.includes(theme.id) && selectedTheme !== theme.id) {
+      if (!FREE_TEMPLATE_IDS.has(theme.id) && !acquiredThemes.includes(theme.id) && selectedTheme !== theme.id) {
         throw new Error('Acquire this platform before applying it.');
       }
 
@@ -392,42 +400,32 @@ const Themes: React.FC = () => {
 
   return (
     <main className="theme-library">
-      <header className="theme-library-header">
-          <Link to="/" className="theme-library-brand" aria-label="Iyonicorp home">
-            <img src="/logo.png" alt="" />
-            <span>Iyonicorp<small>THE PLATFORM COLLECTION</small></span>
-          </Link>
-        <div className="theme-library-header-actions">
-          {user && <span className="theme-account-context"><span className="theme-account-dot" />{isSeller ? 'Seller workspace' : 'Customer account'}{user.name ? ` · ${user.name}` : ''}</span>}
-          <Link to={returnPath} className="theme-return-link"><ArrowDownLeft size={16} /> Dashboard</Link>
-        </div>
-      </header>
+      <GlobalHeader context={user ? `${isSeller ? 'Seller workspace' : 'Customer account'}${user.name ? ` · ${user.name}` : ''}` : 'Themes & platforms'} dashboardHref={user ? returnPath : undefined} />
 
       <section className="theme-editorial-hero">
         <div className="theme-hero-grain" aria-hidden="true" />
         <div className="theme-hero-inner">
           <div className="theme-hero-copy">
-            <p className="theme-eyebrow"><LayoutGrid size={14} /> CURATED FOR THE WAY YOU WORK</p>
-            <h1>Your next<br /><em>business platform.</em></h1>
-            <p className="theme-hero-lede">One Iyoni technology foundation, many business experiences. Explore storefront themes and specialist platform previews, then find the experience that fits your work.</p>
+            <p className="theme-eyebrow"><LayoutGrid size={14} /> THE IYONICORP COLLECTION</p>
+            <h1>Find your<br /><em>starting point.</em></h1>
+            <p className="theme-hero-lede">Start with a free storefront template, acquire a VIP SaaS and its owner dashboard, or discover privately operated platforms.</p>
             <a className="theme-hero-link" href="#platform-catalog">Explore the collection <ArrowRight size={16} /></a>
           </div>
-          <aside className="theme-hero-aside" aria-label="Collection facts">
-            <div className="theme-hero-stat"><strong>{THEMES.length.toString().padStart(2, '0')}</strong><span>catalog listings<br />across business types</span></div>
-            <div className="theme-hero-rule" />
-            <p><Sparkles size={16} /> One-time license. No recurring theme fee.</p>
-            <span className="theme-hero-price">USD 30—1500</span>
+          <aside className="theme-hero-aside" aria-label="Collection types">
+            <div className="theme-collection-stat"><span>01</span><strong>Free templates</strong><small>Ready to use</small></div>
+            <div className="theme-collection-stat"><span>02</span><strong>VIP SaaS</strong><small>Acquire & operate</small></div>
+            <div className="theme-collection-stat"><span>03</span><strong>Private platforms</strong><small>Owner operated</small></div>
           </aside>
         </div>
-        <div className="theme-hero-caption"><span>THE IYONICWEB LIBRARY</span><span>DESIGNED TO DO MORE&nbsp; / &nbsp;01—{String(THEMES.length).padStart(2, '0')}</span></div>
+        <div className="theme-hero-caption"><span>IYONICORP / COLLECTION</span><span>{String(THEMES.length).padStart(2, '0')} EXPERIENCES</span></div>
       </section>
 
       <section className="theme-catalog-section" id="platform-catalog">
         <div className="theme-catalog-heading">
           <div>
-            <p className="theme-eyebrow theme-eyebrow-dark">THE COLLECTION</p>
-            <h2>Find your platform.</h2>
-            <p className="theme-catalog-intro">This collection mixes product storefront themes with service, education, and streaming platform experiences. A catalog listing does not always mean a separate operational workspace.</p>
+            <p className="theme-eyebrow theme-eyebrow-dark">BROWSE THE COLLECTION</p>
+            <h2>Made for the next step.</h2>
+            <p className="theme-catalog-intro">Browse by access type, preview an experience, and choose the right fit for your business.</p>
           </div>
           <div className="theme-catalog-count"><strong>{visibleThemes.length.toString().padStart(2, '0')}</strong><span>of {THEMES.length} listings</span></div>
         </div>
@@ -435,13 +433,12 @@ const Themes: React.FC = () => {
         <div className="theme-discovery">
           <div className="theme-category-list" role="group" aria-label="Filter platforms by category">
             {CATEGORIES.map((item) => {
-              const count = item === 'All platforms'
+              const count = item === 'All collections'
                 ? THEMES.length
                 : THEMES.filter((theme) =>
-                  (item === 'Product stores' && theme.kind === 'product') ||
-                  (item === 'Service platforms' && theme.kind === 'service') ||
-                  (item === 'Streaming platforms' && theme.kind === 'streaming') ||
-                  (item === 'Education platforms' && theme.kind === 'education')).length;
+                  (item === 'Free templates' && FREE_TEMPLATE_IDS.has(theme.id)) ||
+                  (item === 'VIP SaaS platforms' && !FREE_TEMPLATE_IDS.has(theme.id) && !PRIVATE_PLATFORM_IDS.has(theme.id)) ||
+                  (item === 'Private platforms' && PRIVATE_PLATFORM_IDS.has(theme.id))).length;
               return (
                 <button key={item} type="button" aria-pressed={category === item} onClick={() => setCategory(item)} className={`theme-category-button${category === item ? ' is-active' : ''}`}>
                   {item}<span aria-label={`${count} platforms`}>{count}</span>
@@ -478,7 +475,7 @@ const Themes: React.FC = () => {
               const previewIsLoaded = activePreviewId === theme.id;
               const sellerAccessRequired = Boolean(user && !isSeller && !isActive);
               return (
-                <article key={theme.id} className={`theme-card${index === 0 && category === 'All platforms' && !query ? ' theme-card-featured' : ''}`}>
+                <article key={theme.id} className={`theme-card${index === 0 && category === 'All collections' && !query ? ' theme-card-featured' : ''}`}>
                 <div className="theme-card-preview">
                   {previewIsLoaded && <iframe src={previewUrl(theme.id)} title={`${theme.name} live platform preview`} loading="lazy" tabIndex={-1} aria-hidden="true" className="theme-card-frame" />}
                   <div className="theme-preview-shade" />
@@ -499,31 +496,33 @@ const Themes: React.FC = () => {
                 </div>
                   <div className="theme-card-body">
                     <div className="theme-card-tags">
-                      <span className="theme-vip-tag"><Sparkles size={10} /> VIP</span>
+                      <span className="theme-vip-tag"><Sparkles size={10} /> {FREE_TEMPLATE_IDS.has(theme.id) ? 'FREE TEMPLATE' : PRIVATE_PLATFORM_IDS.has(theme.id) ? 'PRIVATE' : 'VIP SAAS'}</span>
                       {theme.tags.map((tag) => <span key={tag}>{tag}</span>)}
                       {isSeller && isAcquired && <span className="theme-owned-tag"><BadgeCheck size={12} /> Licensed</span>}
                     </div>
-                    <div className="theme-card-title-row"><h3>{theme.name}</h3><span className="theme-card-price">${price.toFixed(2)}<small>USD · one-time</small></span></div>
+                    <div className="theme-card-title-row"><h3>{theme.name}</h3>{FREE_TEMPLATE_IDS.has(theme.id) ? <span className="theme-card-price">Free<small>template</small></span> : <span className="theme-card-price">${price.toFixed(2)}<small>USD · one-time</small></span>}</div>
                     <p className="theme-card-description">{theme.description}</p>
-                    <div className="theme-license-note"><Check size={14} /> One-time license, secured through checkout</div>
+                    <div className="theme-license-note"><Check size={14} /> {FREE_TEMPLATE_IDS.has(theme.id) ? 'Free storefront template' : PRIVATE_PLATFORM_IDS.has(theme.id) ? 'Privately operated platform' : 'Acquire the SaaS and manage it from your owner dashboard'}</div>
                     <div className="theme-card-actions">
                       <button
                         type="button"
-                        onClick={() => isActive ? navigate(getThemeDashboardRoute(theme.id)) : isAcquired ? void applyTheme(theme) : void purchaseTheme(theme.id)}
-                        disabled={isBusy || acquisitionsLoading || (isActive && !isSeller) || sellerAccessRequired}
+                        onClick={() => isActive ? navigate(getThemeDashboardRoute(theme.id)) : (isAcquired || FREE_TEMPLATE_IDS.has(theme.id)) ? void applyTheme(theme) : void purchaseTheme(theme.id)}
+                        disabled={isBusy || acquisitionsLoading || (isActive && !isSeller) || sellerAccessRequired || PRIVATE_PLATFORM_IDS.has(theme.id)}
                         title={sellerAccessRequired ? 'A seller account is required to acquire and apply a platform.' : undefined}
                         aria-describedby={sellerAccessRequired ? 'theme-seller-note' : undefined}
                         className={`theme-primary-action${isActive ? ' is-applied' : ''}${sellerAccessRequired ? ' is-role-disabled' : ''}`}
                       >
-                        {isBusy ? <><span className="theme-button-spinner" />{isAcquired ? 'Opening platform…' : 'Opening checkout…'}</>
+                        {isBusy ? <><span className="theme-button-spinner" />{isAcquired || FREE_TEMPLATE_IDS.has(theme.id) ? 'Opening platform…' : 'Opening checkout…'}</>
                           : isActive ? <><Check size={15} /> Open applied platform</>
                             : acquisitionsLoading && isSeller ? 'Checking license…'
-                              : isSeller && isAcquired ? <><Store size={15} /> Apply platform</>
+                              : PRIVATE_PLATFORM_IDS.has(theme.id) ? 'Privately operated'
+                                : FREE_TEMPLATE_IDS.has(theme.id) ? <><Store size={15} /> Use free template</>
+                                  : isSeller && isAcquired ? <><Store size={15} /> Open owner dashboard</>
                                 : !user ? <><Store size={15} /> Sign in to acquire</>
                                   : isSeller ? <><Store size={15} /> Acquire · ${price.toFixed(2)}</>
                                     : 'Seller account required'}
                       </button>
-                      {isSeller && !isAcquired && !isActive && (
+                      {isSeller && !isAcquired && !isActive && !FREE_TEMPLATE_IDS.has(theme.id) && !PRIVATE_PLATFORM_IDS.has(theme.id) && (
                         <button type="button" className="theme-offer-toggle" onClick={() => {
                           setOfferThemeId(offerThemeId === theme.id ? null : theme.id);
                           setOfferAmount((price - 5).toFixed(2));
@@ -550,7 +549,11 @@ const Themes: React.FC = () => {
         )}
         {!isSeller && <p id="theme-seller-note" className="theme-seller-note"><Ticket size={15} /> Platform licenses are available to seller accounts. Explore each live preview before signing in.</p>}
       </section>
-      <footer className="theme-library-footer"><Link to="/"><img src="/logo.png" alt="" />Iyonicorp</Link><span>Build the business that feels like yours.</span></footer>
+      <footer className="theme-library-footer">
+        <div className="theme-footer-main"><div className="theme-footer-brand"><Link to="/"><img src="/logo.png" alt="" />Iyonicorp</Link><p>Tools and platforms for what you’re building next.</p></div>
+          <nav aria-label="Footer navigation"><div><strong>Explore</strong><Link to="/bizhub">BizHub</Link><Link to="/iyonicpay">IyonicPay</Link><Link to="/iyonicbots">IyonicBots</Link></div><div><strong>More</strong><Link to="/iyonicdb">IyonicDB</Link><Link to="/iyonic-mailer">IyonicMailer</Link><Link to="/about">About Iyonicorp</Link></div></nav>
+        </div><div className="theme-footer-bottom"><span>© {new Date().getFullYear()} Iyonicorp</span><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link><Link className="theme-footer-backtop" to="#platform-catalog">Back to collection ↑</Link></div>
+      </footer>
 
       {launchingTheme && (
         <ThemeLaunchOverlay

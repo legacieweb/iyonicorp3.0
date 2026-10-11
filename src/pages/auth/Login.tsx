@@ -191,8 +191,8 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
     }
   }, [user, initialSellerId, selectStore]);
 
-  const themePrimary = vipTheme?.primary || '#2563eb';
-  const themeSecondary = vipTheme?.secondary || '#1e1b4b';
+  const themePrimary = vipTheme?.primary || '#c6f04a';
+  const themeSecondary = vipTheme?.secondary || '#171a16';
 
   if (showStoreSelection && user && user.stores) {
     return (
@@ -254,11 +254,11 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
   };
 
   return (
-    <div className={`min-h-screen flex flex-col md:flex-row bg-white ${vipTheme ? 'vip-auth-shell' : ''}`} data-vip-theme={vipTheme?.id} style={getThemeStyles()}>
+    <div className={`auth-page-shell min-h-screen flex flex-col md:flex-row bg-white ${vipTheme ? 'vip-auth-shell' : ''}`} data-vip-theme={vipTheme?.id} style={getThemeStyles()}>
       {/* Left Side - Branding & Illustration */}
       <div 
         className="vip-auth-brand-panel hidden md:flex md:w-1/2 p-12 text-white flex-col justify-between relative overflow-hidden"
-        style={{ background: `linear-gradient(145deg, ${themeSecondary}, ${themePrimary})` }}
+        style={vipTheme ? { background: `linear-gradient(145deg, ${themeSecondary}, ${themePrimary})` } : undefined}
       >
         <div className="relative z-10">
           <div className="flex items-center space-x-2 mb-12">

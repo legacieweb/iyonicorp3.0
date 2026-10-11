@@ -15,7 +15,7 @@ export const StaticSiteHeader: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const navLinks = [
     { label: 'Find your platform', to: '/themes' },
-    { label: 'IyonicShop', to: '/iyonicshop' },
+    { label: 'BizHub', to: '/bizhub' },
     { label: 'IyonicPay', to: '/iyonicpay' },
     { label: 'IyonicBots', to: '/iyonicbots' },
     { label: 'Resources', to: '/documentation' },

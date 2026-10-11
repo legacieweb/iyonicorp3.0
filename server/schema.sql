@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(255) UNIQUE,
     is_suspended BOOLEAN DEFAULT FALSE,
     last_selected_store_id UUID,
+    selected_theme_id VARCHAR(100),
      role VARCHAR(50) NOT NULL CHECK (role IN ('seller', 'seller_manager', 'manager_admin', 'customer', 'school_staff', 'teacher')),
     iyonicpay_opt_in BOOLEAN DEFAULT FALSE,
     iyonicpay_theme VARCHAR(50) DEFAULT 'professional',
@@ -468,6 +469,7 @@ CREATE TABLE IF NOT EXISTS messages (
 DROP TRIGGER IF EXISTS update_messages_updated_at ON messages;
 CREATE TRIGGER update_messages_updated_at BEFORE UPDATE ON messages FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_selected_store_id UUID;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS selected_theme_id VARCHAR(100);
 DO $$ 
 BEGIN 
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_users_last_selected_store') THEN

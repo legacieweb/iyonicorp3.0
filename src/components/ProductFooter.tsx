@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowUpRight, ChevronUp } from 'lucide-react';
 
 interface ProductFooterProps {
-  product: 'IyonicShop' | 'IyonicPay' | 'IyonicBots';
+  product: 'BizHub' | 'IyonicPay' | 'IyonicBots';
   accentClass: string;
   description: string;
 }
@@ -13,7 +13,7 @@ const footerGroups = [
     title: 'Iyoni platform',
     links: [
       { name: 'Find your platform', href: '/themes' },
-      { name: 'IyonicShop', href: '/iyonicshop' },
+      { name: 'BizHub', href: '/bizhub' },
       { name: 'IyonicPay', href: '/iyonicpay' },
       { name: 'IyonicBots', href: '/iyonicbots' },
     ],
@@ -53,7 +53,7 @@ const platformSignals = ['Run', 'Sell', 'Get Paid', 'Automate', 'Grow'];
 export const ProductFooter: React.FC<ProductFooterProps> = ({ product, accentClass, description }) => {
   const currentYear = new Date().getFullYear();
   const copyright = {
-    IyonicShop: 'IyonicShop. Powered by Iyonicorp.',
+    BizHub: 'BizHub. Powered by Iyonicorp.',
     IyonicPay: 'IyonicPay by Iyonicorp. All rights reserved.',
     IyonicBots: 'Iyonic AI Engine by Iyonicorp. All rights reserved.',
   }[product];

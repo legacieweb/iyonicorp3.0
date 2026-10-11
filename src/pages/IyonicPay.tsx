@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { HomepageFooter } from '../components/HomepageFooter';
 import IyoniPlatformBand from '../components/IyoniPlatformBand';
 import './Homepage.css';
+import './product-marketing.css';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
@@ -97,7 +98,7 @@ const DEFAULT_ADDONS: Record<string, any> = {
   customDomain: { name: 'Custom Domain', price: 3, category: 'Brand', description: 'Connect your own domain to your store.' },
   advancedAnalytics: { name: 'Advanced Analytics', price: 7, category: 'Growth', description: 'Track sales, conversion and customer trends.' },
   premiumSupport: { name: 'Priority Support', price: 9, category: 'Support', description: 'Faster support response for your business.' },
-  apiAccess: { name: 'API Access', price: 8, category: 'Automation', description: 'Connect your tools to IyonicShop and IyonicBots.' },
+  apiAccess: { name: 'API Access', price: 8, category: 'Automation', description: 'Connect your tools to BizHub and IyonicBots.' },
   whiteLabel: { name: 'White Label', price: 12, category: 'Brand', description: 'Remove Iyonicorp branding from your storefront.' }
 };
 
@@ -502,7 +503,7 @@ const ActiveSubscriptionsSection: React.FC<ActiveSubscriptionsSectionProps> = ({
   const subscriptions = [
     {
       id: 'shop',
-      title: 'IyonicShop Plan',
+      title: 'BizHub Plan',
       plan: shopPlan,
       planName: shopPlans[shopPlan]?.name || shopPlan,
       price: shopPlans[shopPlan]?.price || 0,
@@ -733,7 +734,7 @@ const IyonicBotsBillSection: React.FC<BillSectionProps> = ({ billing, onPayWithW
   );
 };
 
-const IyonicShopBillSection: React.FC<BillSectionProps> = ({ billing, onPayWithWallet, onAutoRenewToggle, platform, autoRenew }) => {
+const BizHubBillSection: React.FC<BillSectionProps> = ({ billing, onPayWithWallet, onAutoRenewToggle, platform, autoRenew }) => {
   if (!billing) return null;
   const plans = billing.plans || {};
   const subscription = billing.subscription || { plan: 'starter', status: 'active' };
@@ -746,7 +747,7 @@ const IyonicShopBillSection: React.FC<BillSectionProps> = ({ billing, onPayWithW
             <Store className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h4 className="text-3xl font-black">IyonicShop</h4>
+            <h4 className="text-3xl font-black">BizHub</h4>
             <p className="text-amber-200 font-medium">E-commerce store plans</p>
           </div>
         </div>
@@ -3150,7 +3151,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                                 <p className="text-2xl font-black text-gray-900">
                                   ${computeTotalSubscriptionFee(unifiedBilling, botBilling, sellerBilling).toFixed(2)} / mo
                                 </p>
-                                <p className="text-xs text-gray-500 mt-1">IyonicShop + IyonicBots</p>
+                                <p className="text-xs text-gray-500 mt-1">BizHub + IyonicBots</p>
                               </div>
                             </div>
                           </Card>
@@ -3209,7 +3210,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                          {sellerBilling && (
                            <BillPlatformCard
                              icon={<Store className="w-8 h-8" />}
-                             title="IyonicShop"
+                             title="BizHub"
                              description="E-commerce store subscriptions"
                              gradient="from-amber-500 to-orange-500"
                              currentPlan={sellerBilling.subscription?.plan ? `${sellerBilling.plans?.[sellerBilling.subscription.plan]?.name || sellerBilling.subscription.plan} ($${sellerBilling.plans?.[sellerBilling.subscription.plan]?.price.toFixed(2) || 0})` : 'No active shop plan'}
@@ -3220,7 +3221,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                                try {
                                  await sellersAPI.updateAutoRenew('iyonicshop', enabled);
                                  await fetchBillsData();
-                                 showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for IyonicShop`, 'success');
+                                 showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for BizHub`, 'success');
                                } catch (err: any) {
                                  showToast(err.response?.data?.message || 'Could not update auto-renew', 'error');
                                }
@@ -3250,7 +3251,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                              try {
                                await sellersAPI.updateAutoRenew(platform, enabled, planId);
                                await fetchBillsData();
-                               showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for ${platform === 'iyonicbots' ? 'IyonicBots' : 'IyonicShop'}`, 'success');
+                               showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for ${platform === 'iyonicbots' ? 'IyonicBots' : 'BizHub'}`, 'success');
                              } catch (err: any) {
                                showToast(err.response?.data?.message || 'Could not update auto-renew', 'error');
                              }
@@ -3260,7 +3261,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                        )}
 
                        {/* Discount bundles + addons - at bottom */}
-                       <p className="text-gray-500 max-w-2xl">Want to save? Bundle IyonicShop and IyonicBots together with discount bundles and add-ons.</p>
+                       <p className="text-gray-500 max-w-2xl">Want to save? Bundle BizHub and IyonicBots together with discount bundles and add-ons.</p>
 
                        {(unifiedBilling || true) && (
                          <DiscountBundlesSection
@@ -3300,7 +3301,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                           <ArrowLeft className="w-5 h-5" />
                         </button>
                         <h3 className={`text-2xl font-black ${selectedBillPlatform === 'iyonicbots' ? 'text-indigo-600' : 'text-amber-600'}`}>
-                          {selectedBillPlatform === 'iyonicbots' ? 'IyonicBots' : 'IyonicShop'} Billing
+                          {selectedBillPlatform === 'iyonicbots' ? 'IyonicBots' : 'BizHub'} Billing
                         </h3>
                       </div>
 
@@ -3335,7 +3336,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                       )}
 
                       {selectedBillPlatform === 'iyonicshop' && sellerBilling && (
-                        <IyonicShopBillSection
+                        <BizHubBillSection
                           billing={sellerBilling}
                           platform="iyonicshop"
                           autoRenew={autoRenewSettings?.autoRenew}
@@ -3356,7 +3357,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                             try {
                               await sellersAPI.updateAutoRenew('iyonicshop', enabled, planId);
                               await fetchBillsData();
-                              showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for IyonicShop`, 'success');
+                              showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for BizHub`, 'success');
                             } catch (err: any) {
                               showToast(err.response?.data?.message || 'Could not update auto-renew', 'error');
                             }
@@ -4086,7 +4087,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
   }
 
   return (
-    <div className="home-shell platform-shell">
+    <div className="home-shell platform-shell product-marketing product-pay">
       <IyoniPlatformBand />
       <SEO
         title="IyonicPay — Payment Infrastructure for Modern Businesses"
@@ -4103,7 +4104,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
           </Link>
           <div className="nav-links">
             <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Platforms</button>
-            <Link to="/iyonicshop" onClick={() => setMenuOpen(false)}>Shop</Link>
+            <Link to="/bizhub" onClick={() => setMenuOpen(false)}>Shop</Link>
             <Link to="/iyonicbots" onClick={() => setMenuOpen(false)}>Bots</Link>
           </div>
           <div className="nav-actions">
@@ -4129,7 +4130,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
           {menuOpen && (
             <div className="mobile-nav">
               <button type="button" onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setMenuOpen(false); }}>Platforms</button>
-              <Link to="/iyonicshop" onClick={() => setMenuOpen(false)}>Shop</Link>
+              <Link to="/bizhub" onClick={() => setMenuOpen(false)}>Shop</Link>
               <Link to="/iyonicbots" onClick={() => setMenuOpen(false)}>Bots</Link>
               <button type="button" onClick={() => { setIsLoginModalOpen(true); setMenuOpen(false); }}>Log In</button>
               <button
@@ -4226,7 +4227,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
             <Link to="/themes" className="inline-flex items-center gap-2 hover:text-[#193d30]">
               Explore all platforms <ArrowUpRight className="h-4 w-4" />
             </Link>
-            <Link to="/iyonicshop" className="hover:text-[#193d30]">IyonicShop</Link>
+            <Link to="/bizhub" className="hover:text-[#193d30]">BizHub</Link>
             <Link to="/iyonicbots" className="hover:text-[#193d30]">IyonicBots</Link>
           </div>
         </div>
