@@ -1,4 +1,3 @@
-import { Check, Download, Loader2 } from 'lucide-react';
 import { resolveAssetUrl, activeLyricIndex } from '../utils';
 import type { Track } from '../types';
 
@@ -7,10 +6,6 @@ interface Props {
   currentTime: number;
   onBack: () => void;
   onShowLyrics: () => void;
-  offlineState?: 'idle' | 'loading' | 'saved' | 'error' | 'unsupported';
-  offlineProgress?: number | null;
-  offlineMessage?: string;
-  onSaveOffline?: () => void;
 }
 
 export const NLMTrackDetail = ({
@@ -18,10 +13,6 @@ export const NLMTrackDetail = ({
   currentTime,
   onBack,
   onShowLyrics,
-  offlineState = 'idle',
-  offlineProgress = null,
-  offlineMessage = '',
-  onSaveOffline,
 }: Props) => {
   const tags = Array.isArray(track.tags) ? track.tags.filter(Boolean) : [];
   return (
@@ -45,16 +36,6 @@ export const NLMTrackDetail = ({
             {tags.map((tag) => (
               <span key={tag} className="nlm-details-tag">{tag}</span>
             ))}
-          </div>
-        )}
-        {onSaveOffline && (
-          <div className="nlm-offline-action-wrap">
-            <button className={`nlm-offline-action ${offlineState === 'saved' ? 'is-saved' : ''}`} onClick={onSaveOffline} disabled={offlineState === 'loading' || offlineState === 'saved' || offlineState === 'unsupported'}>
-              {offlineState === 'loading' ? <Loader2 size={16} className="nlm-spinner" /> : offlineState === 'saved' ? <Check size={16} /> : <Download size={16} />}
-              <span>{offlineState === 'loading' ? 'Saving for offline…' : offlineState === 'saved' ? 'Saved for offline' : offlineState === 'unsupported' ? 'Offline storage unavailable' : 'Save for offline'}</span>
-              {offlineState === 'loading' && offlineProgress !== null && <small>{offlineProgress}%</small>}
-            </button>
-            {offlineMessage && <small className={`nlm-offline-message ${offlineState === 'error' ? 'is-error' : ''}`} role="status">{offlineMessage}</small>}
           </div>
         )}
       </div>

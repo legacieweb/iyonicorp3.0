@@ -65,7 +65,10 @@ const viewForPath = (pathname: string): View => {
   return 'Listen';
 };
 
-const trackFromOfflineRecord = (record: OfflineAudioRecord): Track => record.track ?? ({
+const trackFromOfflineRecord = (record: OfflineAudioRecord, coverUrl?: string): Track => record.track ? ({
+  ...record.track,
+  ...(coverUrl ? { coverUrl } : {}),
+}) : ({
   id: record.id,
   title: record.title || 'Saved track',
   artist: 'NLM Songs',
@@ -73,6 +76,7 @@ const trackFromOfflineRecord = (record: OfflineAudioRecord): Track => record.tra
   genre: '',
   tags: [],
   audioUrl: '',
+  coverUrl,
   lyrics: [],
   syncLyrics: false,
   isActive: true,
@@ -110,10 +114,21 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
   const [offlineMessage, setOfflineMessage] = useState('');
   const [offlineSource, setOfflineSource] = useState<{ trackId: string; url: string } | null>(null);
   const [offlineDownloads, setOfflineDownloads] = useState<OfflineAudioRecord[]>([]);
+  const [offlineNotice, setOfflineNotice] = useState('');
+  const offlineArtworkUrlsRef = useRef<Map<string, string>>(new Map());
   const offlineObjectUrlRef = useRef<{ trackId: string; url: string } | null>(null);
   const [profileDraft, setProfileDraft] = useState({ firstName: '', lastName: '', phoneNumber: '' });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileFeedback, setProfileFeedback] = useState('');
+
+  const getOfflineArtworkUrl = useCallback((record: Pick<OfflineAudioRecord, 'id' | 'artworkBlob'>) => {
+    if (!record.artworkBlob) return undefined;
+    const existing = offlineArtworkUrlsRef.current.get(record.id);
+    if (existing) return existing;
+    const url = URL.createObjectURL(record.artworkBlob);
+    offlineArtworkUrlsRef.current.set(record.id, url);
+    return url;
+  }, []);
 
   const isAdminMode = mode === 'admin' || user?.role === 'manager_admin';
 
@@ -130,6 +145,18 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
   }, []);
 
   useEffect(() => { void reloadOfflineDownloads(); }, [reloadOfflineDownloads]);
+
+  useEffect(() => {
+    const markOffline = () => setOfflineNotice('You’re offline. Open Downloads to find songs saved on this browser.');
+    const markOnline = () => setOfflineNotice('');
+    if (typeof navigator !== 'undefined' && !navigator.onLine) markOffline();
+    window.addEventListener('offline', markOffline);
+    window.addEventListener('online', markOnline);
+    return () => {
+      window.removeEventListener('offline', markOffline);
+      window.removeEventListener('online', markOnline);
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -191,10 +218,12 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
   useEffect(() => () => {
     if (offlineObjectUrlRef.current) URL.revokeObjectURL(offlineObjectUrlRef.current.url);
     offlineObjectUrlRef.current = null;
+    offlineArtworkUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    offlineArtworkUrlsRef.current.clear();
   }, []);
 
   const saveTrackOffline = async () => {
-    if (!detailTrack || offlineState === 'loading' || offlineState === 'saved') return;
+    if (!selectedTrack || offlineState === 'loading' || offlineState === 'saved') return;
     if (!supportsOfflineAudio()) {
       setOfflineState('unsupported');
       setOfflineMessage('This browser does not support app-managed offline storage.');
@@ -204,14 +233,25 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
     setOfflineMessage('Audio is being saved in this browser for offline playback.');
     setOfflineProgress(null);
     try {
-      const audioBlob = await nlmsongsAPI.download(detailTrack.id);
+      const audioBlob = await nlmsongsAPI.download(selectedTrack.id);
+      let artworkBlob: Blob | undefined;
+      if (selectedTrack.coverUrl) {
+        const response = await fetch(resolveAssetUrl(selectedTrack.coverUrl));
+        if (!response.ok) throw new Error('Could not save cover artwork. Try again while connected.');
+        artworkBlob = await response.blob();
+        if (!artworkBlob.size) throw new Error('The cover artwork is empty. Try saving this track again.');
+      }
       setOfflineProgress(92);
-      await storeOfflineAudio(detailTrack.id, detailTrack.title, audioBlob, detailTrack);
+      await storeOfflineAudio(selectedTrack.id, selectedTrack.title, audioBlob, selectedTrack, artworkBlob);
+      if (artworkBlob) {
+        const coverUrl = getOfflineArtworkUrl({ id: selectedTrack.id, artworkBlob });
+        setTracks((current) => current.map((track) => track.id === selectedTrack.id ? { ...track, coverUrl } : track));
+      }
       await reloadOfflineDownloads();
       setOfflineProgress(100);
       const audio = audioRef.current;
-      if (selectedId === detailTrack.id && audio?.paused && audio.currentTime === 0) {
-        activateOfflineBlob(detailTrack.id, audioBlob);
+      if (audio?.paused && audio.currentTime === 0) {
+        activateOfflineBlob(selectedTrack.id, audioBlob);
       }
       setOfflineState('saved');
       setOfflineMessage('Available offline in this browser.');
@@ -443,6 +483,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
 
       const mapped = songs.map(toTrack).filter((track) => track.audioUrl);
       setTracks(mapped);
+      setOfflineNotice('');
       if (!isAdminMode) void storeOfflineCatalog(mapped).catch(() => {});
 
       if (!selectedId && mapped.length) {
@@ -456,19 +497,21 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
         readAllOfflineAudio().catch(() => []),
       ]);
       const cachedTracks = new Map(cachedCatalog.map((track) => [track.id, track]));
-      savedAudio.forEach((record) => cachedTracks.set(record.id, trackFromOfflineRecord(record)));
+      savedAudio.forEach((record) => cachedTracks.set(record.id, trackFromOfflineRecord(record, getOfflineArtworkUrl(record))));
       setOfflineDownloads(savedAudio);
       setTracks([...cachedTracks.values()]);
-      setCatalogError(cachedTracks.size || savedAudio.length
-        ? ''
-        : 'The song catalogue is unavailable offline. Connect once to prepare NLM Songs for offline listening.');
+      const hasOfflineMusic = cachedTracks.size > 0 || savedAudio.length > 0;
+      setCatalogError(hasOfflineMusic ? '' : 'The song catalogue is unavailable offline.');
+      setOfflineNotice(hasOfflineMusic
+        ? 'The catalogue can’t be reached right now. Listen to your saved songs in Downloads.'
+        : 'The catalogue can’t be reached. Connect to the internet once to save songs for offline listening.');
       if (isAdminMode) {
         console.error('Could not load NLMSongs catalogue');
       }
     } finally {
       setIsLoading(false);
     }
-  }, [isAdminMode, routeTrackId, selectedId]);
+  }, [getOfflineArtworkUrl, isAdminMode, routeTrackId, selectedId]);
 
   useEffect(() => {
     void loadTracks();
@@ -702,6 +745,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
         />
 
         <div className="nlm-workspace">
+          {offlineNotice && <div className="nlm-offline-notice" role="status"><span><strong>Offline listening</strong><small>{offlineNotice}</small></span><button onClick={() => navigateToView('Downloads')}>Open downloads <Download size={14} /></button></div>}
           {!isDetailRoute && view !== 'Settings' && (
             <section
               className={`nlm-library-area ${isDetailRoute ? 'is-detail-route' : ''}`}
@@ -736,7 +780,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
                 {offlineDownloads.length ? <div className="nlm-downloads-list">{offlineDownloads.map((record) => {
                   const track = tracks.find((item) => item.id === record.id) ?? trackFromOfflineRecord(record);
                   return <article className="nlm-download-row" key={record.id}>
-                    <div className="nlm-download-art" aria-hidden="true"><Music2 size={19} /></div>
+                    <div className="nlm-download-art" aria-hidden="true">{track.coverUrl ? <img src={resolveAssetUrl(track.coverUrl)} alt="" /> : <Music2 size={19} />}</div>
                     <div className="nlm-download-meta"><strong>{track.title}</strong><span>{track.artist}{track.genre ? ` · ${track.genre}` : ''}</span><small>Saved {new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(record.savedAt)}</small></div>
                     <span className="nlm-download-ready"><span /> Available offline</span>
                     <button className="nlm-download-play" onClick={() => selectTrack(track)} aria-label={`Play ${track.title}`} title="Play"><Play size={15} fill="currentColor" /></button>
@@ -819,10 +863,6 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
               currentTime={audioPlayer.currentTime}
               onBack={() => navigate('/nlmsongs/listen')}
               onShowLyrics={() => setShowLyrics(true)}
-              offlineState={offlineState}
-              offlineProgress={offlineProgress}
-              offlineMessage={offlineMessage}
-              onSaveOffline={saveTrackOffline}
             />
           )}
 
@@ -907,6 +947,10 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
         isAdminMode={isAdminMode}
         isFavorite={selectedTrack ? favorites.isFavorite(selectedTrack.id) : false}
         copied={copied}
+        offlineState={offlineState}
+        offlineProgress={offlineProgress}
+        offlineMessage={offlineMessage}
+        onSaveOffline={saveTrackOffline}
         onNowPlayingClick={() => selectedTrack && navigate(`/nlmsongs/track/${encodeURIComponent(selectedTrack.id)}`)}
         onTogglePlayback={audioPlayer.togglePlayback}
         onPreviousTrack={playPrevious}

@@ -11,6 +11,7 @@ export interface OfflineAudioRecord {
   title: string;
   savedAt: number;
   track?: Track;
+  artworkBlob?: Blob;
 }
 
 const openDatabase = (): Promise<IDBDatabase> => new Promise((resolve, reject) => {
@@ -65,12 +66,12 @@ export const deleteOfflineAudio = async (id: string): Promise<void> => {
   }).finally(() => database.close());
 };
 
-export const storeOfflineAudio = async (id: string, title: string, blob: Blob, track?: Track): Promise<void> => {
+export const storeOfflineAudio = async (id: string, title: string, blob: Blob, track?: Track, artworkBlob?: Blob): Promise<void> => {
   if (!blob.size) throw new Error('The audio service returned an empty track.');
   const database = await openDatabase();
   await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(AUDIO_STORE, 'readwrite');
-    transaction.objectStore(AUDIO_STORE).put({ id, blob, title, savedAt: Date.now(), ...(track ? { track } : {}) } satisfies OfflineAudioRecord);
+    transaction.objectStore(AUDIO_STORE).put({ id, blob, title, savedAt: Date.now(), ...(track ? { track } : {}), ...(artworkBlob ? { artworkBlob } : {}) } satisfies OfflineAudioRecord);
     transaction.oncomplete = () => resolve();
     transaction.onerror = () => reject(transaction.error ?? new Error('Could not save this track for offline listening.'));
     transaction.onabort = () => reject(transaction.error ?? new Error('Could not save this track for offline listening.'));

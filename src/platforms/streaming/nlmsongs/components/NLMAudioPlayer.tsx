@@ -1,5 +1,5 @@
 import {
-  Heart, List, Pause, Play, Repeat, Share2, Shuffle,
+  Check, Download, Heart, List, Loader2, Pause, Play, Repeat, Share2, Shuffle,
   SkipBack, SkipForward, Volume2, VolumeX,
 } from 'lucide-react';
 import type { RepeatMode, Track } from '../types';
@@ -16,6 +16,10 @@ interface Props {
   isAdminMode: boolean;
   isFavorite: boolean;
   copied: boolean;
+  offlineState: 'idle' | 'loading' | 'saved' | 'error' | 'unsupported';
+  offlineProgress: number | null;
+  offlineMessage: string;
+  onSaveOffline: () => void;
   onNowPlayingClick: () => void;
   onTogglePlayback: () => void;
   onPreviousTrack: () => void;
@@ -40,6 +44,10 @@ export const NLMAudioPlayer = ({
   isAdminMode,
   isFavorite,
   copied,
+  offlineState,
+  offlineProgress,
+  offlineMessage,
+  onSaveOffline,
   onNowPlayingClick,
   onTogglePlayback,
   onPreviousTrack,
@@ -117,6 +125,16 @@ export const NLMAudioPlayer = ({
       >
         <Heart size={15} fill={isFavorite ? 'currentColor' : 'none'} />
         <span>{isFavorite ? 'Favorited' : 'Favorite'}</span>
+      </button>
+      <button
+        className={`nlm-player-action nlm-player-action-download ${offlineState === 'saved' ? 'is-fav' : ''} ${offlineState === 'error' ? 'has-error' : ''}`}
+        onClick={onSaveOffline}
+        disabled={!track || offlineState === 'loading' || offlineState === 'saved' || offlineState === 'unsupported'}
+        aria-label={offlineState === 'saved' ? 'Saved for offline' : 'Save track for offline listening'}
+        title={offlineMessage || (offlineState === 'saved' ? 'Saved for offline' : 'Save for offline')}
+      >
+        {offlineState === 'loading' ? <Loader2 size={15} className="nlm-spinner" /> : offlineState === 'saved' ? <Check size={15} /> : <Download size={15} />}
+        <span>{offlineState === 'loading' ? `Saving${offlineProgress !== null ? ` ${offlineProgress}%` : '…'}` : offlineState === 'saved' ? 'Saved' : offlineState === 'error' ? 'Retry' : offlineState === 'unsupported' ? 'Unavailable' : 'Offline'}</span>
       </button>
       <button
         className="nlm-player-action"

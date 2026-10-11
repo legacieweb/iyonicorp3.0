@@ -3330,10 +3330,37 @@
 .nlm-app .nlm-player-action:focus-visible { outline: 2px solid #c4ceba; outline-offset: 2px; }
 .nlm-app .nlm-player-action:disabled { opacity: .42; cursor: not-allowed; }
 .nlm-app .nlm-player-action.is-fav { color: #d59a8b; }
+.nlm-app .nlm-player-action-download.is-fav { color: #d7c68f; }
+.nlm-app .nlm-player-action-download.has-error { color: #e09a89; }
 .nlm-app .nlm-player-action-download { color: #e6e0cc; border-color: rgba(217, 211, 189, .15); background: rgba(217, 211, 189, .07); }
 .nlm-app .nlm-player-action-download:hover:not(:disabled) { color: #171a1d; border-color: #d9d3bd; background: #d9d3bd; }
 .nlm-app .nlm-player-action svg { flex: none; }
 .nlm-app .nlm-player .nlm-volume { justify-self: end; }
+
+.nlm-app .nlm-offline-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 22px;
+  padding: 13px 16px;
+  border: 1px solid rgba(215, 198, 143, .22);
+  border-radius: 10px;
+  background: linear-gradient(105deg, rgba(215, 198, 143, .09), rgba(255, 255, 255, .025));
+}
+.nlm-app .nlm-offline-notice > span { display: grid; gap: 4px; min-width: 0; }
+.nlm-app .nlm-offline-notice strong { color: #e6dfc8; font-size: 12px; font-weight: 600; }
+.nlm-app .nlm-offline-notice small { color: var(--nlm-muted); font-size: 11px; line-height: 1.5; }
+.nlm-app .nlm-offline-notice button {
+  display: inline-flex; align-items: center; gap: 8px; flex: none;
+  padding: 8px 11px; border: 1px solid rgba(215, 198, 143, .3); border-radius: 7px;
+  color: #e6dfc8; background: rgba(215, 198, 143, .08); font-size: 10px;
+}
+.nlm-app .nlm-offline-notice button:hover { background: rgba(215, 198, 143, .16); }
+.nlm-app .nlm-download-art img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+@media (max-width: 560px) {
+  .nlm-app .nlm-offline-notice { align-items: flex-start; flex-direction: column; }
+}
 
 @media (max-width: 1100px) {
   .nlm-app .nlm-player { grid-template-columns: minmax(140px, .75fr) minmax(200px, 1fr) auto; }
