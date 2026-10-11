@@ -140,9 +140,21 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
 
   const reloadOfflineDownloads = useCallback(async () => {
     if (!supportsOfflineAudio()) return;
-    try { setOfflineDownloads(await readAllOfflineAudio()); }
+    try {
+      const records = await readAllOfflineAudio();
+      setOfflineDownloads(records);
+      setTracks((current) => {
+        const merged = new Map(current.map((track) => [track.id, track]));
+        records.forEach((record) => {
+          const offlineTrack = trackFromOfflineRecord(record, getOfflineArtworkUrl(record));
+          const currentTrack = merged.get(record.id);
+          merged.set(record.id, currentTrack ? { ...currentTrack, ...(offlineTrack.coverUrl ? { coverUrl: offlineTrack.coverUrl } : {}) } : offlineTrack);
+        });
+        return [...merged.values()];
+      });
+    }
     catch { setOfflineDownloads([]); }
-  }, []);
+  }, [getOfflineArtworkUrl]);
 
   useEffect(() => { void reloadOfflineDownloads(); }, [reloadOfflineDownloads]);
 
@@ -482,13 +494,22 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
         : await nlmsongsAPI.list();
 
       const mapped = songs.map(toTrack).filter((track) => track.audioUrl);
-      setTracks(mapped);
+      const savedAudio = isAdminMode ? [] : await readAllOfflineAudio().catch(() => []);
+      const mergedTracks = new Map(mapped.map((track) => [track.id, track]));
+      savedAudio.forEach((record) => {
+        const offlineTrack = trackFromOfflineRecord(record, getOfflineArtworkUrl(record));
+        const currentTrack = mergedTracks.get(record.id);
+        mergedTracks.set(record.id, currentTrack ? { ...currentTrack, ...(offlineTrack.coverUrl ? { coverUrl: offlineTrack.coverUrl } : {}) } : offlineTrack);
+      });
+      const availableTracks = [...mergedTracks.values()];
+      if (!isAdminMode) setOfflineDownloads(savedAudio);
+      setTracks(availableTracks);
       setOfflineNotice('');
       if (!isAdminMode) void storeOfflineCatalog(mapped).catch(() => {});
 
-      if (!selectedId && mapped.length) {
+      if (!selectedId && availableTracks.length) {
         setSelectedId(
-          mapped.find((track) => track.id === routeTrackId)?.id ?? mapped[0].id,
+          availableTracks.find((track) => track.id === routeTrackId)?.id ?? availableTracks[0].id,
         );
       }
     } catch {

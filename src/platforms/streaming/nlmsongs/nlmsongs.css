@@ -3396,6 +3396,41 @@
   .nlm-site-app.nlm-member-app > .nlm-sidebar { width: 68px; }
 }
 
+.nlm-site-app .nlm-site-preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: #f1efe8;
+  background: #11151b;
+}
+.nlm-site-app .nlm-site-preloader-mark {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 7px;
+  place-items: center;
+  border: 1px solid rgba(215, 198, 143, .45);
+  border-radius: 17px;
+  color: #171a1d;
+  background: #d9d3bd;
+  box-shadow: 0 8px 32px rgba(217, 211, 189, .18);
+  animation: nlm-preloader-pulse 1.5s ease-in-out infinite;
+}
+.nlm-site-app .nlm-site-preloader > strong { font-size: 17px; font-weight: 600; letter-spacing: -.02em; }
+.nlm-site-app .nlm-site-preloader > small { color: #9b9e99; font-size: 11px; }
+.nlm-site-app .nlm-site-preloader-track { overflow: hidden; width: 164px; height: 2px; margin-top: 8px; border-radius: 2px; background: rgba(255, 255, 255, .1); }
+.nlm-site-app .nlm-site-preloader-track i { display: block; width: 42%; height: 100%; border-radius: inherit; background: #d9d3bd; animation: nlm-preloader-sweep 1.1s ease-in-out infinite; }
+@keyframes nlm-preloader-pulse { 50% { transform: translateY(-3px); box-shadow: 0 12px 38px rgba(217, 211, 189, .28); } }
+@keyframes nlm-preloader-sweep { from { transform: translateX(-110%); } to { transform: translateX(250%); } }
+@media (prefers-reduced-motion: reduce) {
+  .nlm-site-app .nlm-site-preloader-mark,
+  .nlm-site-app .nlm-site-preloader-track i { animation: none; }
+}
+
 /* Keep the dock inside the listening workspace so it never covers the rail. */
 .nlm-app > .nlm-player { grid-column: 2 / -1; }
 

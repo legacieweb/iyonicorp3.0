@@ -56,7 +56,10 @@ export const useAudioPlayer = ({
         setPlayerError('Playback failed. Check the audio file and media server, then try again.');
       });
     },
-    onPlay: () => setIsPlaying(true),
+    onPlay: () => {
+      setPlayerError('');
+      setIsPlaying(true);
+    },
     onPause: () => setIsPlaying(false),
     onEnded: () => {
       setIsPlaying(false);
@@ -65,7 +68,9 @@ export const useAudioPlayer = ({
     onError: (event: React.SyntheticEvent<HTMLAudioElement>) => {
       const media = event.currentTarget;
       const errorCode = media.error?.code;
-      if (!errorCode || !playAttemptedRef.current) return;
+      const activeSource = audioRef.current?.src;
+      if (!errorCode || !playAttemptedRef.current || !media.currentSrc || !media.paused || media.currentTime > 0) return;
+      if (activeSource && new URL(media.currentSrc, window.location.href).href !== new URL(activeSource, window.location.href).href) return;
       const message = errorCode === 4
         ? 'This audio format is not supported by your browser. Use MP3, WAV, or M4A.'
         : errorCode === 3

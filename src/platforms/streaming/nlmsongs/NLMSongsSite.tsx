@@ -123,6 +123,7 @@ const NLMSongsSite = ({ isVisible = true }: { isVisible?: boolean }) => {
 
   return (
     <div hidden={!isVisible} className={`nlm-site-app nlm-member-app ${!user ? 'nlm-guest-app' : ''} ${mobileNavOpen ? 'nlm-mobile-nav-open' : ''}`}>
+      {isLoading && <div className="nlm-site-preloader" role="status" aria-live="polite"><span className="nlm-site-preloader-mark"><Music2 size={21} /></span><strong>Setting the mood</strong><small>Loading the NLM Songs catalogue</small><span className="nlm-site-preloader-track"><i /></span></div>}
       <NLMMobileNavControls isOpen={mobileNavOpen} onToggle={() => setMobileNavOpen((open) => !open)} onClose={closeMobileNav} />
       <aside className={`nlm-sidebar ${mobileNavOpen ? 'is-mobile-open' : ''}`} id="nlm-app-sidebar" aria-label="NLM Songs navigation" role={mobileNavOpen ? 'dialog' : undefined} aria-modal={mobileNavOpen || undefined}>
         <a className="nlm-brand" href="/nlmsongs/listen" onClick={(e) => { e.preventDefault(); navigateFromSidebar('Home'); }} aria-label="NLM Songs home">
