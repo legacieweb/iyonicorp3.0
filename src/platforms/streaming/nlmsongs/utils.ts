@@ -6,6 +6,24 @@ const API_ORIGIN = getApiOrigin();
 
 const URL_PATTERN = /^(?:https?:|blob:|data:)/i;
 
+const GENRE_WORD_STYLE: Record<string, string> = {
+  'r&b': 'R&B',
+  edm: 'EDM',
+  idm: 'IDM',
+  dnb: 'DnB',
+  'k pop': 'K-Pop',
+  'j pop': 'J-Pop',
+};
+
+export const normalizeGenreName = (value: unknown): string => {
+  const key = String(value ?? '').normalize('NFKC').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!key) return '';
+  if (Object.prototype.hasOwnProperty.call(GENRE_WORD_STYLE, key)) return GENRE_WORD_STYLE[key];
+  return key.split(' ').map((word) => Object.prototype.hasOwnProperty.call(GENRE_WORD_STYLE, word) ? GENRE_WORD_STYLE[word] : `${word.charAt(0).toUpperCase()}${word.slice(1)}`).join(' ');
+};
+
+export const genreIdentity = (value: unknown): string => normalizeGenreName(value).toLowerCase();
+
 export const resolveAssetUrl = (value?: string | null): string => {
   if (!value) return '';
   if (URL_PATTERN.test(value)) return value;
@@ -70,7 +88,7 @@ export const toTrack = (song: NLMSong & { audio_url?: string; thumbnail_url?: st
     title: String(song.title || 'Untitled track'),
     artist: String(song.artist || 'NLM Studio'),
     description: String(song.description || ''),
-    genre: String(song.genre || ''),
+    genre: normalizeGenreName(song.genre),
     tags: Array.isArray(song.tags) ? song.tags : [],
     audioUrl: String(song.audioUrl || song.audio_url || ''),
     coverUrl: song.thumbnailUrl || song.thumbnail_url || undefined,

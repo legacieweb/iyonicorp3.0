@@ -11,11 +11,17 @@ const NLMSongsRouter = ({ adminDashboard }: { adminDashboard?: ReactNode }) => {
   const navigate = useNavigate();
   const path = pathname.replace(/\/$/, '') || '/nlmsongs';
   useEffect(() => { if (path === '/nlmsongs/new') navigate('/nlmsongs/listen', { replace: true }); }, [path, navigate]);
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    void navigator.serviceWorker.register('/nlmsongs-service-worker.js').catch(() => {});
+    if ('storage' in navigator && 'persist' in navigator.storage) void navigator.storage.persist().catch(() => {});
+  }, []);
   const isAdminDashboard = path === '/nlmsongs/dashboard';
   const authMode = path === '/nlmsongs/register' ? 'register' : path === '/nlmsongs/login' ? 'login' : null;
   const isSharedPlaylist = path.startsWith('/nlmsongs/playlist/');
   const isListenerPage = path === '/nlmsongs/listen'
     || path === '/nlmsongs/library'
+    || path === '/nlmsongs/downloads'
     || path === '/nlmsongs/settings'
     || /^\/nlmsongs\/track\/[^/]+$/.test(path);
 

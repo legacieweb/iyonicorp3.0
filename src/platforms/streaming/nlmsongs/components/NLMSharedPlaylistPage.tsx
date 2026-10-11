@@ -31,7 +31,7 @@ const SharedPlaylistPage = ({ isVisible = true }: { isVisible?: boolean }) => {
   }, [isVisible, playlistId, retryCount]);
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
   const navigateDiscovery = (view: 'Genres' | 'My List' | 'Playlists') => { navigate(`/nlmsongs/${view === 'My List' ? 'my-list' : view.toLowerCase()}`); closeMobileNav(); };
-  const navigateView = (view: NLMView) => { navigate(view === 'Settings' ? '/nlmsongs/settings' : view === 'Your Library' ? '/nlmsongs/library' : '/nlmsongs/listen'); closeMobileNav(); };
+  const navigateView = (view: NLMView) => { navigate(view === 'Settings' ? '/nlmsongs/settings' : view === 'Your Library' ? '/nlmsongs/library' : view === 'Downloads' ? '/nlmsongs/downloads' : '/nlmsongs/listen'); closeMobileNav(); };
   const playTracks = (trackIds: string[]) => window.dispatchEvent(new CustomEvent('nlm:play-playlist', { detail: { trackIds } }));
   const copyPlaylistLink = async () => {
     try {
@@ -75,7 +75,7 @@ const SharedPlaylistPage = ({ isVisible = true }: { isVisible?: boolean }) => {
   }, [playlist?.tracks]);
   return <div hidden={!isVisible} className={`nlm-member-app nlm-app-shell ${mobileNavOpen ? 'nlm-mobile-nav-open' : ''}`}>
     <NLMMobileNavControls isOpen={mobileNavOpen} onToggle={() => setMobileNavOpen((open) => !open)} onClose={closeMobileNav}/>
-    <NLMSidebar view="Listen" trackCount={0} isAdminMode={false} onNavigate={navigateView} onNavigateDiscovery={navigateDiscovery} mobileOpen={mobileNavOpen} onMobileClose={closeMobileNav}/>
+    <NLMSidebar view="Listen" trackCount={0} downloadCount={0} isAdminMode={false} onNavigate={navigateView} onNavigateDiscovery={navigateDiscovery} mobileOpen={mobileNavOpen} onMobileClose={closeMobileNav}/>
     <main className="nlm-main nlm-shared-playlist-main">
       <div className="nlm-workspace">
         {state === 'loading' ? <p className="nlm-empty-state" role="status">Loading shared playlist…</p> : state === 'error' || !playlist ? <section className="nlm-shared-state"><span className="nlm-eyebrow">NLM SONGS / SHARED COLLECTION</span><h1>Playlist unavailable</h1><p>This playlist may be private or no longer available.</p><div className="nlm-shared-playlist-actions"><button className="nlm-submit-button" onClick={() => setRetryCount((count) => count + 1)}>Try again</button><button className="nlm-ghost-button" onClick={() => navigate('/nlmsongs/listen')}>Explore NLM Songs</button></div></section> : <section className="nlm-shared-playlist">

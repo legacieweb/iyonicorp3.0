@@ -1,9 +1,10 @@
-import { Disc3, Headphones, Library, ListMusic, Music2, Settings } from 'lucide-react';
+import { Disc3, Download, Headphones, Library, ListMusic, Music2, Settings } from 'lucide-react';
 import type { NLMView } from '../types';
 
 interface Props {
   view: NLMView;
   trackCount: number;
+  downloadCount: number;
   isAdminMode: boolean;
   onNavigate: (view: NLMView) => void;
   onNavigateDiscovery: (view: 'Genres' | 'My List' | 'Playlists') => void;
@@ -11,7 +12,7 @@ interface Props {
   onMobileClose?: () => void;
 }
 
-export const NLMSidebar = ({ view, trackCount, isAdminMode: _isAdminMode, onNavigate, onNavigateDiscovery, mobileOpen = false, onMobileClose }: Props) => {
+export const NLMSidebar = ({ view, trackCount, downloadCount, isAdminMode: _isAdminMode, onNavigate, onNavigateDiscovery, mobileOpen = false, onMobileClose }: Props) => {
   const goView = (nextView: NLMView) => { onNavigate(nextView); onMobileClose?.(); };
   const goDiscovery = (nextView: 'Genres' | 'My List' | 'Playlists') => { onNavigateDiscovery(nextView); onMobileClose?.(); };
   return <aside className={`nlm-sidebar ${mobileOpen ? 'is-mobile-open' : ''}`} id="nlm-app-sidebar" aria-label="NLM Songs navigation" role={mobileOpen ? 'dialog' : undefined} aria-modal={mobileOpen || undefined}>
@@ -38,6 +39,7 @@ export const NLMSidebar = ({ view, trackCount, isAdminMode: _isAdminMode, onNavi
       <button onClick={() => goDiscovery('My List')} aria-label="My List" title="My List"><Headphones size={17} strokeWidth={1.8} /><span>My List</span></button>
       <button onClick={() => goDiscovery('Playlists')} aria-label="My Playlists" title="My Playlists"><ListMusic size={17} strokeWidth={1.8} /><span>Playlists</span></button>
       <button className={view === 'Your Library' ? 'is-active' : ''} onClick={() => goView('Your Library')} aria-label="Your Library" title="Your Library" aria-current={view === 'Your Library' ? 'page' : undefined}><Library size={17} strokeWidth={1.8} /><span>Your Library</span>{trackCount > 0 && <small>{trackCount}</small>}</button>
+      <button className={view === 'Downloads' ? 'is-active' : ''} onClick={() => goView('Downloads')} aria-label={`Downloads, ${downloadCount} saved offline`} title="Downloads" aria-current={view === 'Downloads' ? 'page' : undefined}><Download size={17} strokeWidth={1.8} /><span>Downloads</span>{downloadCount > 0 && <small>{downloadCount}</small>}</button>
       <button className={view === 'Settings' ? 'is-active' : ''} onClick={() => goView('Settings')} aria-label="Settings" title="Settings" aria-current={view === 'Settings' ? 'page' : undefined}><Settings size={17} strokeWidth={1.8} /><span>Settings</span></button>
     </nav>
 

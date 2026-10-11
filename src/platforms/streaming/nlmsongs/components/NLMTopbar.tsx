@@ -4,7 +4,7 @@ import type { NLMUser } from '../types';
 interface Props {
   user: NLMUser | null;
   isAdminMode: boolean;
-  view: 'Listen' | 'Your Library' | 'Settings';
+  view: 'Listen' | 'Your Library' | 'Downloads' | 'Settings';
   accountMenuOpen: boolean;
   onAccountMenuToggle: () => void;
   onAccountMenuClose: () => void;

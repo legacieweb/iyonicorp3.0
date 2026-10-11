@@ -24,7 +24,7 @@ export interface Track {
   updatedAt?: string;
 }
 
-export type NLMView = 'Listen' | 'Your Library' | 'Settings';
+export type NLMView = 'Listen' | 'Your Library' | 'Downloads' | 'Settings';
 
 export type SiteView = 'Home' | 'Genres' | 'My List';
 

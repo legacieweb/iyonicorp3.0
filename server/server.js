@@ -3758,12 +3758,20 @@ const cleanNlmTags = (value) => [...new Set(parseNlmTags(value)
   .map((tag) => String(tag).trim().slice(0, 50))
   .filter(Boolean))].slice(0, 20);
 
+const normalizeNlmGenre = (value) => {
+  const key = String(value || '').normalize('NFKC').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!key) return '';
+  const genreNames = { 'r&b': 'R&B', edm: 'EDM', idm: 'IDM', dnb: 'DnB', 'k pop': 'K-Pop', 'j pop': 'J-Pop' };
+  if (Object.prototype.hasOwnProperty.call(genreNames, key)) return genreNames[key];
+  return key.split(' ').map((word) => Object.prototype.hasOwnProperty.call(genreNames, word) ? genreNames[word] : `${word.charAt(0).toUpperCase()}${word.slice(1)}`).join(' ');
+};
+
 
 app.get('/api/nlmsongs', async (req, res) => {
   try {
     const songs = await db.query(`SELECT id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, created_at
       FROM nlm_songs WHERE is_active = TRUE ORDER BY created_at DESC`);
-    res.json(toCamel(songs.rows));
+    res.json(toCamel(songs.rows).map((song) => ({ ...song, genre: normalizeNlmGenre(song.genre) })));
   } catch (err) {
     console.error('NLMSongs public catalogue error:', err);
     res.status(500).json({ message: 'Could not load the NLMSongs library.' });
@@ -3775,7 +3783,7 @@ app.get('/api/nlmsongs/admin', authenticateToken, requireNlmAdmin, async (req, r
     const songs = req.user.role === 'manager_admin'
       ? await db.query('SELECT id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, audio_mime_type, thumbnail_mime_type, is_active, created_by, created_at FROM nlm_songs ORDER BY created_at DESC')
       : await db.query('SELECT id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, audio_mime_type, thumbnail_mime_type, is_active, created_by, created_at FROM nlm_songs WHERE seller_id = $1 ORDER BY created_at DESC', [req.user.sellerId]);
-    res.json(toCamel(songs.rows));
+    res.json(toCamel(songs.rows).map((song) => ({ ...song, genre: normalizeNlmGenre(song.genre) })));
   } catch (err) {
     console.error('NLMSongs admin catalogue error:', err);
     res.status(500).json({ message: 'Could not load the NLMSongs catalogue.' });
@@ -3806,7 +3814,9 @@ app.get('/api/nlmsongs/admin/analytics', authenticateToken, requireNlmAdmin, asy
         WHERE created_at >= NOW() - INTERVAL '30 days'${historyScope}
         GROUP BY DATE_TRUNC('day', created_at)::date ORDER BY day ASC`, params),
     ]);
-    res.json(toCamel({ summary: summary.rows[0], topTracks: topTracks.rows, dailyPlays: dailyPlays.rows }));
+    const analytics = toCamel({ summary: summary.rows[0], topTracks: topTracks.rows, dailyPlays: dailyPlays.rows });
+    analytics.topTracks = analytics.topTracks.map((track) => ({ ...track, genre: normalizeNlmGenre(track.genre) }));
+    res.json(analytics);
   } catch (err) {
     console.error('NLMSongs admin analytics error:', err);
     res.status(500).json({ message: 'Could not load NLMSongs analytics.' });
@@ -3819,7 +3829,7 @@ app.post('/api/nlmsongs', authenticateToken, requireNlmAdmin, handleNlmSongUploa
   const title = String(req.body.title || '').trim();
   const artist = String(req.body.artist || '').trim();
   const description = String(req.body.description || '').trim();
-  const genre = String(req.body.genre || '').trim();
+  const genre = normalizeNlmGenre(req.body.genre);
   const lyrics = String(req.body.lyrics || '').trim();
   const tags = cleanNlmTags(req.body.tags);
   if (!title || !audio) {
@@ -3915,7 +3925,7 @@ app.patch('/api/nlmsongs/:id', authenticateToken, requireNlmAdmin, handleNlmSong
       req.body.title === undefined ? null : String(req.body.title).trim().slice(0, 255),
       req.body.artist === undefined ? null : String(req.body.artist).trim().slice(0, 255),
       req.body.description === undefined ? null : String(req.body.description).trim(),
-      req.body.genre === undefined ? null : String(req.body.genre).trim().slice(0, 100),
+      req.body.genre === undefined ? null : normalizeNlmGenre(req.body.genre).slice(0, 100),
       req.body.tags === undefined ? null : nextTags,
       req.body.lyrics === undefined ? null : String(req.body.lyrics).trim(),
       audioUrl,
@@ -3957,7 +3967,7 @@ app.get('/api/nlmsongs/search', async (req, res) => {
       WHERE is_active = TRUE
       AND (title ILIKE $1 OR artist ILIKE $1 OR genre ILIKE $1 OR description ILIKE $1)
       ORDER BY created_at DESC LIMIT $2`, [`%${query}%`, limit]);
-    res.json(toCamel(result.rows));
+    res.json(toCamel(result.rows).map((song) => ({ ...song, genre: normalizeNlmGenre(song.genre) })));
   } catch (err) {
     console.error('NLMSongs search error:', err);
     res.status(500).json({ message: 'Could not search the catalogue.' });
@@ -3980,7 +3990,7 @@ app.get('/api/nlmsongs/shared-playlists/:id', async (req, res) => {
         s.thumbnail_url as "thumbnailUrl"
       FROM nlm_playlist_items pi JOIN nlm_songs s ON s.id = pi.track_id
       WHERE pi.playlist_id = $1 AND s.is_active = TRUE ORDER BY pi.position`, [req.params.id]);
-    playlist.tracks = tracks.rows;
+    playlist.tracks = tracks.rows.map((track) => ({ ...track, genre: normalizeNlmGenre(track.genre) }));
     res.json(toCamel(playlist));
   } catch (err) {
     console.error('NLM shared playlist error:', err);

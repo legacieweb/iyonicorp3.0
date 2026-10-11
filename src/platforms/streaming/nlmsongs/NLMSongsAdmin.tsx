@@ -6,6 +6,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { nlmsongsAPI, type NLMSong, type NLMSongsAdminAnalytics } from '../../../services/api';
 import { getApiOrigin } from '../../../utils/apiUrl';
+import { genreIdentity, normalizeGenreName } from './utils';
 import NLMMobileNavControls from './components/NLMMobileNavControls';
 import './nlmsongs.css';
 
@@ -47,6 +48,7 @@ const NLMSongsAdmin = () => {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState('');
+  const [existingCoverUrl, setExistingCoverUrl] = useState('');
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -87,6 +89,7 @@ const NLMSongsAdmin = () => {
   const resetForm = () => {
     setTitle(''); setArtist(''); setDescription(''); setGenre(''); setTags('');
     setLyrics(''); setAudioFile(null); setCoverFile(null); setCoverPreview('');
+    setExistingCoverUrl('');
     setFormError(''); setEditingId(null);
   };
 
@@ -97,20 +100,25 @@ const NLMSongsAdmin = () => {
     setFormError('');
     setIsSubmitting(true);
     if (!title.trim()) { setFormError('Add a track title.'); isSubmittingRef.current = false; setIsSubmitting(false); return; }
-    if (!audioFile) { setFormError('Choose an audio file.'); isSubmittingRef.current = false; setIsSubmitting(false); return; }
-    const supportedExtension = /\.(mp3|wav|m4a)$/i.test(audioFile.name);
+    if (!editingId && !audioFile) { setFormError('Choose an audio file.'); isSubmittingRef.current = false; setIsSubmitting(false); return; }
+    const supportedExtension = !audioFile || /\.(mp3|wav|m4a)$/i.test(audioFile.name);
     if (!supportedExtension) { setFormError('Choose an MP3, WAV, or M4A file.'); isSubmittingRef.current = false; setIsSubmitting(false); return; }
     if (coverFile && !coverFile.type.startsWith('image/')) { setFormError('The cover must be an image.'); isSubmittingRef.current = false; setIsSubmitting(false); return; }
 
     try {
       const formData = new FormData();
       formData.append('title', title.trim());
-      formData.append('artist', artist.trim());
-      formData.append('description', description.trim());
-      formData.append('genre', genre.trim());
-      formData.append('tags', tags.trim());
-      formData.append('lyrics', lyrics.trim());
-      formData.append('audio', audioFile);
+      const optionalFields = {
+        artist: artist.trim(),
+        description: description.trim(),
+        genre: normalizeGenreName(genre),
+        tags: tags.trim(),
+        lyrics: lyrics.trim(),
+      };
+      Object.entries(optionalFields).forEach(([field, value]) => {
+        if (value) formData.append(field, value);
+      });
+      if (audioFile) formData.append('audio', audioFile);
       if (coverFile) formData.append('thumbnail', coverFile);
 
       if (editingId) {
@@ -150,6 +158,7 @@ const NLMSongsAdmin = () => {
     setTags(Array.isArray(track.tags) ? track.tags.join(', ') : '');
     setLyrics(track.lyrics || '');
     setCoverPreview('');
+    setExistingCoverUrl(track.thumbnailUrl ? resolveAssetUrl(track.thumbnailUrl) : '');
     setCoverFile(null);
     setFormError('');
     setTab('uploads');
@@ -196,7 +205,7 @@ const NLMSongsAdmin = () => {
         <div className="nlm-admin-workspace">
           {tab === 'overview' && (() => {
             const activeTracks = tracks.filter((track) => track.isActive !== false);
-            const genreCount = new Set(tracks.map((track) => track.genre?.trim()).filter(Boolean)).size;
+            const genreCount = new Set(tracks.map((track) => genreIdentity(track.genre)).filter(Boolean)).size;
             const recentTracks = tracks.filter((track) => track.createdAt && Date.now() - new Date(track.createdAt).getTime() <= 30 * 86400000).slice(0, 4);
             const analyticsPayload = analytics as (NLMSongsAdminAnalytics & Record<string, any>) | null;
             const summary = (analyticsPayload?.summary ?? analyticsPayload?.data?.summary ?? {}) as Record<string, unknown>;
@@ -235,7 +244,7 @@ const NLMSongsAdmin = () => {
                 </section>
               </div>
               <section className="nlm-admin-insight-card nlm-admin-recent-card"><header><div><span className="nlm-eyebrow">RECENTLY ADDED</span><h2>Latest in your catalogue</h2></div><button className="nlm-ghost-button" onClick={() => setTab('catalogue')}>View catalogue <ArrowUpRight size={13}/></button></header>
-                {recentTracks.length ? <div className="nlm-admin-recent-tracks">{recentTracks.map((track) => <article key={track.id}><span className="nlm-admin-track-art">{track.thumbnailUrl ? <img src={resolveAssetUrl(track.thumbnailUrl)} alt=""/> : <Music2 size={17}/>}</span><span><strong>{track.title}</strong><small>{track.artist || 'NLM Studio'} · {track.genre || 'Uncategorized'}</small></span><time>{new Date(track.createdAt).toLocaleDateString()}</time></article>)}</div> : <div className="nlm-admin-chart-empty">{tracks.length ? 'No recent additions in the past 30 days.' : 'Your uploaded tracks will appear here.'}</div>}
+                {recentTracks.length ? <div className="nlm-admin-recent-tracks">{recentTracks.map((track) => <article key={track.id}><span className="nlm-admin-track-art">{track.thumbnailUrl ? <img src={resolveAssetUrl(track.thumbnailUrl)} alt=""/> : <Music2 size={17}/>}</span><span><strong>{track.title}</strong><small>{track.artist || 'NLM Studio'} · {normalizeGenreName(track.genre) || 'Uncategorized'}</small></span><time>{new Date(track.createdAt).toLocaleDateString()}</time></article>)}</div> : <div className="nlm-admin-chart-empty">{tracks.length ? 'No recent additions in the past 30 days.' : 'Your uploaded tracks will appear here.'}</div>}
               </section>
             </section>;
           })()}
@@ -266,7 +275,7 @@ const NLMSongsAdmin = () => {
                       <tr key={track.id}>
                         <td><strong>{track.title}</strong><small>{track.tags?.slice(0, 2).join(', ') || ''}</small></td>
                         <td>{track.artist || 'NLM Studio'}</td>
-                        <td>{track.genre || '—'}</td>
+                        <td>{normalizeGenreName(track.genre) || '—'}</td>
                         <td>
                           <button className="nlm-ghost-button" onClick={() => startEdit(track)} aria-label={`Edit ${track.title}`}><Disc3 size={14} /> Edit</button>
                           <button className="nlm-ghost-button" onClick={() => handleDelete(track.id)} aria-label={`Delete ${track.title}`}><Trash2 size={14} /> Delete</button>
@@ -301,10 +310,10 @@ const NLMSongsAdmin = () => {
                 </div>
                 <label className="nlm-lyrics-field"><span className="nlm-input-label">Description <small>OPTIONAL</small></span><textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the feel, story, or theme of the song." rows={2} /></label>
                 <div className="nlm-file-fields">
-                  <label className="nlm-file-picker"><span className="nlm-file-icon"><FileAudio2 size={18} /></span><span><strong>{audioFile?.name || 'Choose an audio file'}</strong><small>Required · MP3, WAV, or M4A</small></span><input type="file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)} required /></label>
+                  <label className="nlm-file-picker"><span className="nlm-file-icon"><FileAudio2 size={18} /></span><span><strong>{audioFile?.name || (editingId ? 'Keep current audio' : 'Choose an audio file')}</strong><small>{editingId ? 'Current audio is kept unless you choose a replacement · MP3, WAV, or M4A' : 'Required · MP3, WAV, or M4A'}</small></span><input type="file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)} required={!editingId} /></label>
                   <label className="nlm-file-picker nlm-cover-picker">
-                    {coverPreview ? <img className="nlm-cover-preview" src={coverPreview} alt="Selected cover preview" /> : <span className="nlm-file-icon"><Disc3 size={18} /></span>}
-                    <span><strong>{coverFile?.name || 'Add cover artwork'}</strong><small>{coverFile ? 'Selected · will be saved with the track' : 'Optional · JPG, PNG, WEBP, or GIF'}</small></span>
+                    {coverPreview || existingCoverUrl ? <img className="nlm-cover-preview" src={coverPreview || existingCoverUrl} alt={coverFile ? 'Selected cover preview' : 'Current cover artwork'} /> : <span className="nlm-file-icon"><Disc3 size={18} /></span>}
+                    <span><strong>{coverFile?.name || (existingCoverUrl ? 'Current cover artwork' : 'Add cover artwork')}</strong><small>{coverFile ? 'Selected · will replace the current cover' : existingCoverUrl ? 'Current cover is kept unless you choose a replacement' : 'Optional · JPG, PNG, WEBP, or GIF'}</small></span>
                     <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)} />
                   </label>
                 </div>
