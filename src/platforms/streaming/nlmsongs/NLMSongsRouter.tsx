@@ -5,6 +5,7 @@ import NLMSongs from './NLMSongs';
 import NLMSongsSite from './NLMSongsSite';
 import NLMSharedPlaylistPage from './components/NLMSharedPlaylistPage';
 import NLMSongsAuthPage from './components/NLMSongsAuthPage';
+import SEO from '../../../components/SEO';
 
 const NLMSongsRouter = ({ adminDashboard }: { adminDashboard?: ReactNode }) => {
   const { pathname } = useLocation();
@@ -24,10 +25,19 @@ const NLMSongsRouter = ({ adminDashboard }: { adminDashboard?: ReactNode }) => {
     || path === '/nlmsongs/downloads'
     || path === '/nlmsongs/settings'
     || /^\/nlmsongs\/track\/[^/]+$/.test(path);
+  const isPrivatePage = isAdminDashboard || authMode !== null || path === '/nlmsongs/library' || path === '/nlmsongs/downloads' || path === '/nlmsongs/settings' || path.startsWith('/nlmsongs/playlist/');
+  const isGenresPage = path === '/nlmsongs/genres';
+  const isTrackPage = /^\/nlmsongs\/track\/[^/]+$/.test(path);
+  const metadata = isGenresPage
+    ? { title: 'Explore Music Genres', description: 'Browse the NLM Songs music catalog by genre. Discover independent artists, new releases, and sounds selected for every mood.' }
+    : isTrackPage
+      ? { title: 'Listen to Music on NLM Songs', description: 'Discover independent music, explore new releases, and find your next favorite track on NLM Songs.' }
+      : { title: 'Discover Independent Music', description: 'Stream independent music, discover emerging artists, explore new releases, and build your personal music library with NLM Songs.' };
 
-  if (authMode) return <NLMSongsAuthPage mode={authMode} />;
+  if (authMode) return <><SEO title={authMode === 'register' ? 'Create Your NLM Songs Account' : 'Sign In to NLM Songs'} description="Access your NLM Songs music library, playlists, and listening preferences." canonical={`https://iyonicorp.com/#${path}`} noIndex /><NLMSongsAuthPage mode={authMode} /></>;
 
   return <>
+    <SEO title={metadata.title} description={metadata.description} keywords="NLM Songs, stream independent music, discover new music, independent artists, music genres, new releases" canonical={`https://iyonicorp.com/#${path}`} noIndex={isPrivatePage} />
     <NLMSongs isVisible={!isAdminDashboard && isListenerPage} />
     <NLMSongsSite isVisible={!isAdminDashboard && !isListenerPage && !isSharedPlaylist} />
     <NLMSharedPlaylistPage isVisible={isSharedPlaylist} />

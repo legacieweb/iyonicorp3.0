@@ -19,6 +19,7 @@ const ManagerAdminDashboard = lazy(() => import('./pages/admin/ManagerAdminDashb
 const IyonicMailer = lazy(() => import('./pages/IyonicMailer').then(({ IyonicMailer }) => ({ default: IyonicMailer })));
 const IyonicMailerDocs = lazy(() => import('./pages/IyonicMailerDocs').then(({ IyonicMailerDocs }) => ({ default: IyonicMailerDocs })));
 const IyonicMailerAuth = lazy(() => import('./pages/auth/IyonicMailerAuth').then(({ IyonicMailerAuth }) => ({ default: IyonicMailerAuth })));
+const IyonicMailerDashboard = lazy(() => import('./pages/IyonicMailerDashboard').then(({ IyonicMailerDashboard }) => ({ default: IyonicMailerDashboard })));
 const CustomerDashboard = lazy(() => import('./pages/customer/CustomerDashboard'));
 const Storefront = lazy(() => import('./pages/Storefront'));
 const PulseFitAdmin = lazy(() => import('./platforms/services/fitness/pulse-fit/PulseFitAdmin'));
@@ -122,7 +123,12 @@ const getUserRedirectPath = (user: any, shopSubdomain?: string | null, themeId?:
   }
 };
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles: string[]; unauthorizedRedirectPath?: string }> = ({ children, allowedRoles, unauthorizedRedirectPath }) => {
+const ProtectedRoute: React.FC<{
+  children: React.ReactNode;
+  allowedRoles: string[];
+  unauthorizedRedirectPath?: string;
+  unauthenticatedRedirectPath?: string;
+}> = ({ children, allowedRoles, unauthorizedRedirectPath, unauthenticatedRedirectPath }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const shopSubdomain = searchParams.get('subdomain');
@@ -133,7 +139,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles: string
   }
   
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={unauthenticatedRedirectPath || '/login'} replace />;
   }
   
   if (user && !allowedRoles.includes(user.role)) {
@@ -262,10 +268,7 @@ const AppContent: React.FC = () => {
     location.pathname === '/login' ||
     location.pathname === '/register' ||
     location.pathname === '/refunds' ||
-    location.pathname === '/iyonic-mailer' ||
-     location.pathname === '/iyonic-mailer/docs' ||
-     location.pathname === '/iyonic-mailer/login' ||
-     location.pathname === '/iyonic-mailer/register';
+    location.pathname.startsWith('/iyonic-mailer');
 
   if (!isMainPlatform && tenant && !isPlatformRoute) {
     return <Storefront />;
@@ -578,6 +581,15 @@ const AppContent: React.FC = () => {
       <Route path="/iyonic-mailer/docs" element={<IyonicMailerDocs />} />
       <Route path="/iyonic-mailer/login" element={<IyonicMailerAuthWrapper mode="login" />} />
       <Route path="/iyonic-mailer/register" element={<IyonicMailerAuthWrapper mode="register" />} />
+      <Route path="/iyonic-mailer/dashboard" element={
+        <ProtectedRoute
+          allowedRoles={['seller']}
+          unauthorizedRedirectPath="/iyonic-mailer/login"
+          unauthenticatedRedirectPath="/iyonic-mailer/login"
+        >
+          <IyonicMailerDashboard />
+        </ProtectedRoute>
+      } />
       <Route path="/help-center" element={<HelpCenter />} />
       <Route path="/status" element={<Status />} />
       <Route path="/privacy" element={<Privacy />} />

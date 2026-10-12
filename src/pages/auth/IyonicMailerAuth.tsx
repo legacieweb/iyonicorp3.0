@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Input } from '../../components/ui';
 import {
@@ -38,7 +38,6 @@ export const IyonicMailerAuth: React.FC<IyonicMailerAuthProps> = ({
 }) => {
   const { login, register, isLoading } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [formData, setFormData] = useState<FormData>({
     email: '',
     password: '',
@@ -118,8 +117,7 @@ export const IyonicMailerAuth: React.FC<IyonicMailerAuthProps> = ({
         });
       }
 
-      const from = (location.state as any)?.from?.pathname || '/seller/dashboard?tab=marketing';
-      navigate(from);
+      navigate('/iyonic-mailer/dashboard', { replace: true });
     } catch (err: any) {
       const details = getAuthErrorDetails(err, mode === 'login' ? 'Login failed.' : 'Registration failed.');
       setError(`${details.title}: ${details.message}`);

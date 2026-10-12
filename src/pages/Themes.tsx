@@ -7,6 +7,7 @@ import { Seller, sellersAPI } from '../services/api';
 import { getThemeDashboardRoute } from '../utils/themeDashboard';
 import ThemeLaunchOverlay, { ThemeLaunchState } from '../components/ThemeLaunchOverlay';
 import GlobalHeader from '../components/GlobalHeader';
+import SEO from '../components/SEO';
 import { THEME_PRICES_USD_CENTS } from '../utils/vipThemes';
 import './theme-catalog.css';
 
@@ -400,6 +401,7 @@ const Themes: React.FC = () => {
 
   return (
     <main className="theme-library">
+      <SEO title="Business Website Themes & Platforms" description="Explore free storefront themes, business SaaS platforms, and specialist platforms from Iyonicorp. Preview each experience and find the right tools for your business." keywords="business website themes, ecommerce templates, storefront themes, business SaaS platforms, Iyonicorp themes" canonical="https://iyonicorp.com/#/themes" />
       <GlobalHeader context={user ? `${isSeller ? 'Seller workspace' : 'Customer account'}${user.name ? ` · ${user.name}` : ''}` : 'Themes & platforms'} dashboardHref={user ? returnPath : undefined} />
 
       <section className="theme-editorial-hero">
