@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, BadgeCheck, Check, ExternalLink, Eye, LayoutGrid, Search, Send, Sparkles, Store, Ticket } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Check, ExternalLink, Eye, LayoutGrid, Search, Send, Sparkles, Store, Ticket, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { Seller, sellersAPI } from '../services/api';
@@ -135,7 +135,8 @@ const Themes: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [category, setCategory] = useState<ThemeCategory>('All collections');
   const [query, setQuery] = useState('');
-  const [activePreviewId, setActivePreviewId] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [closedPreviewIds, setClosedPreviewIds] = useState<Set<string>>(() => new Set());
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
   const [acquiredThemeIds, setAcquiredThemeIds] = useState<string[]>([]);
@@ -399,6 +400,18 @@ const Themes: React.FC = () => {
     ? location.state.from
     : getThemeDashboardRoute(activeThemeId || undefined);
 
+  useEffect(() => {
+    const focusSearch = (event: KeyboardEvent) => {
+      if (event.key !== '/' || event.altKey || event.ctrlKey || event.metaKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName || '')) return;
+      event.preventDefault();
+      searchInputRef.current?.focus();
+    };
+    window.addEventListener('keydown', focusSearch);
+    return () => window.removeEventListener('keydown', focusSearch);
+  }, []);
+
   return (
     <main className="theme-library">
       <SEO title="Business Website Themes & Platforms" description="Explore free storefront themes, business SaaS platforms, and specialist platforms from Iyonicorp. Preview each experience and find the right tools for your business." keywords="business website themes, ecommerce templates, storefront themes, business SaaS platforms, Iyonicorp themes" canonical="https://iyonicorp.com/#/themes" />
@@ -413,10 +426,15 @@ const Themes: React.FC = () => {
             <p className="theme-hero-lede">Start with a free storefront template, acquire a VIP SaaS and its owner dashboard, or discover privately operated platforms.</p>
             <a className="theme-hero-link" href="#platform-catalog">Explore the collection <ArrowRight size={16} /></a>
           </div>
-          <aside className="theme-hero-aside" aria-label="Collection types">
-            <div className="theme-collection-stat"><span>01</span><strong>Free templates</strong><small>Ready to use</small></div>
-            <div className="theme-collection-stat"><span>02</span><strong>VIP SaaS</strong><small>Acquire & operate</small></div>
-            <div className="theme-collection-stat"><span>03</span><strong>Private platforms</strong><small>Owner operated</small></div>
+          <aside className="theme-hero-aside" aria-label="A preview of storefront and business platform themes">
+            <div className="theme-hero-windowbar"><span><i /><i /><i /></span><strong>IYONICORP / THEME COLLECTION</strong><span>PREVIEW</span></div>
+            <div className="theme-hero-collage">
+              <article className="theme-collage-studio"><span>FORM / STUDIO</span><small>NAIROBI · PERSONAL CARE</small><strong>A little time<br />for yourself.</strong><i>BOOK AN APPOINTMENT <ArrowRight size={11} /></i></article>
+              <article className="theme-collage-goods"><div className="theme-collage-vase" /><span>FIELD<br />OBJECTS</span></article>
+              <article className="theme-collage-platform"><span>BUSINESS PLATFORM</span><strong>Built around<br />your next step.</strong><i><b /><b /><b /></i></article>
+              <span className="theme-collage-note"><Sparkles size={13} /> {THEMES.length} starting points</span>
+            </div>
+            <div className="theme-hero-windowfoot"><span>FREE {FREE_TEMPLATE_IDS.size} · VIP {THEMES.filter((theme) => !FREE_TEMPLATE_IDS.has(theme.id) && !PRIVATE_PLATFORM_IDS.has(theme.id)).length} · PRIVATE {PRIVATE_PLATFORM_IDS.size}</span><span>COLLECTION</span></div>
           </aside>
         </div>
         <div className="theme-hero-caption"><span>IYONICORP / COLLECTION</span><span>{String(THEMES.length).padStart(2, '0')} EXPERIENCES</span></div>
@@ -448,12 +466,12 @@ const Themes: React.FC = () => {
               );
             })}
           </div>
-          <label className="theme-search">
+          <div className="theme-search">
             <Search size={17} aria-hidden="true" />
-            <span className="sr-only">Search platforms</span>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search the collection" />
-            <kbd>/</kbd>
-          </label>
+            <label className="sr-only" htmlFor="theme-search-input">Search platforms</label>
+            <input id="theme-search-input" ref={searchInputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search the collection" />
+            {query ? <button type="button" className="theme-search-clear" onClick={() => { setQuery(''); searchInputRef.current?.focus(); }} aria-label="Clear search"><X size={15} /></button> : <kbd aria-hidden="true">/</kbd>}
+          </div>
         </div>
 
         {error && <div role="alert" className="theme-message theme-message-error">
@@ -474,23 +492,25 @@ const Themes: React.FC = () => {
               const isActive = activeThemeId === theme.id;
               const price = THEME_PRICES_USD_CENTS[theme.id] / 100;
               const isBusy = applyingId === theme.id;
-              const previewIsLoaded = activePreviewId === theme.id;
+              const previewIsLoaded = !closedPreviewIds.has(theme.id);
               const sellerAccessRequired = Boolean(user && !isSeller && !isActive);
               return (
                 <article key={theme.id} className={`theme-card${index === 0 && category === 'All collections' && !query ? ' theme-card-featured' : ''}`}>
                 <div className="theme-card-preview">
-                  {previewIsLoaded && <iframe src={previewUrl(theme.id)} title={`${theme.name} live platform preview`} loading="lazy" tabIndex={-1} aria-hidden="true" className="theme-card-frame" />}
+                  <div id={`theme-preview-${theme.id}`} className="theme-preview-region" hidden={!previewIsLoaded} aria-hidden="true">
+                    {previewIsLoaded && <iframe src={previewUrl(theme.id)} title={`${theme.name} live platform preview`} loading="lazy" tabIndex={-1} className="theme-card-frame" />}
+                  </div>
                   <div className="theme-preview-shade" />
                   <span className="theme-kind-label">{kindLabel[theme.kind]}</span>
                   {!previewIsLoaded ? (
                     <div className="theme-preview-actions">
-                      <button type="button" className="theme-preview-action" onClick={() => setActivePreviewId(theme.id)} aria-label={`Load ${theme.name} live preview`}>
+                      <button type="button" className="theme-preview-action" aria-expanded={false} aria-controls={`theme-preview-${theme.id}`} onClick={() => setClosedPreviewIds((ids) => new Set([...ids].filter((id) => id !== theme.id)))} aria-label={`Load ${theme.name} live preview`}>
                         <Eye size={13} /> Live preview
                       </button>
                     </div>
                   ) : (
                     <div className="theme-preview-actions">
-                      <button type="button" className="theme-preview-action" onClick={() => setActivePreviewId(null)} aria-label={`Close ${theme.name} live preview`}>Close preview</button>
+                      <button type="button" className="theme-preview-action" aria-expanded={true} aria-controls={`theme-preview-${theme.id}`} onClick={() => setClosedPreviewIds((ids) => new Set(ids).add(theme.id))} aria-label={`Close ${theme.name} live preview`}>Close preview</button>
                       <a href={previewUrl(theme.id)} target="_blank" rel="noreferrer" className="theme-preview-action" aria-label={`Open ${theme.name} preview in a new tab`}>Open full preview <ExternalLink size={13} /></a>
                     </div>
                   )}
@@ -529,11 +549,11 @@ const Themes: React.FC = () => {
                           setOfferThemeId(offerThemeId === theme.id ? null : theme.id);
                           setOfferAmount((price - 5).toFixed(2));
                           setOfferResult(null);
-                        }}>Make an offer</button>
+                        }} aria-expanded={offerThemeId === theme.id} aria-controls={offerThemeId === theme.id ? `offer-form-${theme.id}` : undefined}>{offerThemeId === theme.id ? 'Close offer form' : 'Make an offer'}</button>
                       )}
                     </div>
                     {offerThemeId === theme.id && isSeller && (
-                      <form className="theme-offer-form" onSubmit={(event) => { event.preventDefault(); void submitOffer(theme.id); }}>
+                      <form id={`offer-form-${theme.id}`} className="theme-offer-form" onSubmit={(event) => { event.preventDefault(); void submitOffer(theme.id); }}>
                         <label htmlFor={`offer-amount-${theme.id}`}>Your offer (USD)</label>
                         <input id={`offer-amount-${theme.id}`} type="number" min="1" max="50000" step="0.01" required value={offerAmount} onChange={(event) => setOfferAmount(event.target.value)} />
                         <textarea value={offerMessage} onChange={(event) => setOfferMessage(event.target.value)} maxLength={1000} rows={2} placeholder="Add a short note (optional)" aria-label="Offer note" />
