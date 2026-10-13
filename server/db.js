@@ -106,6 +106,66 @@ export const initDb = async () => {
         );
         CREATE INDEX IF NOT EXISTS idx_nlm_play_counts_track_date ON nlm_play_counts(track_id, play_date);
 
+        CREATE TABLE IF NOT EXISTS nlm_listener_access (
+          seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          access JSONB NOT NULL DEFAULT '{"tier":"standard","features":[],"limits":{}}'::JSONB,
+          updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (seller_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS nlm_access_features (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+          feature_key VARCHAR(40) NOT NULL,
+          label VARCHAR(80) NOT NULL,
+          created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_nlm_access_features_seller_key ON nlm_access_features(COALESCE(seller_id::text, ''), feature_key);
+
+        CREATE TABLE IF NOT EXISTS nlm_subscription_plans (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+          name VARCHAR(100) NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          price_cents INTEGER NOT NULL DEFAULT 0 CHECK (price_cents >= 0),
+          currency VARCHAR(8) NOT NULL DEFAULT 'USD',
+          interval_days INTEGER NOT NULL DEFAULT 30 CHECK (interval_days BETWEEN 1 AND 3650),
+          features JSONB NOT NULL DEFAULT '[]'::jsonb,
+          limits JSONB NOT NULL DEFAULT '{}'::jsonb,
+          is_active BOOLEAN NOT NULL DEFAULT TRUE,
+          created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_nlm_subscription_plans_scope ON nlm_subscription_plans(seller_id, is_active, price_cents);
+
+        CREATE TABLE IF NOT EXISTS nlm_listener_subscriptions (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+          plan_id UUID NOT NULL REFERENCES nlm_subscription_plans(id),
+          status VARCHAR(16) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active', 'expired', 'cancelled')),
+          payment_method VARCHAR(16),
+          payment_reference VARCHAR(160) UNIQUE,
+          period_start TIMESTAMP WITH TIME ZONE,
+          period_end TIMESTAMP WITH TIME ZONE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_nlm_listener_subscriptions_active ON nlm_listener_subscriptions(user_id, seller_id, status, period_end DESC);
+
+        CREATE TABLE IF NOT EXISTS nlm_device_download_events (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          seller_id UUID REFERENCES sellers(id) ON DELETE CASCADE,
+          track_id UUID NOT NULL REFERENCES nlm_songs(id) ON DELETE CASCADE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_nlm_device_download_events_usage ON nlm_device_download_events(user_id, seller_id, created_at DESC);
+
         ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(255);
         ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(255);
         ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_number VARCHAR(50);
@@ -122,6 +182,8 @@ export const initDb = async () => {
         
         -- Ensure sellers columns exist
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS shop_type VARCHAR(50) DEFAULT 'product' CHECK (shop_type IN ('product', 'service'));
+        ALTER TABLE sellers DROP CONSTRAINT IF EXISTS sellers_shop_type_check;
+        ALTER TABLE sellers ADD CONSTRAINT sellers_shop_type_check CHECK (shop_type IN ('product', 'service', 'streaming'));
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS shipping_policy TEXT;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS return_policy TEXT;
         ALTER TABLE sellers ADD COLUMN IF NOT EXISTS privacy_policy TEXT;

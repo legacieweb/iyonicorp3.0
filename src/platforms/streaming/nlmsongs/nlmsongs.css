@@ -321,6 +321,7 @@
   border-right: 1px solid var(--nlm-line);
 }
 .nlm-admin-nav { display: grid; gap: 3px; margin-top: 14px; }
+.nlm-admin-nav-label { margin: 18px 10px 5px; color: var(--nlm-muted-soft); font-size: 8px; letter-spacing: .16em; }
 .nlm-admin-nav button {
   position: relative;
   display: flex;
@@ -520,6 +521,120 @@
   min-height: 0;
   padding: 32px clamp(22px, 4vw, 54px) 40px;
   background: radial-gradient(circle at top, rgba(213, 178, 102, 0.06), transparent 25%);
+}
+.nlm-management-page { display: grid; align-content: start; gap: 20px; width: min(100%, 1120px); margin: 0 auto; }
+.nlm-management-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding: 8px 2px 6px; }
+.nlm-management-heading h1 { margin: 8px 0 6px; color: var(--nlm-text); font-size: clamp(28px, 3vw, 42px); letter-spacing: -.045em; }
+.nlm-management-heading p, .nlm-management-card-head p { margin: 0; color: var(--nlm-muted); font-size: 12px; line-height: 1.65; }
+.nlm-management-card { display: grid; align-content: start; gap: 18px; padding: 24px; border: 1px solid var(--nlm-line); border-radius: 18px; background: linear-gradient(145deg, rgba(28, 34, 43, .92), rgba(18, 22, 29, .84)); box-shadow: var(--nlm-shadow); }
+.nlm-management-card-head { display: flex; align-items: flex-start; gap: 13px; color: var(--nlm-cyan); }
+.nlm-management-card-head > div { display: grid; gap: 5px; }
+.nlm-management-card-head h2, .nlm-billing-summary h2 { margin: 0; color: var(--nlm-text); font-size: 17px; }
+.nlm-management-form { display: grid; gap: 14px; max-width: 580px; }
+.nlm-management-form label { display: grid; gap: 7px; color: var(--nlm-muted); font-size: 10px; }
+.nlm-management-form input, .nlm-domain-field, .nlm-listener-tools input, .nlm-feature-builder form input, .nlm-listener-access select, .nlm-limit-field input { min-width: 0; min-height: 42px; padding: 0 12px; border: 1px solid var(--nlm-line); border-radius: 10px; color: var(--nlm-text); background: rgba(10, 13, 18, .62); outline: none; }
+.nlm-management-form input:focus, .nlm-domain-field:focus-within, .nlm-listener-tools input:focus, .nlm-feature-builder form input:focus { border-color: rgba(122, 217, 199, .55); }
+.nlm-management-form input[readonly] { color: var(--nlm-muted); background: rgba(10, 13, 18, .34); }
+.nlm-domain-field { display: flex; align-items: center; padding-right: 12px; }
+.nlm-domain-field input { flex: 1; padding: 0; border: 0; background: transparent; }
+.nlm-domain-field span { color: var(--nlm-muted-soft); white-space: nowrap; }
+.nlm-management-hint { margin: 0; color: var(--nlm-muted-soft); font-size: 10px; line-height: 1.6; }
+.nlm-management-hint strong { color: var(--nlm-cyan); font-weight: 500; }
+.nlm-settings-success { margin: 0; padding: 11px 14px; border: 1px solid rgba(122, 217, 199, .22); border-radius: 10px; color: var(--nlm-cyan); background: rgba(122, 217, 199, .06); font-size: 11px; }
+.nlm-billing-summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 23px; border: 1px solid var(--nlm-line); border-radius: 16px; background: linear-gradient(110deg, rgba(213, 178, 102, .1), rgba(18, 22, 29, .88)); }
+.nlm-billing-summary p { margin: 7px 0 0; color: var(--nlm-muted); font-size: 11px; text-transform: capitalize; }
+.nlm-wallet-balance { display: grid; gap: 7px; text-align: right; }
+.nlm-wallet-balance span { color: var(--nlm-muted-soft); font-size: 8px; letter-spacing: .13em; }
+.nlm-wallet-balance strong { color: var(--nlm-text); font-size: 18px; }
+.nlm-billing-plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 14px; }
+.nlm-billing-plans > article { min-height: 250px; }
+.nlm-billing-plans h2 { margin: 0; color: var(--nlm-text); font-size: 21px; }
+.nlm-billing-plans p { margin: 0; color: var(--nlm-muted); font-size: 10px; line-height: 1.6; }
+.nlm-plan-price { color: var(--nlm-cyan); font-size: 24px; }
+.nlm-plan-price small { color: var(--nlm-muted-soft); font-size: 10px; font-weight: 400; }
+.nlm-plan-features { display: grid; gap: 7px; color: var(--nlm-muted); font-size: 10px; }
+.nlm-plan-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
+.nlm-plan-actions button { min-height: 36px; }
+.nlm-listener-tools { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border: 1px solid var(--nlm-line); border-radius: 13px; background: rgba(17, 21, 29, .72); }
+.nlm-listener-tools > div { display: flex; align-items: baseline; gap: 8px; color: var(--nlm-muted); font-size: 10px; }
+.nlm-listener-tools > div strong { color: var(--nlm-text); font-size: 20px; }
+.nlm-listener-tools input { width: min(300px, 55%); }
+.nlm-listener-list { display: grid; overflow: hidden; border: 1px solid var(--nlm-line); border-radius: 14px; background: rgba(17, 21, 29, .6); }
+.nlm-listener-row { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 14px 16px; border-bottom: 1px solid var(--nlm-line); }
+.nlm-listener-row:last-child { border-bottom: 0; }
+.nlm-listener-avatar { display: grid; flex: 0 0 36px; width: 36px; height: 36px; place-items: center; border: 1px solid rgba(122, 217, 199, .2); border-radius: 50%; color: var(--nlm-cyan); background: rgba(122, 217, 199, .07); }
+.nlm-listener-identity, .nlm-listener-meta { display: grid; min-width: 0; gap: 4px; }
+.nlm-listener-identity { flex: 1; }
+.nlm-listener-identity strong { overflow: hidden; color: var(--nlm-text); font-size: 11px; text-overflow: ellipsis; }
+.nlm-listener-identity span, .nlm-listener-meta span, .nlm-listener-meta small { overflow: hidden; color: var(--nlm-muted); font-size: 9px; text-overflow: ellipsis; }
+.nlm-listener-meta { min-width: 120px; }
+.nlm-listener-meta small { color: var(--nlm-muted-soft); }
+.nlm-listener-access { display: flex; align-items: center; gap: 9px; }
+.nlm-listener-access select { min-height: 34px; font-size: 10px; }
+.nlm-listener-access details { position: relative; color: var(--nlm-muted); font-size: 10px; }
+.nlm-listener-access summary { cursor: pointer; }
+.nlm-listener-access details > div { display: grid; gap: 8px; padding: 10px; }
+.nlm-listener-feature-options label { display: flex; align-items: center; gap: 7px; text-transform: capitalize; }
+.nlm-limit-field { display: grid; gap: 5px; padding: 0 10px 8px; }
+.nlm-limit-field input { min-height: 32px; }
+.nlm-feature-builder form { display: flex; gap: 8px; }
+.nlm-feature-builder form input { flex: 1; }
+.nlm-feature-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.nlm-feature-chips span { padding: 6px 9px; border: 1px solid var(--nlm-line); border-radius: 99px; color: var(--nlm-cyan); background: rgba(122, 217, 199, .05); font-size: 9px; text-transform: capitalize; }
+.nlm-plan-editor { display: grid; gap: 15px; }
+.nlm-plan-editor > label, .nlm-plan-editor .nlm-form-fields > label { display: grid; gap: 7px; color: var(--nlm-muted); font-size: 10px; }
+.nlm-plan-editor input, .nlm-plan-editor textarea { width: 100%; min-height: 40px; padding: 10px 12px; border: 1px solid var(--nlm-line); border-radius: 9px; color: var(--nlm-text); background: rgba(10, 13, 18, .62); outline: none; }
+.nlm-plan-editor textarea { resize: vertical; }
+.nlm-plan-editor-limits, .nlm-plan-editor-features { display: grid; gap: 11px; padding: 14px; border: 1px solid var(--nlm-line); border-radius: 11px; background: rgba(10, 13, 18, .28); }
+.nlm-plan-editor-limits > strong, .nlm-plan-editor-features > strong { color: var(--nlm-text); font-size: 11px; }
+.nlm-plan-editor-limits > strong small { margin-left: 7px; color: var(--nlm-muted-soft); font-size: 9px; font-weight: 400; }
+.nlm-plan-editor-limits { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.nlm-plan-editor-limits > strong { grid-column: 1 / -1; }
+.nlm-plan-editor-limits label { display: grid; gap: 7px; color: var(--nlm-muted); font-size: 9px; }
+.nlm-plan-editor-features > div { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.nlm-plan-editor-features label { display: flex; align-items: center; gap: 6px; color: var(--nlm-muted); font-size: 10px; text-transform: capitalize; }
+.nlm-plan-admin-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+.nlm-plan-admin-list > article { align-content: start; }
+.nlm-plan-admin-list h2 { margin: 6px 0; color: var(--nlm-text); font-size: 19px; }
+.nlm-plan-admin-list p { margin: 0; color: var(--nlm-muted); font-size: 10px; line-height: 1.6; }
+.nlm-access-notice { position: sticky; top: 0; z-index: 4; display: flex; align-items: center; gap: 12px; padding: 10px clamp(20px, 4vw, 52px); border-bottom: 1px solid rgba(213, 178, 102, .24); color: var(--nlm-indigo); background: rgba(46, 39, 27, .96); }
+.nlm-access-notice > span { display: grid; flex: 1; gap: 3px; }
+.nlm-access-notice strong { font-size: 10px; }
+.nlm-access-notice small { color: var(--nlm-muted); font-size: 10px; }
+.nlm-access-notice button { min-height: 30px; padding: 0 11px; border: 1px solid rgba(213, 178, 102, .28); border-radius: 8px; color: var(--nlm-indigo); background: rgba(12, 14, 18, .45); font-size: 9px; }
+.nlm-access-notice .nlm-access-notice-close { padding: 0 9px; font-size: 17px; }
+.nlm-listener-subscription-group { gap: 16px; }
+.nlm-listener-current-plan { display: flex; flex-wrap: wrap; gap: 14px 26px; padding: 15px; border: 1px solid var(--nlm-line); border-radius: 12px; background: rgba(122, 217, 199, .035); }
+.nlm-listener-current-plan > span { display: grid; gap: 5px; }
+.nlm-listener-current-plan small { color: var(--nlm-muted-soft); font-size: 8px; letter-spacing: .12em; }
+.nlm-listener-current-plan strong { color: var(--nlm-text); font-size: 11px; text-transform: capitalize; }
+.nlm-listener-plan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; }
+.nlm-listener-plan-card { display: grid; align-content: start; gap: 11px; padding: 17px; border: 1px solid var(--nlm-line); border-radius: 14px; background: rgba(10, 13, 18, .44); }
+.nlm-listener-plan-card.is-current { border-color: rgba(122, 217, 199, .46); box-shadow: inset 0 0 0 1px rgba(122, 217, 199, .1); }
+.nlm-listener-plan-card h2 { margin: 0; color: var(--nlm-text); font-size: 18px; }
+.nlm-listener-plan-card > p { margin: 0; color: var(--nlm-muted); font-size: 10px; line-height: 1.55; }
+.nlm-listener-plan-card > strong { color: var(--nlm-cyan); font-size: 19px; }
+.nlm-listener-plan-card > strong small { color: var(--nlm-muted-soft); font-size: 9px; font-weight: 400; }
+.nlm-listener-plan-includes { display: grid; gap: 6px; color: var(--nlm-muted); font-size: 9px; text-transform: capitalize; }
+.nlm-listener-plan-limits { color: var(--nlm-muted-soft) !important; }
+.nlm-listener-plan-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: auto; }
+.nlm-subscription-feedback { margin: 0; color: var(--nlm-cyan); font-size: 10px; }
+@media (max-width: 760px) {
+  .nlm-management-card { padding: 18px; }
+  .nlm-billing-summary { align-items: flex-start; flex-direction: column; }
+  .nlm-wallet-balance { text-align: left; }
+  .nlm-listener-row { flex-wrap: wrap; }
+  .nlm-listener-identity { flex: 1 1 calc(100% - 55px); }
+  .nlm-listener-meta { flex: 1; margin-left: 50px; }
+  .nlm-listener-access { margin-left: auto; }
+}
+@media (max-width: 480px) {
+  .nlm-listener-tools { align-items: stretch; flex-direction: column; }
+  .nlm-listener-tools input { width: 100%; }
+  .nlm-feature-builder form { align-items: stretch; flex-direction: column; }
+  .nlm-domain-field span { font-size: 9px; }
+  .nlm-plan-editor-limits { grid-template-columns: 1fr; }
+  .nlm-access-notice { align-items: flex-start; }
 }
 .nlm-section {
   display: grid;
@@ -2959,6 +3074,7 @@
 .nlm-downloads-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding: 20px 22px; border-bottom: 1px solid rgba(255, 255, 255, .07); }
 .nlm-downloads-heading h2 { margin: 7px 0 0; color: #f1f0e9; font-size: 19px; letter-spacing: -.035em; }
 .nlm-downloads-heading > span { color: var(--nlm-muted); font: 10px 'DM Mono', monospace; white-space: nowrap; }
+.nlm-downloads-heading-actions { display: flex; align-items: center; gap: 10px; color: var(--nlm-muted); font: 10px 'DM Mono', monospace; }
 .nlm-downloads-list { display: grid; }
 .nlm-download-row { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto 36px 36px; align-items: center; gap: 15px; min-height: 82px; padding: 13px 20px; border-bottom: 1px solid rgba(255, 255, 255, .055); }
 .nlm-download-row:last-child { border-bottom: 0; }
@@ -2994,6 +3110,7 @@
   .nlm-download-art { width: 42px; height: 42px; }
   .nlm-download-ready { display: none; }
   .nlm-downloads-heading { align-items: flex-start; flex-direction: column; gap: 9px; padding: 17px; }
+  .nlm-downloads-heading-actions { width: 100%; justify-content: space-between; flex-wrap: wrap; }
 }
 
 /* Calm catalogue first, with the listening controls docked across the workspace. */
@@ -3382,6 +3499,7 @@
 .nlm-app .nlm-device-download-section-title { display: flex; align-items: center; gap: 8px; margin: 19px 1px 0; color: #d7d9d1; font-size: 10px; font-weight: 600; }
 .nlm-app .nlm-device-download-section-title small { color: #9da39e; font-size: 9px; font-weight: 400; }
 .nlm-app .nlm-device-download-row { display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 11px; padding: 9px 11px; border-bottom: 1px solid rgba(255,255,255,.06); }
+.nlm-app .nlm-device-download-row { grid-template-columns: 42px minmax(0,1fr) auto auto; }
 .nlm-app .nlm-device-download-row:last-child { border-bottom: 0; }
 .nlm-app .nlm-device-download-art { display: grid; width: 42px; height: 42px; overflow: hidden; place-items: center; border-radius: 7px; color: #c9c09d; background: #272c32; }
 .nlm-app .nlm-device-download-art img { width: 100%; height: 100%; object-fit: cover; }
@@ -3393,7 +3511,11 @@
 .nlm-app .nlm-device-download-note { display: block; margin: 0 1px 16px; color: #858c88; font-size: 10px; line-height: 1.6; }
 .nlm-app .nlm-device-download-start { display: flex; width: 100%; min-height: 44px; align-items: center; justify-content: center; gap: 9px; border: 1px solid #e5d6a5; border-radius: 9px; color: #1a1c1e; background: #e5d6a5; font-size: 12px; font-weight: 650; }
 .nlm-app .nlm-device-download-start:hover { background: #f0e3b9; }
+.nlm-app .nlm-device-download-row .nlm-device-download-start { width: auto; min-height: 34px; padding: 0 10px; border-radius: 7px; font-size: 10px; white-space: nowrap; }
+.nlm-app .nlm-device-download-start:disabled { cursor: not-allowed; opacity: .45; }
 .nlm-app .nlm-device-download-state { display: flex; min-height: 58px; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; border: 1px solid rgba(255,255,255,.08); border-radius: 9px; color: #b9bfba; font-size: 11px; }
+.nlm-app .nlm-device-download-state.is-error { flex-wrap: wrap; justify-content: space-between; padding: 12px 14px; color: #e8b9aa; border-color: rgba(217,139,119,.2); background: rgba(217,139,119,.05); }
+.nlm-app .nlm-device-download-state.is-error .nlm-settings-action { min-height: 34px; }
 .nlm-app .nlm-device-download-state.is-done { color: #a7dbc9; border-color: rgba(115,195,165,.18); background: rgba(115,195,165,.06); }
 .nlm-app .nlm-device-download-state.is-done > span { font-size: 17px; }
 .nlm-app .nlm-device-download-empty { display: grid; gap: 7px; margin-top: 21px; padding: 17px; border: 1px solid rgba(255,255,255,.08); border-radius: 9px; background: rgba(255,255,255,.025); }
@@ -3601,6 +3723,12 @@
 .nlm-app .nlm-device-download-section-title { margin-top: 17px; }
 .nlm-app .nlm-device-download-start { min-height: 46px; border-radius: 7px; }
 @media (max-width: 540px) { .nlm-app .nlm-device-download-modal { padding: 25px 18px; } }
+@media (max-width: 540px) {
+  .nlm-app .nlm-device-download-row { grid-template-columns: 36px minmax(0, 1fr) auto; gap: 8px; padding: 8px; }
+  .nlm-app .nlm-device-download-art { width: 36px; height: 36px; }
+  .nlm-app .nlm-device-download-row .nlm-device-download-ready { display: none; }
+  .nlm-app .nlm-device-download-row .nlm-device-download-start { grid-column: 2 / 4; justify-self: start; }
+}
 .nlm-settings-equalizer { padding: 18px; }
 .nlm-settings-equalizer .nlm-eq-control { display: grid; gap: 16px; }
 .nlm-eq-control-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }

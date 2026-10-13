@@ -1763,7 +1763,7 @@ app.post('/api/sellers/me/paystack/initialize', authenticateToken, async (req, r
   if (planId === 'professional' || planId === 'enterprise') return res.status(400).json({ message: 'Professional and Enterprise are managed through IyonicPay bundles.' });
   const selectedPlan = SELLER_PLANS[planId];
   if (!selectedPlan || selectedPlan.price <= 0) return res.status(400).json({ message: 'Choose a paid plan.' });
-  const sellerRes = await db.query('SELECT id FROM sellers WHERE user_id = $1', [req.user.id]);
+  const sellerRes = await db.query('SELECT id, theme FROM sellers WHERE user_id = $1', [req.user.id]);
   if (sellerRes.rows.length === 0) return res.status(404).json({ message: 'Seller not found' });
   if (!process.env.PAYSTACK_SECRET_KEY) return res.status(503).json({ message: 'Direct card payments are not configured yet.' });
 
@@ -1772,7 +1772,11 @@ app.post('/api/sellers/me/paystack/initialize', authenticateToken, async (req, r
     const email = userResult.rows[0]?.email;
     if (!email) return res.status(422).json({ message: 'We could not find an email address for this account.' });
     const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY);
-    const callbackUrl = `${process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:4000/'}/#/iyonicpay?tab=my-bills`;
+    const callbackBase = (process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:4000').replace(/\/$/, '');
+    const isNlmStudio = sellerRes.rows[0]?.theme?.selectedTheme === 'nlmsongs';
+    const callbackUrl = isNlmStudio
+      ? `${callbackBase}/#/nlmsongs/dashboard?payment=paystack&plan=${encodeURIComponent(planId)}`
+      : `${callbackBase}/#/iyonicpay?tab=my-bills`;
     const payment = await new Promise((resolve, reject) => {
       paystack.transaction.initialize({
         email,
@@ -1780,7 +1784,7 @@ app.post('/api/sellers/me/paystack/initialize', authenticateToken, async (req, r
         currency: process.env.PAYSTACK_CURRENCY || 'USD',
         channels: ['card', 'mobile_money'],
         callback_url: callbackUrl,
-        metadata: { type: 'iyonicshop_plan', planId, sellerId: sellerRes.rows[0].id }
+        metadata: { type: isNlmStudio ? 'nlmsongs_plan' : 'iyonicshop_plan', planId, sellerId: sellerRes.rows[0].id }
       }, (err, body) => err ? reject(err) : resolve(body));
     });
     res.json({ authorizationUrl: payment.data.authorization_url, reference: payment.data.reference, planId });
@@ -3773,8 +3777,12 @@ const normalizeNlmGenre = (value) => {
 
 app.get('/api/nlmsongs', async (req, res) => {
   try {
-    const songs = await db.query(`SELECT id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, created_at
-      FROM nlm_songs WHERE is_active = TRUE ORDER BY created_at DESC`);
+    const sellerId = typeof req.query.sellerId === 'string' && /^[0-9a-f-]{36}$/i.test(req.query.sellerId) ? req.query.sellerId : null;
+    const songs = sellerId
+      ? await db.query(`SELECT id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, created_at
+        FROM nlm_songs WHERE is_active = TRUE AND seller_id = $1 ORDER BY created_at DESC`, [sellerId])
+      : await db.query(`SELECT id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, created_at
+        FROM nlm_songs WHERE is_active = TRUE ORDER BY created_at DESC`);
     res.json(toCamel(songs.rows).map((song) => ({ ...song, genre: normalizeNlmGenre(song.genre) })));
   } catch (err) {
     console.error('NLMSongs public catalogue error:', err);
@@ -3827,6 +3835,91 @@ app.get('/api/nlmsongs/admin/analytics', authenticateToken, requireNlmAdmin, asy
   }
 });
 
+// Listener controls are scoped to the NLM Songs catalogue the admin owns.
+app.get('/api/nlmsongs/admin/access-features', authenticateToken, requireNlmAdmin, async (req, res) => {
+  try {
+    const features = req.user.role === 'manager_admin'
+      ? await db.query('SELECT feature_key, label FROM nlm_access_features ORDER BY label')
+      : await db.query('SELECT feature_key, label FROM nlm_access_features WHERE seller_id = $1 OR seller_id IS NULL ORDER BY label', [req.user.sellerId]);
+    res.json(toCamel(features.rows));
+  } catch (err) {
+    console.error('NLMSongs access feature list error:', err);
+    res.status(500).json({ message: 'Could not load subscription features.' });
+  }
+});
+
+app.post('/api/nlmsongs/admin/access-features', authenticateToken, requireNlmAdmin, async (req, res) => {
+  const label = String(req.body?.label || '').trim().slice(0, 80);
+  const featureKey = label.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+  if (!featureKey || !/^[a-z][a-z0-9_]{1,39}$/.test(featureKey)) return res.status(400).json({ message: 'Enter a feature name with at least two letters or numbers.' });
+  try {
+    const created = await db.query(`INSERT INTO nlm_access_features (seller_id, feature_key, label, created_by)
+      VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING
+      RETURNING feature_key, label`, [req.user.role === 'manager_admin' ? null : req.user.sellerId, featureKey, label, req.user.id]);
+    if (!created.rows.length) return res.status(409).json({ message: 'A subscription feature with that name already exists.' });
+    res.status(201).json(toCamel(created.rows[0]));
+  } catch (err) {
+    console.error('NLMSongs access feature create error:', err);
+    res.status(500).json({ message: 'Could not create this subscription feature.' });
+  }
+});
+
+app.get('/api/nlmsongs/admin/listeners', authenticateToken, requireNlmAdmin, async (req, res) => {
+  try {
+    const sellerScope = req.user.role === 'manager_admin' ? '' : ' AND h.seller_id = $1';
+    const params = req.user.role === 'manager_admin' ? [] : [req.user.sellerId];
+    const accessSelect = "COALESCE(a.access, '{\"tier\":\"standard\",\"features\":[],\"limits\":{}}'::jsonb)";
+    const accessJoin = req.user.role === 'manager_admin'
+      ? 'LEFT JOIN LATERAL (SELECT access FROM nlm_listener_access WHERE user_id = u.id ORDER BY updated_at DESC LIMIT 1) a ON TRUE'
+      : 'LEFT JOIN nlm_listener_access a ON a.user_id = u.id AND a.seller_id = h.seller_id';
+    const listeners = await db.query(`
+      SELECT u.id, u.name, u.email, MAX(h.created_at) AS last_played_at, COUNT(h.id)::int AS play_count,
+        ${accessSelect} AS access
+      FROM nlm_listening_history h
+      JOIN users u ON u.id = h.user_id
+      ${accessJoin}
+      WHERE u.role = 'customer'${sellerScope}
+      GROUP BY u.id, u.name, u.email, a.access
+      ORDER BY last_played_at DESC NULLS LAST
+      LIMIT 500`, params);
+    res.json(toCamel(listeners.rows));
+  } catch (err) {
+    console.error('NLMSongs listener list error:', err);
+    res.status(500).json({ message: 'Could not load listener accounts.' });
+  }
+});
+
+app.patch('/api/nlmsongs/admin/listeners/:userId/access', authenticateToken, requireNlmAdmin, async (req, res) => {
+  const { tier, features, limits } = req.body || {};
+  const safeFeatures = Array.isArray(features) ? [...new Set(features.filter((feature) => typeof feature === 'string' && /^[a-z][a-z0-9_]{1,39}$/.test(feature)))] : [];
+  const safeTier = ['standard', 'plus', 'restricted'].includes(tier) ? tier : 'standard';
+  const safeLimits = limits && typeof limits === 'object' && !Array.isArray(limits)
+    ? Object.fromEntries(Object.entries(limits).filter(([key, value]) => ['monthlyPlays', 'playlistLimit', 'offlineLimit'].includes(key) && value !== null && value !== '' && Number.isFinite(Number(value))).map(([key, value]) => [key, Math.max(0, Math.min(100000, Math.floor(Number(value))))]))
+    : {};
+  try {
+    const listener = await db.query("SELECT id FROM users WHERE id = $1 AND role = 'customer'", [req.params.userId]);
+    if (!listener.rows.length) return res.status(404).json({ message: 'Listener not found.' });
+    if (req.user.role !== 'manager_admin') {
+      const activity = await db.query('SELECT 1 FROM nlm_listening_history WHERE user_id = $1 AND seller_id = $2 LIMIT 1', [req.params.userId, req.user.sellerId]);
+      if (!activity.rows.length) return res.status(404).json({ message: 'Listener not found in this NLM Songs audience.' });
+    }
+    const sellerIds = req.user.role === 'manager_admin'
+      ? (await db.query('SELECT DISTINCT seller_id FROM nlm_listening_history WHERE user_id = $1 AND seller_id IS NOT NULL', [req.params.userId])).rows.map((row) => row.seller_id)
+      : [req.user.sellerId];
+    if (!sellerIds.length) return res.status(404).json({ message: 'This listener has no NLM Songs activity to manage.' });
+    for (const sellerId of sellerIds) {
+      await db.query(`INSERT INTO nlm_listener_access (seller_id, user_id, access, updated_by, updated_at)
+        VALUES ($1, $2, $3::jsonb, $4, CURRENT_TIMESTAMP)
+        ON CONFLICT (seller_id, user_id) DO UPDATE SET access = EXCLUDED.access, updated_by = EXCLUDED.updated_by, updated_at = CURRENT_TIMESTAMP`,
+      [sellerId, req.params.userId, JSON.stringify({ tier: safeTier, features: safeFeatures, limits: safeLimits }), req.user.id]);
+    }
+    res.json({ message: 'Listener access updated.', access: { tier: safeTier, features: safeFeatures, limits: safeLimits } });
+  } catch (err) {
+    console.error('NLMSongs listener access update error:', err);
+    res.status(500).json({ message: 'Could not update listener access.' });
+  }
+});
+
 app.post('/api/nlmsongs', authenticateToken, requireNlmAdmin, handleNlmSongUpload, async (req, res) => {
   const audio = req.files?.audio?.[0];
   const thumbnail = req.files?.thumbnail?.[0];
@@ -3855,10 +3948,24 @@ app.post('/api/nlmsongs', authenticateToken, requireNlmAdmin, handleNlmSongUploa
   }
 });
 
-app.get('/api/nlmsongs/:id/stream', async (req, res) => {
+app.get('/api/nlmsongs/:id/stream', optionalAuthenticateToken, async (req, res) => {
   try {
-    const result = await db.query('SELECT audio_data, audio_mime_type FROM nlm_songs WHERE id = $1 AND is_active = TRUE', [req.params.id]);
+    const result = await db.query('SELECT audio_data, audio_mime_type, seller_id FROM nlm_songs WHERE id = $1 AND is_active = TRUE', [req.params.id]);
     if (!result.rows.length || !result.rows[0].audio_data) return res.status(404).json({ message: 'Track not found.' });
+    if (req.user?.id) {
+      const policy = await readNlmPolicy(req.user.id, result.rows[0].seller_id);
+      if (policy.tier === 'restricted' || (policy.subscription && !policy.features.includes('streaming'))) {
+        return res.status(403).json({ message: 'Your NLM Songs plan does not include streaming.', code: 'NLM_FEATURE_RESTRICTED', feature: 'streaming' });
+      }
+      const limit = Number(policy.limits?.monthlyPlays);
+      if (Number.isFinite(limit) && limit >= 0) {
+        const usage = await db.query(`SELECT COUNT(*)::int AS count FROM nlm_listening_history
+          WHERE user_id=$1 AND created_at >= date_trunc('month', CURRENT_TIMESTAMP)`, [req.user.id]);
+        if (Number(usage.rows[0]?.count || 0) >= limit) {
+          return res.status(403).json({ message: `You have reached this month’s listening limit of ${limit} plays.`, code: 'NLM_LIMIT_REACHED', limit: 'monthlyPlays' });
+        }
+      }
+    }
     const audioData = Buffer.isBuffer(result.rows[0].audio_data) ? result.rows[0].audio_data : Buffer.from(result.rows[0].audio_data);
     const mimeType = result.rows[0].audio_mime_type && result.rows[0].audio_mime_type !== 'application/octet-stream'
       ? result.rows[0].audio_mime_type
@@ -3967,10 +4074,11 @@ app.get('/api/nlmsongs/search', async (req, res) => {
     const query = req.query.q;
     const limit = parseInt(String(req.query.limit), 10) || 20;
     if (!query || typeof query !== 'string') return res.json([]);
+    const sellerId = typeof req.query.sellerId === 'string' && /^[0-9a-f-]{36}$/i.test(req.query.sellerId) ? req.query.sellerId : null;
     const result = await db.query(`SELECT id, title, artist, description, genre, tags, lyrics, audio_url, thumbnail_url, is_active, created_at FROM nlm_songs
-      WHERE is_active = TRUE
+      WHERE is_active = TRUE AND ($3::uuid IS NULL OR seller_id = $3)
       AND (title ILIKE $1 OR artist ILIKE $1 OR genre ILIKE $1 OR description ILIKE $1)
-      ORDER BY created_at DESC LIMIT $2`, [`%${query}%`, limit]);
+      ORDER BY created_at DESC LIMIT $2`, [`%${query}%`, limit, sellerId]);
     res.json(toCamel(result.rows).map((song) => ({ ...song, genre: normalizeNlmGenre(song.genre) })));
   } catch (err) {
     console.error('NLMSongs search error:', err);
@@ -3982,6 +4090,309 @@ const requireNlmUser = (req, res, next) => {
   if (req.user?.id) return next();
   return res.status(401).json({ message: 'Sign in to manage playlists.' });
 };
+
+const readNlmPolicy = async (userId, sellerId) => {
+  const subscription = await db.query(`SELECT s.id, s.status, s.period_end, p.id AS plan_id, p.name, p.features, p.limits
+    FROM nlm_listener_subscriptions s JOIN nlm_subscription_plans p ON p.id = s.plan_id
+    WHERE s.user_id = $1 AND s.status = 'active' AND s.period_end > CURRENT_TIMESTAMP
+      AND ($2::uuid IS NULL OR s.seller_id IS NOT DISTINCT FROM $2 OR s.seller_id IS NULL)
+    ORDER BY CASE WHEN $2::uuid IS NOT NULL AND s.seller_id = $2 THEN 0 ELSE 1 END, s.period_end DESC LIMIT 1`, [userId, sellerId || null]);
+  if (subscription.rows[0]) return { subscription: toCamel(subscription.rows[0]), features: subscription.rows[0].features || [], limits: subscription.rows[0].limits || {}, tier: 'subscribed' };
+  const legacy = await db.query(`SELECT access FROM nlm_listener_access WHERE user_id = $1
+    AND ($2::uuid IS NULL OR seller_id IS NOT DISTINCT FROM $2 OR seller_id IS NULL) ORDER BY updated_at DESC LIMIT 1`, [userId, sellerId || null]);
+  const access = legacy.rows[0]?.access || { tier: 'standard', features: [], limits: {} };
+  return { subscription: null, features: access.features || [], limits: access.limits || {}, tier: access.tier || 'standard' };
+};
+
+const applyNlmFeatureGate = (feature) => async (req, res, next) => {
+  try {
+    const policy = await readNlmPolicy(req.user.id, req.user.sellerId || null);
+    if (policy.tier === 'restricted' || (policy.subscription && !policy.features.includes(feature))) {
+      return res.status(403).json({ message: `Your NLM Songs plan does not include ${feature.replace(/_/g, ' ')}.`, code: 'NLM_FEATURE_RESTRICTED', feature });
+    }
+    req.nlmPolicy = policy;
+    next();
+  } catch (err) {
+    console.error('NLM subscription entitlement check error:', err);
+    res.status(500).json({ message: 'Could not verify your NLM Songs access.' });
+  }
+};
+
+const sanitizeNlmPlan = (row) => ({
+  ...toCamel(row),
+  price: Number(row.price_cents || 0) / 100,
+  features: Array.isArray(row.features) ? row.features : [],
+  limits: row.limits && typeof row.limits === 'object' ? row.limits : {},
+});
+
+const normalizeNlmPlanInput = (body = {}) => {
+  const name = String(body.name || '').trim().slice(0, 100);
+  const description = String(body.description || '').trim().slice(0, 1000);
+  const price = Number(body.price ?? (Number(body.priceCents) / 100));
+  const currency = String(body.currency || 'USD').trim().toUpperCase();
+  const intervalDays = Math.floor(Number(body.intervalDays || 30));
+  const features = Array.isArray(body.features) ? [...new Set(body.features.filter((value) => typeof value === 'string' && /^[a-z][a-z0-9_]{1,39}$/.test(value)))] : [];
+  const limits = body.limits && typeof body.limits === 'object' && !Array.isArray(body.limits)
+    ? Object.fromEntries(Object.entries(body.limits).filter(([key, value]) => ['monthlyPlays', 'playlistLimit', 'offlineLimit', 'deviceDownloadLimit'].includes(key) && value !== null && Number.isFinite(Number(value))).map(([key, value]) => [key, Math.max(0, Math.min(1000000, Math.floor(Number(value))))]))
+    : {};
+  if (!name || !Number.isFinite(price) || price < 0 || price > 1000000 || !/^[A-Z]{3,8}$/.test(currency) || intervalDays < 1 || intervalDays > 3650) {
+    throw new Error('Enter a plan name, a valid non-negative price, a currency code, and a term of 1–3650 days.');
+  }
+  return { name, description, priceCents: Math.round(price * 100), currency, intervalDays, features, limits, isActive: body.isActive !== false };
+};
+
+app.get('/api/nlmsongs/subscription-plans', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM nlm_subscription_plans WHERE is_active = TRUE ORDER BY price_cents ASC, created_at ASC');
+    res.json(result.rows.map(sanitizeNlmPlan));
+  } catch (err) {
+    console.error('NLM subscription plans list error:', err);
+    res.status(500).json({ message: 'Could not load subscription plans.' });
+  }
+});
+
+app.get('/api/nlmsongs/playback-access/:trackId', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const track = await db.query('SELECT seller_id FROM nlm_songs WHERE id=$1 AND is_active=TRUE', [req.params.trackId]);
+    if (!track.rows.length) return res.status(404).json({ message: 'Track not found.' });
+    const policy = await readNlmPolicy(req.user.id, track.rows[0].seller_id);
+    const requestedFeature = String(req.query.feature || 'streaming');
+    const monthlyLimit = Number(policy.limits?.monthlyPlays);
+    const usage = Number.isFinite(monthlyLimit)
+      ? await db.query(`SELECT COUNT(*)::int AS count FROM nlm_listening_history WHERE user_id=$1 AND created_at >= date_trunc('month', CURRENT_TIMESTAMP)`, [req.user.id])
+      : null;
+    let allowed = policy.tier !== 'restricted';
+    let reason = allowed ? '' : 'Listening access is restricted for this account.';
+    if (allowed && policy.subscription && !policy.features.includes(requestedFeature)) {
+      allowed = false; reason = `Your plan does not include ${requestedFeature.replace(/_/g, ' ')}.`;
+    }
+    if (allowed && Number.isFinite(monthlyLimit) && monthlyLimit >= 0 && Number(usage?.rows[0]?.count || 0) >= monthlyLimit) {
+      allowed = false; reason = `You have reached your monthly listening limit of ${monthlyLimit} plays.`;
+    }
+    res.json({ allowed, reason, features: policy.features, limits: policy.limits, usage: { monthlyPlays: usage?.rows[0]?.count ?? null } });
+  } catch (err) {
+    console.error('NLM playback access check error:', err);
+    res.status(500).json({ message: 'Could not verify track access.' });
+  }
+});
+
+app.get('/api/nlmsongs/feature-access/:featureKey', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const policy = await readNlmPolicy(req.user.id, req.user.sellerId || null);
+    const isDeviceDownload = req.params.featureKey === 'device_downloads';
+    const explicitlyIncluded = policy.features.includes(req.params.featureKey);
+    const allowed = policy.tier !== 'restricted'
+      && (isDeviceDownload ? explicitlyIncluded : (!policy.subscription || explicitlyIncluded));
+    res.json({ allowed, features: policy.features, limits: policy.limits, tier: policy.tier });
+  } catch (err) {
+    res.status(500).json({ message: 'Could not verify this feature.' });
+  }
+});
+
+app.post('/api/nlmsongs/device-downloads/authorize', authenticateToken, requireNlmUser, async (req, res) => {
+  const { trackId } = req.body || {};
+  if (!trackId) return res.status(400).json({ message: 'Choose a track to download.' });
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT id FROM users WHERE id=$1 FOR UPDATE', [req.user.id]);
+    const track = await client.query('SELECT seller_id FROM nlm_songs WHERE id=$1 AND is_active=TRUE', [trackId]);
+    if (!track.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Track not found.' }); }
+    const sellerId = track.rows[0].seller_id || null;
+    const policy = await readNlmPolicy(req.user.id, sellerId);
+    if (policy.tier === 'restricted' || !policy.features.includes('device_downloads')) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ allowed: false, message: 'Your current plan does not include saving songs to your device.', code: 'NLM_FEATURE_RESTRICTED', feature: 'device_downloads' });
+    }
+    const limit = Number(policy.limits?.deviceDownloadLimit);
+    let used = 0;
+    if (Number.isFinite(limit) && limit >= 0) {
+      const usage = await client.query(`SELECT COUNT(*)::int AS count FROM nlm_device_download_events
+        WHERE user_id=$1 AND seller_id IS NOT DISTINCT FROM $2 AND created_at >= date_trunc('month', CURRENT_TIMESTAMP)`, [req.user.id, sellerId]);
+      used = Number(usage.rows[0]?.count || 0);
+      if (used >= limit) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ allowed: false, message: `You have reached your monthly device download limit of ${limit} songs.`, code: 'NLM_LIMIT_REACHED', limit: 'deviceDownloadLimit', used, maximum: limit });
+      }
+    }
+    await client.query('INSERT INTO nlm_device_download_events (user_id,seller_id,track_id) VALUES ($1,$2,$3)', [req.user.id, sellerId, trackId]);
+    await client.query('COMMIT');
+    res.json({ allowed: true, used: used + 1, maximum: Number.isFinite(limit) ? limit : null });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('NLM device download authorization error:', err);
+    res.status(500).json({ message: 'Could not verify your device download access.' });
+  } finally { client.release(); }
+});
+
+app.get('/api/nlmsongs/subscription', authenticateToken, requireNlmUser, async (req, res) => {
+  try {
+    const policy = await readNlmPolicy(req.user.id, req.user.sellerId || null);
+    const result = await db.query(`SELECT s.id AS subscription_id, s.status, s.payment_method, s.period_start, s.period_end, p.*
+      FROM nlm_listener_subscriptions s JOIN nlm_subscription_plans p ON p.id = s.plan_id
+      WHERE s.user_id = $1 AND s.status = 'active' AND s.period_end > CURRENT_TIMESTAMP
+        AND ($2::uuid IS NULL OR s.seller_id IS NOT DISTINCT FROM $2 OR s.seller_id IS NULL)
+      ORDER BY s.period_end DESC LIMIT 1`, [req.user.id, req.user.sellerId || null]);
+    const plays = result.rows[0]?.limits?.monthlyPlays;
+    const playCount = Number.isFinite(Number(plays)) ? await db.query(`SELECT COUNT(*)::int AS count FROM nlm_listening_history
+      WHERE user_id = $1 AND created_at >= date_trunc('month', CURRENT_TIMESTAMP)`, [req.user.id]) : null;
+    const active = result.rows[0];
+    res.json({ subscription: active ? {
+      id: active.subscription_id,
+      status: active.status,
+      paymentMethod: active.payment_method,
+      periodStart: active.period_start,
+      periodEnd: active.period_end,
+      plan: sanitizeNlmPlan(active),
+    } : null, policy, usage: { monthlyPlays: playCount?.rows[0]?.count ?? null } });
+  } catch (err) {
+    console.error('NLM subscription status error:', err);
+    res.status(500).json({ message: 'Could not load your NLM Songs subscription.' });
+  }
+});
+
+app.get('/api/nlmsongs/admin/subscription-plans', authenticateToken, requireNlmAdmin, async (req, res) => {
+  try {
+    const result = req.user.role === 'manager_admin'
+      ? await db.query('SELECT * FROM nlm_subscription_plans WHERE seller_id IS NULL ORDER BY created_at DESC')
+      : await db.query('SELECT * FROM nlm_subscription_plans WHERE seller_id = $1 ORDER BY created_at DESC', [req.user.sellerId]);
+    res.json(result.rows.map(sanitizeNlmPlan));
+  } catch (err) {
+    res.status(500).json({ message: 'Could not load managed plans.' });
+  }
+});
+
+app.post('/api/nlmsongs/admin/subscription-plans', authenticateToken, requireNlmAdmin, async (req, res) => {
+  try {
+    const plan = normalizeNlmPlanInput(req.body);
+    const created = await db.query(`INSERT INTO nlm_subscription_plans (seller_id, name, description, price_cents, currency, interval_days, features, limits, is_active, created_by)
+      VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9,$10) RETURNING *`,
+    [req.user.role === 'manager_admin' ? null : req.user.sellerId, plan.name, plan.description, plan.priceCents, plan.currency, plan.intervalDays, JSON.stringify(plan.features), JSON.stringify(plan.limits), plan.isActive, req.user.id]);
+    res.status(201).json(sanitizeNlmPlan(created.rows[0]));
+  } catch (err) {
+    res.status(err.message?.startsWith('Enter a plan name') ? 400 : 500).json({ message: err.message || 'Could not create this subscription plan.' });
+  }
+});
+
+app.patch('/api/nlmsongs/admin/subscription-plans/:id', authenticateToken, requireNlmAdmin, async (req, res) => {
+  try {
+    const plan = normalizeNlmPlanInput(req.body);
+    const scope = req.user.role === 'manager_admin' ? 'seller_id IS NULL' : 'seller_id = $10';
+    const values = [plan.name, plan.description, plan.priceCents, plan.currency, plan.intervalDays, JSON.stringify(plan.features), JSON.stringify(plan.limits), plan.isActive, req.params.id];
+    if (req.user.role !== 'manager_admin') values.push(req.user.sellerId);
+    const updated = await db.query(`UPDATE nlm_subscription_plans SET name=$1, description=$2, price_cents=$3, currency=$4, interval_days=$5,
+      features=$6::jsonb, limits=$7::jsonb, is_active=$8, updated_at=CURRENT_TIMESTAMP WHERE id=$9 AND ${scope} RETURNING *`, values);
+    if (!updated.rows.length) return res.status(404).json({ message: 'Subscription plan not found.' });
+    res.json(sanitizeNlmPlan(updated.rows[0]));
+  } catch (err) {
+    res.status(err.message?.startsWith('Enter a plan name') ? 400 : 500).json({ message: err.message || 'Could not update this plan.' });
+  }
+});
+
+app.delete('/api/nlmsongs/admin/subscription-plans/:id', authenticateToken, requireNlmAdmin, async (req, res) => {
+  try {
+    const result = req.user.role === 'manager_admin'
+      ? await db.query('UPDATE nlm_subscription_plans SET is_active=FALSE, updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND seller_id IS NULL RETURNING id', [req.params.id])
+      : await db.query('UPDATE nlm_subscription_plans SET is_active=FALSE, updated_at=CURRENT_TIMESTAMP WHERE id=$1 AND seller_id=$2 RETURNING id', [req.params.id, req.user.sellerId]);
+    if (!result.rowCount) return res.status(404).json({ message: 'Subscription plan not found.' });
+    res.json({ message: 'Plan archived.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Could not archive this plan.' });
+  }
+});
+
+app.post('/api/nlmsongs/subscription/checkout', authenticateToken, requireNlmUser, async (req, res) => {
+  const { planId, paymentMethod } = req.body || {};
+  if (!['iyonicpay', 'paystack'].includes(paymentMethod)) return res.status(400).json({ message: 'Choose IyonicPay or Paystack.' });
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const found = await client.query('SELECT * FROM nlm_subscription_plans WHERE id=$1 AND is_active=TRUE FOR UPDATE', [planId]);
+    if (!found.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'This plan is no longer available.' }); }
+    const plan = found.rows[0];
+    const sellerId = plan.seller_id || null;
+    await client.query('SELECT id FROM users WHERE id=$1 FOR UPDATE', [req.user.id]);
+    const startsAt = new Date();
+    const endsAt = new Date(startsAt.getTime() + Number(plan.interval_days) * 86400000);
+    if (Number(plan.price_cents) === 0) {
+      await client.query(`UPDATE nlm_listener_subscriptions SET status='expired', updated_at=CURRENT_TIMESTAMP
+        WHERE user_id=$1 AND seller_id IS NOT DISTINCT FROM $2 AND status='active'`, [req.user.id, sellerId]);
+      const active = await client.query(`INSERT INTO nlm_listener_subscriptions (user_id,seller_id,plan_id,status,payment_method,period_start,period_end)
+        VALUES ($1,$2,$3,'active','free',$4,$5) RETURNING id, status, period_end`, [req.user.id, sellerId, plan.id, startsAt, endsAt]);
+      await client.query('COMMIT');
+      return res.json({ subscription: toCamel(active.rows[0]), plan: sanitizeNlmPlan(plan) });
+    }
+    if (paymentMethod === 'iyonicpay') {
+      const wallet = await client.query('SELECT id,balance,currency FROM wallets WHERE user_id=$1 FOR UPDATE', [req.user.id]);
+      if (!wallet.rows[0] || Number(wallet.rows[0].balance) < Number(plan.price_cents) / 100) {
+        await client.query('ROLLBACK'); return res.status(402).json({ message: 'Your IyonicPay wallet balance is too low for this plan.' });
+      }
+      const charge = Number(plan.price_cents) / 100;
+      await client.query('UPDATE wallets SET balance=balance-$1 WHERE id=$2', [charge, wallet.rows[0].id]);
+      await client.query(`INSERT INTO transactions (sender_wallet_id,amount,currency,type,status,description)
+        VALUES ($1,$2,$3,'invoice_payment','completed',$4)`, [wallet.rows[0].id, charge, plan.currency, `NLM Songs ${plan.name} plan`]);
+      await client.query(`UPDATE nlm_listener_subscriptions SET status='expired',updated_at=CURRENT_TIMESTAMP
+        WHERE user_id=$1 AND seller_id IS NOT DISTINCT FROM $2 AND status='active'`, [req.user.id, sellerId]);
+      const active = await client.query(`INSERT INTO nlm_listener_subscriptions (user_id,seller_id,plan_id,status,payment_method,period_start,period_end)
+        VALUES ($1,$2,$3,'active','iyonicpay',$4,$5) RETURNING id,status,period_end`, [req.user.id,sellerId,plan.id,startsAt,endsAt]);
+      await client.query('COMMIT');
+      return res.json({ subscription: toCamel(active.rows[0]), plan: sanitizeNlmPlan(plan), message: 'Your NLM Songs plan is active.' });
+    }
+    await client.query('ROLLBACK');
+    if (!process.env.PAYSTACK_SECRET_KEY) return res.status(503).json({ message: 'Paystack is not configured yet.' });
+    const userRes = await db.query('SELECT email FROM users WHERE id=$1', [req.user.id]);
+    const email = userRes.rows[0]?.email;
+    if (!email) return res.status(422).json({ message: 'An email address is required for Paystack.' });
+    const base = (process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:4000').replace(/\/$/, '');
+    const callback = `${base}/#/nlmsongs/settings?subscription=paystack&plan=${encodeURIComponent(plan.id)}`;
+    const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY);
+    const payment = await new Promise((resolve, reject) => paystack.transaction.initialize({
+      email, amount: Number(plan.price_cents), currency: plan.currency, callback_url: callback,
+      metadata: { type: 'nlmsongs_listener_plan', planId: plan.id, userId: req.user.id }
+    }, (error, body) => error ? reject(error) : resolve(body)));
+    const pending = await db.query(`INSERT INTO nlm_listener_subscriptions (user_id,seller_id,plan_id,status,payment_method,payment_reference)
+      VALUES ($1,$2,$3,'pending','paystack',$4) RETURNING id`, [req.user.id, sellerId, plan.id, payment.data.reference]);
+    res.json({ authorizationUrl: payment.data.authorization_url, reference: payment.data.reference, subscriptionId: pending.rows[0].id });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('NLM subscription checkout error:', err);
+    res.status(500).json({ message: 'Could not start subscription checkout.' });
+  } finally { client.release(); }
+});
+
+app.post('/api/nlmsongs/subscription/paystack/verify', authenticateToken, requireNlmUser, async (req, res) => {
+  const { reference } = req.body || {};
+  if (!reference || !process.env.PAYSTACK_SECRET_KEY) return res.status(400).json({ message: 'A valid Paystack reference is required.' });
+  try {
+    const pending = await db.query(`SELECT s.id AS subscription_id,s.user_id,s.seller_id,s.plan_id,p.price_cents,p.currency,p.interval_days,p.name
+      FROM nlm_listener_subscriptions s JOIN nlm_subscription_plans p ON p.id=s.plan_id
+      WHERE s.user_id=$1 AND s.payment_reference=$2 AND s.payment_method='paystack' AND s.status='pending'`, [req.user.id, reference]);
+    if (!pending.rows.length) return res.status(404).json({ message: 'Pending subscription payment not found.' });
+    const payment = await new Promise((resolve, reject) => Paystack(process.env.PAYSTACK_SECRET_KEY).transaction.verify(reference, (error, body) => error ? reject(error) : resolve(body)));
+    const plan = pending.rows[0];
+    if (!payment.status || payment.data?.status !== 'success' || Number(payment.data.amount) < Number(plan.price_cents) || payment.data.currency !== plan.currency) {
+      return res.status(402).json({ message: 'Payment could not be confirmed for this plan.' });
+    }
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT id FROM users WHERE id=$1 FOR UPDATE', [req.user.id]);
+      await client.query(`UPDATE nlm_listener_subscriptions SET status='expired',updated_at=CURRENT_TIMESTAMP
+        WHERE user_id=$1 AND seller_id IS NOT DISTINCT FROM $2 AND status='active'`, [req.user.id, plan.seller_id]);
+      const startsAt = new Date();
+      const endsAt = new Date(startsAt.getTime() + Number(plan.interval_days) * 86400000);
+      await client.query(`UPDATE nlm_listener_subscriptions SET status='active',period_start=$1,period_end=$2,updated_at=CURRENT_TIMESTAMP
+        WHERE id=$3 AND status='pending'`, [startsAt, endsAt, plan.subscription_id]);
+      await client.query('COMMIT');
+      res.json({ message: `${plan.name} is now active.`, periodEnd: endsAt.toISOString() });
+    } catch (err) { await client.query('ROLLBACK'); throw err; } finally { client.release(); }
+  } catch (err) {
+    console.error('NLM Paystack verification error:', err);
+    res.status(500).json({ message: 'Could not verify this subscription payment.' });
+  }
+});
+
+app.use('/api/nlmsongs/playlists', authenticateToken, requireNlmUser, applyNlmFeatureGate('playlists'));
 
 // Public share endpoint deliberately returns playlist and track metadata only.
 app.get('/api/nlmsongs/shared-playlists/:id', async (req, res) => {
@@ -4031,6 +4442,11 @@ app.get('/api/nlmsongs/playlists/:id', authenticateToken, requireNlmUser, async 
 
 app.post('/api/nlmsongs/playlists', authenticateToken, requireNlmUser, async (req, res) => {
   try {
+    const playlistLimit = Number(req.nlmPolicy?.limits?.playlistLimit);
+    if (Number.isFinite(playlistLimit) && playlistLimit >= 0) {
+      const count = await db.query('SELECT COUNT(*)::int AS count FROM nlm_playlists WHERE user_id = $1', [req.user.id]);
+      if (Number(count.rows[0]?.count || 0) >= playlistLimit) return res.status(403).json({ message: `Your current plan allows ${playlistLimit} playlists.`, code: 'NLM_LIMIT_REACHED', limit: 'playlistLimit' });
+    }
     const { name, description = '', isPublic = false } = req.body;
     const result = await db.query(`INSERT INTO nlm_playlists (user_id, seller_id, name, description, is_public)
       VALUES ($1, $2, $3, $4, $5) RETURNING id, user_id as "userId", name, description, cover_url as "coverUrl", is_public as "isPublic", track_count as "trackCount", created_at as "createdAt", updated_at as "updatedAt"`,
@@ -4150,6 +4566,14 @@ app.post('/api/nlmsongs/history', authenticateToken, requireNlmUser, async (req,
     if (!trackId) return res.status(400).json({ message: 'trackId is required.' });
     const trackCheck = await db.query('SELECT seller_id FROM nlm_songs WHERE id = $1', [trackId]);
     const sellerId = trackCheck.rows[0]?.seller_id || req.user.sellerId || null;
+    const policy = await readNlmPolicy(req.user.id, sellerId);
+    if (policy.tier === 'restricted') return res.status(403).json({ message: 'Listening access is restricted for this account.', code: 'NLM_ACCESS_RESTRICTED' });
+    const monthlyLimit = Number(policy.limits?.monthlyPlays);
+    if (Number.isFinite(monthlyLimit) && monthlyLimit >= 0) {
+      const count = await db.query(`SELECT COUNT(*)::int AS count FROM nlm_listening_history
+        WHERE user_id=$1 AND created_at >= date_trunc('month', CURRENT_TIMESTAMP)`, [req.user.id]);
+      if (Number(count.rows[0]?.count || 0) >= monthlyLimit) return res.status(403).json({ message: `You have reached this month’s listening limit of ${monthlyLimit} plays.`, code: 'NLM_LIMIT_REACHED', limit: 'monthlyPlays' });
+    }
     await db.query(`INSERT INTO nlm_listening_history (user_id, seller_id, track_id, played_seconds, duration)
       VALUES ($1, $2, $3, $4, $5)`, [req.user.id, sellerId, trackId, playedSeconds || 0, duration || 0]);
 

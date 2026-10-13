@@ -7,7 +7,7 @@ interface TenantConfig {
   userId?: string;
   name: string;
   subdomain: string;
-  shopType: 'product' | 'service' | 'payment';
+  shopType: 'product' | 'service' | 'payment' | 'streaming';
   description?: string;
   themeId?: string;
   theme: {

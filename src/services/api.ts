@@ -493,6 +493,16 @@ export const sellersAPI = {
     return response.data;
   },
 
+  async initializeSubscriptionPaystack(planId: string): Promise<any> {
+    const response = await api.post('/sellers/me/paystack/initialize', { planId });
+    return response.data;
+  },
+
+  async verifySubscriptionPaystack(reference: string, planId: string): Promise<any> {
+    const response = await api.post('/sellers/me/paystack/verify', { reference, planId });
+    return response.data;
+  },
+
   async getBilling(): Promise<any> {
     const response = await api.get('/sellers/me/billing');
     return response.data;
@@ -704,8 +714,8 @@ export const ixstreamAPI = {
 };
 
 export const nlmsongsAPI = {
-  async list(): Promise<NLMSong[]> {
-    const response = await api.get('/nlmsongs');
+  async list(sellerId?: string): Promise<NLMSong[]> {
+    const response = await api.get('/nlmsongs', { params: sellerId ? { sellerId } : undefined });
     return response.data;
   },
 
@@ -717,6 +727,79 @@ export const nlmsongsAPI = {
   async getAdminAnalytics(): Promise<NLMSongsAdminAnalytics> {
     const response = await api.get('/nlmsongs/admin/analytics');
     return response.data;
+  },
+
+  async getListeners(): Promise<Array<{ id: string; name: string; email: string; lastPlayedAt: string | null; playCount: number; access: Record<string, unknown> }>> {
+    const response = await api.get('/nlmsongs/admin/listeners');
+    return response.data;
+  },
+
+  async getAccessFeatures(): Promise<Array<{ featureKey: string; label: string }>> {
+    const response = await api.get('/nlmsongs/admin/access-features');
+    return response.data;
+  },
+
+  async addAccessFeature(label: string): Promise<{ featureKey: string; label: string }> {
+    const response = await api.post('/nlmsongs/admin/access-features', { label });
+    return response.data;
+  },
+
+  async getAdminSubscriptionPlans(): Promise<any[]> {
+    const response = await api.get('/nlmsongs/admin/subscription-plans');
+    return response.data;
+  },
+
+  async createSubscriptionPlan(plan: Record<string, unknown>): Promise<any> {
+    const response = await api.post('/nlmsongs/admin/subscription-plans', plan);
+    return response.data;
+  },
+
+  async updateSubscriptionPlan(id: string, plan: Record<string, unknown>): Promise<any> {
+    const response = await api.patch(`/nlmsongs/admin/subscription-plans/${encodeURIComponent(id)}`, plan);
+    return response.data;
+  },
+
+  async archiveSubscriptionPlan(id: string): Promise<void> {
+    await api.delete(`/nlmsongs/admin/subscription-plans/${encodeURIComponent(id)}`);
+  },
+
+  async getSubscriptionPlans(): Promise<any[]> {
+    const response = await api.get('/nlmsongs/subscription-plans');
+    return response.data;
+  },
+
+  async getSubscription(): Promise<any> {
+    const response = await api.get('/nlmsongs/subscription');
+    return response.data;
+  },
+
+  async subscribeToPlan(planId: string, paymentMethod: 'iyonicpay' | 'paystack'): Promise<any> {
+    const response = await api.post('/nlmsongs/subscription/checkout', { planId, paymentMethod });
+    return response.data;
+  },
+
+  async verifyPlanPayment(reference: string): Promise<any> {
+    const response = await api.post('/nlmsongs/subscription/paystack/verify', { reference });
+    return response.data;
+  },
+
+  async checkPlaybackAccess(trackId: string, feature = 'streaming'): Promise<{ allowed: boolean; reason?: string; features: string[]; limits: Record<string, number>; usage: Record<string, number | null> }> {
+    const response = await api.get(`/nlmsongs/playback-access/${encodeURIComponent(trackId)}`, { params: { feature } });
+    return response.data;
+  },
+
+  async checkFeatureAccess(feature: string): Promise<{ allowed: boolean; tier: string; features: string[]; limits: Record<string, number> }> {
+    const response = await api.get(`/nlmsongs/feature-access/${encodeURIComponent(feature)}`);
+    return response.data;
+  },
+
+  async authorizeDeviceDownload(trackId: string): Promise<{ allowed: boolean; used?: number; maximum?: number | null }> {
+    const response = await api.post('/nlmsongs/device-downloads/authorize', { trackId });
+    return response.data;
+  },
+
+  async updateListenerAccess(userId: string, access: Record<string, unknown>): Promise<void> {
+    await api.patch(`/nlmsongs/admin/listeners/${encodeURIComponent(userId)}/access`, access);
   },
 
   async create(data: FormData): Promise<NLMSong> {

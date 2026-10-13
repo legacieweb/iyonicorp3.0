@@ -270,6 +270,11 @@ const AppContent: React.FC = () => {
     location.pathname === '/refunds' ||
     location.pathname.startsWith('/iyonic-mailer');
 
+  // NLM Songs studio subdomains resolve to the streaming experience, not a shop.
+  if (tenant?.shopType === 'streaming' && !location.pathname.startsWith('/nlmsongs')) {
+    return <Navigate to="/nlmsongs" replace />;
+  }
+
   if (!isMainPlatform && tenant && !isPlatformRoute) {
     return <Storefront />;
   }

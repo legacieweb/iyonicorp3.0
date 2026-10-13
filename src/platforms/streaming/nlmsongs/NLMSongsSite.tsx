@@ -3,6 +3,7 @@ import {
   ArrowUpRight, Download, Headphones, Home, LayoutGrid, Library, List as ListView, ListMusic, LogIn, LogOut, Music2, Play, Search, Settings, Sparkles, UserRound,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
+import { useTenant } from '../../../context/TenantContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { nlmsongsAPI, type NLMSong } from '../../../services/api';
 import { getApiOrigin } from '../../../utils/apiUrl';
@@ -36,6 +37,8 @@ const newestFirst = (items: NLMSong[]) => [...items].sort((a, b) => (Date.parse(
 
 const NLMSongsSite = ({ isVisible = true }: { isVisible?: boolean }) => {
   const { user, logout } = useAuth();
+  const { tenant } = useTenant();
+  const sellerScopeId = tenant?.shopType === 'streaming' ? tenant.id : undefined;
   const favorites = useFavorites(user?.id);
   const migratedLegacySaves = useRef(false);
   const navigate = useNavigate();
@@ -71,7 +74,7 @@ const NLMSongsSite = ({ isVisible = true }: { isVisible?: boolean }) => {
   }, [selectedGenre]);
   const navigateView = (nextView: View) => {
     setView(nextView);
-    const path = nextView === 'Home' ? '/nlmsongs/listen' : nextView === 'Your Library' ? '/nlmsongs/library' : `/nlmsongs/${nextView.toLowerCase()}`;
+    const path = nextView === 'Home' ? '/nlmsongs' : nextView === 'Your Library' ? '/nlmsongs/library' : `/nlmsongs/${nextView.toLowerCase()}`;
     if (location.pathname !== path) navigate(path);
   };
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
@@ -109,7 +112,7 @@ const NLMSongsSite = ({ isVisible = true }: { isVisible?: boolean }) => {
     setIsLoading(true);
     setCatalogError(false);
     try {
-      const data = await nlmsongsAPI.list();
+      const data = await nlmsongsAPI.list(sellerScopeId);
       setTracks(data);
       if (!selectedId && data.length) setSelectedId(data[0].id);
     } catch (error) {
@@ -120,7 +123,7 @@ const NLMSongsSite = ({ isVisible = true }: { isVisible?: boolean }) => {
     }
   };
 
-  useEffect(() => { void loadTracks(); }, []);
+  useEffect(() => { void loadTracks(); }, [sellerScopeId]);
   const handlePlay = () => {
     if (!user) { openRegistration(); return; }
     if (featuredTrack) navigate(`/nlmsongs/track/${encodeURIComponent(featuredTrack.id)}`);
@@ -137,7 +140,7 @@ const NLMSongsSite = ({ isVisible = true }: { isVisible?: boolean }) => {
       {isLoading && <div className="nlm-site-preloader" role="status" aria-live="polite"><span className="nlm-site-preloader-mark"><Music2 size={21} /></span><strong>Setting the mood</strong><small>Loading the NLM Songs catalogue</small><span className="nlm-site-preloader-track"><i /></span></div>}
       <NLMMobileNavControls isOpen={mobileNavOpen} onToggle={() => setMobileNavOpen((open) => !open)} onClose={closeMobileNav} />
       <aside className={`nlm-sidebar ${mobileNavOpen ? 'is-mobile-open' : ''}`} id="nlm-app-sidebar" aria-label="NLM Songs navigation" role={mobileNavOpen ? 'dialog' : undefined} aria-modal={mobileNavOpen || undefined}>
-        <a className="nlm-brand" href="/nlmsongs/listen" onClick={(e) => { e.preventDefault(); navigateFromSidebar('Home'); }} aria-label="NLM Songs home">
+        <a className="nlm-brand" href="/nlmsongs" onClick={(e) => { e.preventDefault(); navigateFromSidebar('Home'); }} aria-label="NLM Songs home">
           <span className="nlm-brand-mark"><Music2 size={19} strokeWidth={2.5} /></span>
           <span>nlm<span className="nlm-brand-light">songs</span></span>
         </a>

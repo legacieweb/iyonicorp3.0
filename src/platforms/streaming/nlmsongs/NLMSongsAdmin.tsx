@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  Activity, ArrowUpRight, Disc3, FileAudio2, Headphones, LayoutDashboard, LogOut, Music2, Plus, RefreshCw, Search, Trash2, Upload, X,
+  Activity, ArrowUpRight, CreditCard, Disc3, FileAudio2, Globe, Headphones, LayoutDashboard, LogOut, Music2, Plus, RefreshCw, Search, Settings, Trash2, Upload, UserRound, Users, X,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { nlmsongsAPI, type NLMSong, type NLMSongsAdminAnalytics } from '../../../services/api';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { nlmsongsAPI, sellersAPI, type NLMSong, type NLMSongsAdminAnalytics } from '../../../services/api';
 import { getApiOrigin } from '../../../utils/apiUrl';
 import { genreIdentity, normalizeGenreName } from './utils';
 import NLMMobileNavControls from './components/NLMMobileNavControls';
@@ -12,7 +12,7 @@ import './nlmsongs.css';
 
 const API_ORIGIN = getApiOrigin();
 
-type Tab = 'overview' | 'catalogue' | 'uploads';
+type Tab = 'overview' | 'catalogue' | 'uploads' | 'settings' | 'account' | 'billing' | 'listeners' | 'access' | 'plans';
 
 const resolveAssetUrl = (value?: string) => {
   if (!value) return '';
@@ -29,8 +29,9 @@ const metricNumber = (value: unknown): number | null => {
 const formatMetric = (value: unknown) => metricNumber(value)?.toLocaleString() ?? '—';
 
 const NLMSongsAdmin = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [tab, setTab] = useState<Tab>('overview');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [tracks, setTracks] = useState<NLMSong[]>([]);
@@ -52,6 +53,19 @@ const NLMSongsAdmin = () => {
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [seller, setSeller] = useState<any>(null);
+  const [billing, setBilling] = useState<any>(null);
+  const [listeners, setListeners] = useState<any[]>([]);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<any[]>([]);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [planDraft, setPlanDraft] = useState({ name: '', description: '', price: '0', currency: 'USD', intervalDays: '30', features: ['streaming'], monthlyPlays: '', playlistLimit: '', offlineLimit: '', deviceDownloadLimit: '' });
+  const [settingsError, setSettingsError] = useState('');
+  const [settingsNotice, setSettingsNotice] = useState('');
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [subdomain, setSubdomain] = useState('');
+  const [newFeature, setNewFeature] = useState('');
+  const [featureCatalog, setFeatureCatalog] = useState<string[]>(['streaming', 'playlists', 'offline_listening', 'device_downloads', 'lyrics', 'equalizer']);
+  const [listenerQuery, setListenerQuery] = useState('');
 
   const isSubmittingRef = useRef(false);
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
@@ -77,13 +91,54 @@ const NLMSongsAdmin = () => {
   useEffect(() => { void loadTracks(); }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const reference = params.get('reference') || params.get('trxref');
+    const planId = params.get('plan');
+    if (location.pathname !== '/nlmsongs/dashboard' || !reference || !planId) return;
+    setTab('billing'); setSavingSettings(true); setSettingsError('');
+    void sellersAPI.verifySubscriptionPaystack(reference, planId)
+      .then(async (result) => { setSettingsNotice(result?.message || 'Paystack payment confirmed.'); setBilling(await sellersAPI.getBilling()); navigate('/nlmsongs/dashboard', { replace: true }); })
+      .catch((error: any) => setSettingsError(error?.response?.data?.message || 'We could not confirm the Paystack payment.'))
+      .finally(() => setSavingSettings(false));
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (!['settings', 'account', 'billing', 'listeners', 'access', 'plans'].includes(tab)) return;
+    setSettingsError(''); setSettingsNotice('');
+    const loadManagement = async () => {
+      try {
+        if (['settings', 'billing'].includes(tab)) {
+          const profile = await sellersAPI.getMe();
+          setSeller(profile); setSubdomain(profile.subdomain || '');
+          if (tab === 'billing') setBilling(await sellersAPI.getBilling());
+        }
+        if (tab === 'listeners' || tab === 'access') {
+          setListeners(await nlmsongsAPI.getListeners());
+          if (tab === 'access') {
+            const configured = await nlmsongsAPI.getAccessFeatures();
+            setFeatureCatalog((items) => [...new Set([...items, ...configured.map((feature) => feature.featureKey)])]);
+          }
+        }
+        if (tab === 'plans') {
+          const [plans, configured] = await Promise.all([nlmsongsAPI.getAdminSubscriptionPlans(), nlmsongsAPI.getAccessFeatures()]);
+          setSubscriptionPlans(plans);
+          setFeatureCatalog((items) => [...new Set([...items, ...configured.map((feature) => feature.featureKey)])]);
+        }
+      } catch (error: any) {
+        setSettingsError(error?.response?.data?.message || 'This section could not be loaded for this account.');
+      }
+    };
+    void loadManagement();
+  }, [tab, user?.role]);
+
+  useEffect(() => {
     if (!coverFile) { setCoverPreview(''); return; }
     const url = URL.createObjectURL(coverFile);
     setCoverPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [coverFile]);
 
-  const openAccount = () => navigate('/nlmsongs/listen');
+  const openAccount = () => { setTab('overview'); closeMobileNav(); };
   const signOut = () => { logout(); navigate('/nlmsongs'); };
 
   const resetForm = () => {
@@ -169,6 +224,68 @@ const NLMSongsAdmin = () => {
       .some((v) => String(v).toLowerCase().includes(search.toLowerCase())))
     : tracks;
 
+  const saveSubdomain = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setSavingSettings(true); setSettingsError(''); setSettingsNotice('');
+    try { const updated = await sellersAPI.updateMe({ subdomain: subdomain.trim(), shopType: 'streaming' } as any); setSeller(updated); setSubdomain(updated.subdomain || subdomain.trim()); setSettingsNotice('Your NLM Songs address is ready. Open it at ' + (updated.subdomain || subdomain.trim()) + '.iyonicorp.com.'); }
+    catch (error: any) { setSettingsError(error?.response?.data?.message || 'Could not update the subdomain.'); }
+    finally { setSavingSettings(false); }
+  };
+
+  const saveAccount = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setSavingSettings(true); setSettingsError(''); setSettingsNotice('');
+    const form = new FormData(event.currentTarget);
+    try { await updateProfile({ name: String(form.get('name') || '').trim(), phoneNumber: String(form.get('phone') || '').trim() }); setSettingsNotice('Account details saved.'); }
+    catch (error: any) { setSettingsError(error?.response?.data?.message || 'Could not save account details.'); }
+    finally { setSavingSettings(false); }
+  };
+
+  const payWithWallet = async (planId: string) => {
+    setSettingsError(''); setSettingsNotice(''); setSavingSettings(true);
+    try { const result = await sellersAPI.paySubscriptionWithWallet(planId); setSettingsNotice(result?.message || 'Subscription updated using your IyonicPay wallet.'); setBilling(await sellersAPI.getBilling()); }
+    catch (error: any) { setSettingsError(error?.response?.data?.message || 'IyonicPay wallet payment could not be completed.'); }
+    finally { setSavingSettings(false); }
+  };
+
+  const payWithPaystack = async (planId: string) => {
+    setSettingsError(''); setSavingSettings(true);
+    try { const result = await sellersAPI.initializeSubscriptionPaystack(planId); if (!result?.authorizationUrl) throw new Error('Paystack checkout is unavailable.'); window.location.assign(result.authorizationUrl); }
+    catch (error: any) { setSettingsError(error?.response?.data?.message || error?.message || 'Could not start Paystack checkout.'); setSavingSettings(false); }
+  };
+
+  const updateAccess = async (listener: any, tier: string, features: string[]) => {
+    const access = { ...(listener.access || {}), tier, features, limits: listener.access?.limits || {} };
+    try { await nlmsongsAPI.updateListenerAccess(listener.id, access); setListeners((items) => items.map((row) => row.id === listener.id ? { ...row, access } : row)); setSettingsNotice(`Access saved for ${listener.name || listener.email}.`); }
+    catch (error: any) { setSettingsError(error?.response?.data?.message || 'Could not save listener access.'); }
+  };
+
+  const savePlan = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); setSavingSettings(true); setSettingsError(''); setSettingsNotice('');
+    const plan = {
+      name: planDraft.name.trim(), description: planDraft.description.trim(), price: Number(planDraft.price), currency: planDraft.currency,
+      intervalDays: Number(planDraft.intervalDays), features: planDraft.features,
+      limits: Object.fromEntries([['monthlyPlays', planDraft.monthlyPlays], ['playlistLimit', planDraft.playlistLimit], ['offlineLimit', planDraft.offlineLimit], ['deviceDownloadLimit', planDraft.deviceDownloadLimit]].filter(([, value]) => value !== '').map(([key, value]) => [key, Number(value)])),
+      isActive: true,
+    };
+    try {
+      const saved = editingPlanId ? await nlmsongsAPI.updateSubscriptionPlan(editingPlanId, plan) : await nlmsongsAPI.createSubscriptionPlan(plan);
+      setSubscriptionPlans((items) => editingPlanId ? items.map((item) => item.id === saved.id ? saved : item) : [saved, ...items]);
+      setEditingPlanId(null); setPlanDraft({ name: '', description: '', price: '0', currency: 'USD', intervalDays: '30', features: ['streaming'], monthlyPlays: '', playlistLimit: '', offlineLimit: '', deviceDownloadLimit: '' });
+      setSettingsNotice(`${saved.name} plan saved.`);
+    } catch (error: any) { setSettingsError(error?.response?.data?.message || 'Could not save this subscription plan.'); }
+    finally { setSavingSettings(false); }
+  };
+
+  const editPlan = (plan: any) => {
+    setEditingPlanId(plan.id);
+    setPlanDraft({ name: plan.name || '', description: plan.description || '', price: String(plan.price ?? 0), currency: plan.currency || 'USD', intervalDays: String(plan.intervalDays || 30), features: plan.features || [], monthlyPlays: plan.limits?.monthlyPlays == null ? '' : String(plan.limits.monthlyPlays), playlistLimit: plan.limits?.playlistLimit == null ? '' : String(plan.limits.playlistLimit), offlineLimit: plan.limits?.offlineLimit == null ? '' : String(plan.limits.offlineLimit), deviceDownloadLimit: plan.limits?.deviceDownloadLimit == null ? '' : String(plan.limits.deviceDownloadLimit) });
+  };
+
+  const archivePlan = async (plan: any) => {
+    if (!confirm(`Archive ${plan.name}? Existing subscriptions keep their saved period, but new listeners cannot choose it.`)) return;
+    try { await nlmsongsAPI.archiveSubscriptionPlan(plan.id); setSubscriptionPlans((items) => items.filter((item) => item.id !== plan.id)); setSettingsNotice(`${plan.name} archived.`); }
+    catch (error: any) { setSettingsError(error?.response?.data?.message || 'Could not archive this plan.'); }
+  };
+
   return (
     <div className={`nlm-admin-app ${mobileNavOpen ? 'nlm-mobile-nav-open' : ''}`}>
       <NLMMobileNavControls isOpen={mobileNavOpen} onToggle={() => setMobileNavOpen((open) => !open)} onClose={closeMobileNav} sidebarId="nlm-admin-sidebar" />
@@ -187,6 +304,13 @@ const NLMSongsAdmin = () => {
           <button className={tab === 'overview' ? 'is-active' : ''} onClick={() => navigateAdminTab('overview')}><Activity size={17} />Overview</button>
           <button className={tab === 'catalogue' ? 'is-active' : ''} onClick={() => navigateAdminTab('catalogue')}><Disc3 size={17} />Catalogue</button>
           <button className={tab === 'uploads' ? 'is-active' : ''} onClick={() => navigateAdminTab('uploads')}><Upload size={17} />Uploads</button>
+          <span className="nlm-admin-nav-label">STUDIO MANAGEMENT</span>
+          <button className={tab === 'settings' ? 'is-active' : ''} onClick={() => navigateAdminTab('settings')}><Globe size={17} />Domain</button>
+          <button className={tab === 'account' ? 'is-active' : ''} onClick={() => navigateAdminTab('account')}><UserRound size={17} />Account</button>
+          <button className={tab === 'billing' ? 'is-active' : ''} onClick={() => navigateAdminTab('billing')}><CreditCard size={17} />Billing</button>
+          <button className={tab === 'listeners' ? 'is-active' : ''} onClick={() => navigateAdminTab('listeners')}><Users size={17} />Listeners</button>
+          <button className={tab === 'plans' ? 'is-active' : ''} onClick={() => navigateAdminTab('plans')}><CreditCard size={17} />Subscription plans</button>
+          <button className={tab === 'access' ? 'is-active' : ''} onClick={() => navigateAdminTab('access')}><Settings size={17} />Access & plans</button>
         </nav>
         <div className="nlm-admin-sidebar-foot"><span className="nlm-live-dot" /> ADMIN DASHBOARD</div>
       </aside>
@@ -323,6 +447,18 @@ const NLMSongsAdmin = () => {
               </form>
             </section>
           )}
+
+          {['settings', 'account', 'billing', 'listeners', 'access', 'plans'].includes(tab) && <section className="nlm-management-page">
+            <header className="nlm-management-heading"><div><span className="nlm-eyebrow">STUDIO MANAGEMENT</span><h1>{tab === 'settings' ? 'Domain settings' : tab === 'account' ? 'Account' : tab === 'billing' ? 'Billing & subscription' : tab === 'listeners' ? 'Listeners' : tab === 'plans' ? 'Subscription plans' : 'Listener access'}</h1><p>{tab === 'settings' ? 'Choose the address listeners use to find your NLM Songs space.' : tab === 'account' ? 'Review and update the details connected to your studio account.' : tab === 'billing' ? 'Manage your studio plan and choose a secure payment method.' : tab === 'listeners' ? 'See the people who listen to your catalogue.' : tab === 'plans' ? 'Create paid and free plans with features and usage limits for logged-in listeners.' : 'Create feature access and usage limits for listener accounts.'}</p></div></header>
+            {settingsError && <p className="nlm-form-error" role="alert">{settingsError}</p>}
+            {settingsNotice && <p className="nlm-settings-success" role="status">{settingsNotice}</p>}
+            {tab === 'settings' && <div className="nlm-management-card"><div className="nlm-management-card-head"><Globe size={19}/><div><h2>Your listening address</h2><p>Set the subdomain for this NLM Songs studio.</p></div></div><form onSubmit={saveSubdomain} className="nlm-management-form"><label>Studio subdomain<div className="nlm-domain-field"><input value={subdomain} onChange={(event) => setSubdomain(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))} placeholder="your-studio" maxLength={50} required/><span>.iyonicorp.com</span></div></label><p className="nlm-management-hint">Current address: <strong>{subdomain || seller?.subdomain || 'Not set'}.iyonicorp.com</strong></p><button className="nlm-submit-button" disabled={savingSettings}>{savingSettings ? 'Saving…' : 'Save domain'}</button></form></div>}
+            {tab === 'account' && <div className="nlm-management-card"><div className="nlm-management-card-head"><UserRound size={19}/><div><h2>Account details</h2><p>Your login email stays attached to this account.</p></div></div><form onSubmit={saveAccount} className="nlm-management-form"><label>Display name<input name="name" defaultValue={user?.name || ''} autoComplete="name" required/></label><label>Email address<input value={user?.email || ''} readOnly/></label><label>Phone number<input name="phone" defaultValue={user?.phoneNumber || ''} autoComplete="tel"/></label><button className="nlm-submit-button" disabled={savingSettings}>{savingSettings ? 'Saving…' : 'Save account'}</button></form></div>}
+            {tab === 'plans' && <><div className="nlm-management-card"><div className="nlm-management-card-head"><CreditCard size={19}/><div><h2>{editingPlanId ? 'Edit subscription plan' : 'Create a plan'}</h2><p>Plans become available immediately to signed-in listeners when active.</p></div></div><form className="nlm-plan-editor" onSubmit={savePlan}><label>Plan name<input value={planDraft.name} onChange={(event) => setPlanDraft((draft) => ({ ...draft, name: event.target.value }))} maxLength={100} placeholder="Listener Plus" required/></label><label>Description<textarea value={planDraft.description} onChange={(event) => setPlanDraft((draft) => ({ ...draft, description: event.target.value }))} maxLength={1000} rows={2} placeholder="What listeners get with this plan"/></label><div className="nlm-form-fields"><label>Price<input type="number" min="0" step="0.01" value={planDraft.price} onChange={(event) => setPlanDraft((draft) => ({ ...draft, price: event.target.value }))} required/></label><label>Currency<input value={planDraft.currency} onChange={(event) => setPlanDraft((draft) => ({ ...draft, currency: event.target.value.toUpperCase() }))} maxLength={8} required/></label><label>Term in days<input type="number" min="1" max="3650" value={planDraft.intervalDays} onChange={(event) => setPlanDraft((draft) => ({ ...draft, intervalDays: event.target.value }))} required/></label></div><div className="nlm-plan-editor-limits"><strong>Usage limits <small>Leave blank for unlimited</small></strong><label>Plays / month<input type="number" min="0" max="1000000" value={planDraft.monthlyPlays} onChange={(event) => setPlanDraft((draft) => ({ ...draft, monthlyPlays: event.target.value }))} placeholder="Unlimited"/></label><label>Playlists<input type="number" min="0" max="1000000" value={planDraft.playlistLimit} onChange={(event) => setPlanDraft((draft) => ({ ...draft, playlistLimit: event.target.value }))} placeholder="Unlimited"/></label><label>Offline saves<input type="number" min="0" max="1000000" value={planDraft.offlineLimit} onChange={(event) => setPlanDraft((draft) => ({ ...draft, offlineLimit: event.target.value }))} placeholder="Unlimited"/></label><label>Phone downloads / month<input type="number" min="0" max="1000000" value={planDraft.deviceDownloadLimit} onChange={(event) => setPlanDraft((draft) => ({ ...draft, deviceDownloadLimit: event.target.value }))} placeholder="Unlimited"/></label></div><div className="nlm-plan-editor-features"><strong>Included features</strong><div>{featureCatalog.map((feature) => <label key={feature}><input type="checkbox" checked={planDraft.features.includes(feature)} onChange={(event) => setPlanDraft((draft) => ({ ...draft, features: event.target.checked ? [...new Set([...draft.features, feature])] : draft.features.filter((value) => value !== feature) }))}/>{feature.replace(/_/g, ' ')}</label>)}</div></div><div className="nlm-plan-actions"><button className="nlm-submit-button" disabled={savingSettings}>{savingSettings ? 'Saving…' : editingPlanId ? 'Save changes' : 'Publish plan'}</button>{editingPlanId && <button type="button" className="nlm-account-button" onClick={() => { setEditingPlanId(null); setPlanDraft({ name: '', description: '', price: '0', currency: 'USD', intervalDays: '30', features: ['streaming'], monthlyPlays: '', playlistLimit: '', offlineLimit: '', deviceDownloadLimit: '' }); }}>Cancel edit</button>}</div></form></div><div className="nlm-plan-admin-list">{subscriptionPlans.map((plan) => <article className="nlm-management-card" key={plan.id}><div><span className="nlm-eyebrow">{plan.currency} · {plan.intervalDays} DAYS</span><h2>{plan.name}</h2><p>{plan.description || 'No description provided.'}</p></div><strong className="nlm-plan-price">{plan.price === 0 ? 'Free' : `${plan.currency} ${Number(plan.price).toFixed(2)}`}</strong><div className="nlm-feature-chips">{(plan.features || []).map((feature: string) => <span key={feature}>{feature.replace(/_/g, ' ')}</span>)}</div><p className="nlm-management-hint">Limits: {plan.limits?.monthlyPlays ?? 'unlimited'} monthly plays · {plan.limits?.playlistLimit ?? 'unlimited'} playlists · {plan.limits?.offlineLimit ?? 'unlimited'} offline saves · {plan.limits?.deviceDownloadLimit ?? 'unlimited'} phone downloads / month</p><div className="nlm-plan-actions"><button className="nlm-account-button" onClick={() => editPlan(plan)}>Edit</button><button className="nlm-ghost-button" onClick={() => void archivePlan(plan)}>Archive</button></div></article>)}{!subscriptionPlans.length && <div className="nlm-admin-chart-empty">No plans yet. Create your first listener plan above.</div>}</div></>}
+            {tab === 'billing' && <><div className="nlm-billing-summary"><div><span className="nlm-eyebrow">CURRENT PLAN</span><h2>{billing?.subscription?.plan ? String(billing.subscription.plan).replace(/^./, (letter: string) => letter.toUpperCase()) : 'Plan details unavailable'}</h2><p>{billing?.subscription?.status || 'Connect an NLM Songs seller account to manage billing.'}{billing?.subscription?.endDate ? ` · renews ${new Date(billing.subscription.endDate).toLocaleDateString()}` : ''}</p></div><div className="nlm-wallet-balance"><span>IYONICPAY WALLET</span><strong>{billing?.wallet?.currency || 'USD'} {Number(billing?.wallet?.balance || 0).toLocaleString()}</strong></div></div><div className="nlm-billing-plans">{Object.entries(billing?.plans || {}).filter(([id, plan]: any) => id === 'basic' && Number(plan?.price) > 0).map(([id, plan]: any) => <article className="nlm-management-card" key={id}><span className="nlm-eyebrow">{id.toUpperCase()}</span><h2>{plan.name}</h2><p>{plan.description}</p><strong className="nlm-plan-price">${Number(plan.price).toFixed(2)} <small>/ month</small></strong><div className="nlm-plan-features">{(plan.features || []).map((feature: string) => <span key={feature}>✓ {feature}</span>)}</div><div className="nlm-plan-actions"><button className="nlm-submit-button" disabled={savingSettings} onClick={() => void payWithWallet(id)}>Pay with IyonicPay</button><button className="nlm-account-button" disabled={savingSettings} onClick={() => void payWithPaystack(id)}>Pay with Paystack</button></div></article>)}</div><p className="nlm-management-hint">Payments use the existing secure subscription checkout. Wallet payments require an available IyonicPay balance.</p></>}
+            {(tab === 'listeners' || tab === 'access') && <><div className="nlm-listener-tools"><div><strong>{listeners.length}</strong><span>listener accounts</span></div><input value={listenerQuery} onChange={(event) => setListenerQuery(event.target.value)} placeholder="Find a listener" aria-label="Find a listener"/></div>{tab === 'access' && <div className="nlm-management-card nlm-feature-builder"><div className="nlm-management-card-head"><Settings size={19}/><div><h2>Subscription features</h2><p>Define features you can grant to listener access profiles.</p></div></div><form onSubmit={(event) => { event.preventDefault(); const label = newFeature.trim(); if (!label) return; void nlmsongsAPI.addAccessFeature(label).then((feature) => { setFeatureCatalog((items) => [...new Set([...items, feature.featureKey])]); setNewFeature(''); setSettingsNotice(`Added ${feature.label} to subscription features.`); }).catch((error: any) => setSettingsError(error?.response?.data?.message || 'Could not add this feature.')); }}><input value={newFeature} onChange={(event) => setNewFeature(event.target.value)} placeholder="For example: premium audio" maxLength={40}/><button className="nlm-account-button" type="submit"><Plus size={14}/> Add feature</button></form><div className="nlm-feature-chips">{featureCatalog.map((feature) => <span key={feature}>{feature.replace(/_/g, ' ')}</span>)}</div><p className="nlm-management-hint">Grant features and set play limits from each listener’s access profile.</p></div>}
+              <div className="nlm-listener-list">{listeners.filter((listener) => `${listener.name || ''} ${listener.email || ''}`.toLowerCase().includes(listenerQuery.toLowerCase())).map((listener) => { const access = listener.access || { tier: 'standard', features: [], limits: {} }; return <article className="nlm-listener-row" key={listener.id}><div className="nlm-listener-avatar"><UserRound size={17}/></div><div className="nlm-listener-identity"><strong>{listener.name || 'Listener'}</strong><span>{listener.email}</span></div><div className="nlm-listener-meta"><span>{Number(listener.playCount || 0).toLocaleString()} plays</span><small>{listener.lastPlayedAt ? `Last listened ${new Date(listener.lastPlayedAt).toLocaleDateString()}` : 'Listener account'}</small></div>{tab === 'access' && <div className="nlm-listener-access"><select value={access.tier || 'standard'} aria-label={`Access tier for ${listener.name || listener.email}`} onChange={(event) => void updateAccess(listener, event.target.value, access.features || [])}><option value="standard">Standard</option><option value="plus">Plus</option><option value="restricted">Restricted</option></select><details><summary>Features & limits</summary><div className="nlm-listener-feature-options">{featureCatalog.map((feature) => <label key={feature}><input type="checkbox" checked={(access.features || []).includes(feature)} onChange={(event) => { const next = event.target.checked ? [...new Set([...(access.features || []), feature])] : (access.features || []).filter((item: string) => item !== feature); void updateAccess(listener, access.tier || 'standard', next); }}/>{feature.replace(/_/g, ' ')}</label>)}</div><label className="nlm-limit-field">Monthly plays<input type="number" min="0" max="100000" defaultValue={access.limits?.monthlyPlays ?? ''} placeholder="Unlimited" onBlur={(event) => { const rawValue = event.target.value; const limits = { ...(access.limits || {}), ...(rawValue === '' ? { monthlyPlays: null } : { monthlyPlays: Number(rawValue) }) }; void nlmsongsAPI.updateListenerAccess(listener.id, { ...access, limits }).then(() => setListeners((rows) => rows.map((row) => row.id === listener.id ? { ...row, access: { ...access, limits } } : row))).catch(() => setSettingsError('Could not save the play limit.')); }}/></label></details></div>}</article>; })}{!listeners.length && <div className="nlm-admin-chart-empty">Listener accounts will appear here after people start listening to your tracks.</div>}</div></>}
+          </section>}
         </div>
       </main>
     </div>
