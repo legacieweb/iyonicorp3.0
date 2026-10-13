@@ -9259,9 +9259,6 @@ const startBackgroundJobs = () => {
   }, 60000);
 };
 
-// Start background jobs
-startBackgroundJobs();
-
 // --- TSPP Routes ---
 
 // Get TSPP Teacher Profile

@@ -622,10 +622,10 @@ if (response.paymentLink && response.reference) {
   };
 
   const renderHome = () => (
-    <div className="space-y-32 pb-32">
+    <div className="space-y-16 pb-16 lg:space-y-32 lg:pb-32">
       {/* Dynamic Hero Section */}
       {!customizations.hideHero && (
-        <section className="relative min-h-[90vh] flex items-center pt-20 overflow-hidden">
+        <section id="hero" className="relative min-h-[80vh] lg:min-h-[90vh] flex items-center pt-20 overflow-hidden">
           {/* Background Elements */}
           <div className="absolute inset-0 z-0">
             <div className="absolute top-0 right-0 w-[50%] h-[100%] bg-indigo-50/50 rounded-bl-[200px]" />
@@ -634,8 +634,8 @@ if (response.paymentLink && response.reference) {
           </div>
 
           <div className="max-w-screen-2xl mx-auto px-6 lg:px-12 relative z-10 w-full">
-            <div className="grid lg:grid-cols-2 gap-20 items-center">
-              <div className="space-y-10">
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-20 items-center">
+              <div className="space-y-7 lg:space-y-10">
                 <div className="space-y-4">
                   <div 
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-full"
@@ -657,7 +657,7 @@ if (response.paymentLink && response.reference) {
                     )}
                   </div>
                   <h2 
-                    className="text-7xl lg:text-8xl font-black tracking-tighter leading-[0.9]"
+                    className="text-5xl sm:text-6xl lg:text-8xl font-black tracking-tighter leading-[0.9]"
                     style={{ color: customizations.heroTitleColor || '#111827' }}
                   >
                     {editMode ? (
@@ -693,14 +693,14 @@ if (response.paymentLink && response.reference) {
                 <div className="flex flex-wrap items-center gap-6">
                   <button 
                     onClick={() => setView('shop')}
-                    className="group relative px-10 py-5 bg-gray-900 text-white rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-200"
+                    className="group relative px-6 sm:px-10 py-4 sm:py-5 bg-gray-900 text-white rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-200"
                   >
                     <div className="absolute inset-0 bg-indigo-600 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
                     <span className="relative text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-3">
                       Shop Now <ArrowRight className="w-4 h-4" />
                     </span>
                   </button>
-                  <button className="px-10 py-5 border-2 border-gray-100 text-gray-900 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-gray-50 transition-all">
+                  <button className="px-6 sm:px-10 py-4 sm:py-5 border-2 border-gray-100 text-gray-900 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-gray-50 transition-all">
                     View Lookbook
                   </button>
                 </div>
@@ -723,7 +723,7 @@ if (response.paymentLink && response.reference) {
               </div>
 
               <div className="relative">
-                <div className="relative z-10 rounded-[60px] overflow-hidden shadow-2xl rotate-2 transition-transform duration-700 hover:rotate-0">
+                <div className="relative z-10 rounded-3xl sm:rounded-[60px] overflow-hidden shadow-2xl rotate-1 lg:rotate-2 transition-transform duration-700 hover:rotate-0">
                   <ThemeMedia 
                     src={customizations.heroImage ?? 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&q=80'} 
                     alt="Hero" 
@@ -751,10 +751,10 @@ if (response.paymentLink && response.reference) {
 
       {/* Brand Story Section */}
       {!customizations.hideStory && (
-        <section id="newsletter" onClick={() => editMode && onSelectSection?.('newsletter')} className="max-w-screen-2xl mx-auto px-6 lg:px-12">
-          <div className="grid lg:grid-cols-2 gap-24 items-center">
+        <section id="story" onClick={() => editMode && onSelectSection?.('story')} className="max-w-screen-2xl mx-auto px-6 lg:px-12">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-24 items-center">
             <div className="relative group">
-              <div className="relative rounded-[60px] overflow-hidden shadow-2xl transition-transform duration-700 hover:scale-[1.02]">
+              <div className="relative rounded-3xl sm:rounded-[60px] overflow-hidden shadow-2xl transition-transform duration-700 hover:scale-[1.02]">
                 <ThemeMedia
                   src={customizations.storyImage ?? 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&q=80'} 
                   alt="Our Story" 
@@ -780,12 +780,12 @@ if (response.paymentLink && response.reference) {
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-full">
                   <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Our Essence</span>
                 </div>
-                <h2 className="text-6xl font-black tracking-tighter text-gray-900 leading-none">
+                <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-gray-900 leading-none">
                   {editMode ? (
                     <textarea
                       value={customizations.storyTitle ?? 'Crafting Modern Legacies.'}
                       onChange={(e) => onUpdateThemeCustomization?.('story', 'storyTitle', e.target.value)}
-                      className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none text-6xl font-black tracking-tighter"
+                      className="w-full bg-transparent border-none focus:ring-0 p-0 resize-none text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter"
                       rows={2}
                     />
                   ) : (
@@ -823,15 +823,15 @@ if (response.paymentLink && response.reference) {
 
       {/* Features - Minimalist */}
       {!customizations.hideFeatures && (
-        <section 
+        <section id="features"
           className="max-w-screen-2xl mx-auto px-6 lg:px-12 relative"
           style={{ backgroundColor: customizations.featuresBgColor || 'transparent' }}
         >
-          <div className="grid md:grid-cols-4 gap-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8 lg:gap-12">
             {initialFeatures.map((f, i) => {
               const IconComponent = ICON_MAP[f.icon as keyof typeof ICON_MAP] || Truck;
               return (
-                <div key={i} className="group p-10 rounded-[40px] bg-white border border-gray-100 hover:border-indigo-100 transition-all duration-500 hover:shadow-xl hover:shadow-indigo-50/50 relative">
+                <div key={i} className="group p-5 sm:p-8 lg:p-10 rounded-3xl lg:rounded-[40px] bg-white border border-gray-100 hover:border-indigo-100 transition-all duration-500 hover:shadow-xl hover:shadow-indigo-50/50 relative">
                   <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-indigo-600 transition-colors duration-500 relative">
                     <IconComponent className="w-6 h-6 text-indigo-600 group-hover:text-white transition-colors" />
                     {editMode && (
@@ -880,15 +880,15 @@ if (response.paymentLink && response.reference) {
 
       {/* Modern Product Grid */}
       {!customizations.hideProductGrid && (
-        <section className="max-w-screen-2xl mx-auto px-6 lg:px-12 space-y-20">
+        <section id="productGrid" className="max-w-screen-2xl mx-auto px-6 lg:px-12 space-y-10 lg:space-y-20">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
             <div className="space-y-4">
-              <h2 className="text-5xl font-black tracking-tighter text-gray-900">
+              <h2 className="text-4xl sm:text-5xl font-black tracking-tighter text-gray-900">
                 {editMode ? (
                   <input
                     value={customizations.productGridTitle ?? 'Curated Essentials.'}
                     onChange={(e) => onUpdateThemeCustomization?.('productGrid', 'productGridTitle', e.target.value)}
-                    className="bg-transparent border-none p-0 w-full focus:ring-0 text-5xl font-black tracking-tighter text-gray-900"
+                    className="bg-transparent border-none p-0 w-full focus:ring-0 text-4xl sm:text-5xl font-black tracking-tighter text-gray-900"
                   />
                 ) : (
                   customizations.productGridTitle ?? 'Curated Essentials.'
@@ -951,23 +951,23 @@ if (response.paymentLink && response.reference) {
 
       {/* Modern Newsletter */}
       {!customizations.hideNewsletter && (
-        <section className="max-w-screen-2xl mx-auto px-6 lg:px-12">
+        <section id="newsletter" className="max-w-screen-2xl mx-auto px-6 lg:px-12">
           <div 
-            className="relative rounded-[60px] overflow-hidden p-20 lg:p-32 text-center text-white"
+            className="relative rounded-3xl sm:rounded-[60px] overflow-hidden p-8 sm:p-14 lg:p-32 text-center text-white"
             style={{ backgroundColor: customizations.newsletterBgColor || '#4f46e5' }}
           >
             <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
-            <div className="relative z-10 max-w-2xl mx-auto space-y-12">
+            <div className="relative z-10 max-w-2xl mx-auto space-y-8 sm:space-y-12">
               <div className="space-y-6">
                 <h2 
-                  className="text-6xl font-black tracking-tighter leading-none"
+                  className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter leading-none"
                   style={{ color: customizations.newsletterTitleColor || '#ffffff' }}
                 >
                   {editMode ? (
                     <input
                       value={customizations.newsletterTitle ?? 'Join the Inner Circle.'}
                       onChange={(e) => onUpdateThemeCustomization?.('newsletter', 'newsletterTitle', e.target.value)}
-                      className="bg-transparent border-none p-0 w-full focus:ring-0 text-6xl font-black tracking-tighter text-center"
+                      className="bg-transparent border-none p-0 w-full focus:ring-0 text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-center"
                       style={{ color: customizations.newsletterTitleColor || '#ffffff' }}
                     />
                   ) : (
@@ -1019,11 +1019,11 @@ if (response.paymentLink && response.reference) {
       : products.filter(p => p.category === selectedCategory);
 
     return (
-      <section className="py-32 min-h-screen" style={{ backgroundColor: mainBgColor }}>
-        <div className="max-w-screen-2xl mx-auto px-6 lg:px-12 space-y-20">
+      <section id="productGrid" className="py-20 lg:py-32 min-h-screen" style={{ backgroundColor: mainBgColor }}>
+        <div className="max-w-screen-2xl mx-auto px-6 lg:px-12 space-y-10 lg:space-y-20">
           <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
             <div className="space-y-4">
-              <h2 className="text-5xl font-black tracking-tighter text-gray-900">Explore Collection.</h2>
+              <h2 className="text-4xl sm:text-5xl font-black tracking-tighter text-gray-900">Explore Collection.</h2>
               <p className="text-gray-500 font-medium max-w-md">Discover our entire range of meticulously crafted modern essentials.</p>
             </div>
             <div className="flex flex-wrap gap-3 bg-gray-50 p-2 rounded-2xl">
@@ -1080,12 +1080,12 @@ if (response.paymentLink && response.reference) {
             Back to Collection
           </button>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-start">
             <div className="space-y-8">
-              <div className="aspect-[4/5] rounded-[60px] overflow-hidden bg-gray-50 shadow-2xl">
+              <div className="aspect-[4/5] rounded-3xl sm:rounded-[60px] overflow-hidden bg-gray-50 shadow-2xl">
                 <img src={selectedProduct.images[0]} alt={selectedProduct.name} className="w-full h-full object-cover" />
               </div>
-              <div className="grid grid-cols-4 gap-6">
+              <div className="grid grid-cols-4 gap-3 sm:gap-6">
                 {selectedProduct.images.slice(1).map((img, i) => (
                   <div key={i} className="aspect-square rounded-3xl overflow-hidden bg-gray-50 border border-gray-100">
                     <img src={img} alt="" className="w-full h-full object-cover" />
@@ -1112,7 +1112,7 @@ if (response.paymentLink && response.reference) {
                     </span>
                   </div>
                 </div>
-                <h2 className="text-6xl font-black tracking-tighter text-gray-900">{selectedProduct.name}</h2>
+                <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-gray-900">{selectedProduct.name}</h2>
                 <div className="flex items-center justify-between">
                   <p className="text-4xl font-black text-indigo-600">{formatPrice(selectedProduct.price, seller.currency)}</p>
                   <button
@@ -1211,9 +1211,9 @@ if (response.paymentLink && response.reference) {
   const renderCart = () => (
     <div className="py-32 min-h-screen" style={{ backgroundColor: mainBgColor }}>
       <div className="max-w-screen-2xl mx-auto px-6 lg:px-12">
-        <div className="flex items-end justify-between mb-20">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-12 lg:mb-20">
           <div className="space-y-4">
-            <h2 className="text-5xl font-black tracking-tighter text-gray-900">Your Shopping Bag.</h2>
+            <h2 className="text-4xl sm:text-5xl font-black tracking-tighter text-gray-900">{customizations.cartTitle || 'Your Shopping Bag.'}</h2>
             <p className="text-gray-500 font-medium">{cart.length} items ready for checkout</p>
           </div>
           <button 
@@ -1225,11 +1225,11 @@ if (response.paymentLink && response.reference) {
         </div>
 
         {cart.length === 0 ? (
-          <div className="text-center py-40 bg-gray-50 rounded-[60px] border-2 border-dashed border-gray-100">
+          <div className="text-center py-20 sm:py-32 lg:py-40 px-5 bg-gray-50 rounded-3xl sm:rounded-[60px] border-2 border-dashed border-gray-100">
             <div className="w-24 h-24 bg-white rounded-[30px] shadow-xl flex items-center justify-center mx-auto mb-8">
               <ShoppingCart className="w-10 h-10 text-gray-300" />
             </div>
-            <h3 className="text-2xl font-black text-gray-900 mb-4">Your bag is currently empty.</h3>
+            <h3 className="text-2xl font-black text-gray-900 mb-4">{customizations.cartEmptyText || 'Your bag is currently empty.'}</h3>
             <p className="text-gray-500 font-medium mb-10">Discover our latest collection and find something special.</p>
             <button 
               onClick={() => setView('shop')}
@@ -1239,11 +1239,11 @@ if (response.paymentLink && response.reference) {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-24 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-24 items-start">
             <div className="lg:col-span-2 space-y-8">
               {cart.map(item => (
-                <div key={item.product.id} className="group flex items-center gap-10 p-8 bg-white rounded-[40px] border border-gray-100 hover:border-indigo-100 transition-all hover:shadow-2xl hover:shadow-indigo-50/50">
-                  <div className="w-40 h-40 rounded-[30px] overflow-hidden bg-gray-50 flex-shrink-0">
+              <div key={item.product.id} className="group flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-8 p-5 sm:p-8 bg-white rounded-3xl sm:rounded-[40px] border border-gray-100 hover:border-indigo-100 transition-all hover:shadow-2xl hover:shadow-indigo-50/50">
+                  <div className="w-full sm:w-32 lg:w-40 aspect-square sm:h-32 lg:h-40 sm:aspect-auto rounded-2xl sm:rounded-[30px] overflow-hidden bg-gray-50 flex-shrink-0">
                     <img src={item.product.images[0]} alt={item.product.name} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
                   </div>
                   <div className="flex-1 space-y-6">
@@ -1360,7 +1360,7 @@ if (response.paymentLink && response.reference) {
                   onClick={() => setView(user ? 'checkout' : 'auth-choice')}
                   className="w-full py-6 bg-gray-900 text-white rounded-[25px] font-black text-[11px] uppercase tracking-[0.2em] hover:bg-indigo-600 hover:shadow-2xl transition-all shadow-xl active:scale-95"
                 >
-                  Checkout Now
+                  {customizations.cartCheckoutLabel || 'Checkout Now'}
                 </button>
               </div>
               
@@ -1392,14 +1392,14 @@ if (response.paymentLink && response.reference) {
           </div>
         </div>
         <div className="max-w-screen-2xl mx-auto px-6 lg:px-12">
-          <div className="flex items-end justify-between mb-20">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6 mb-12 lg:mb-20">
             <div className="space-y-4">
-              <h2 className="text-5xl font-black tracking-tighter text-gray-900">{customizations.checkoutTitle || 'Secure Checkout.'}</h2>
+              <h2 className="text-4xl sm:text-5xl font-black tracking-tighter text-gray-900">{customizations.checkoutTitle || 'Secure Checkout.'}</h2>
               <p className="text-gray-500 font-medium">{customizations.checkoutSubtitle || 'Finalize your order and choose your preferences'}</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-24 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-24 items-start">
             <div className="lg:col-span-2 space-y-16">
               <form onSubmit={handlePlaceOrder} className="space-y-16">
                 {/* Personal Section */}
@@ -1676,7 +1676,7 @@ if (response.paymentLink && response.reference) {
           </div>
           
           <div className="space-y-6">
-            <h2 className="text-6xl font-black tracking-tighter text-gray-900 leading-none">{customizations.confirmationTitle || 'Order Confirmed.'}</h2>
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-gray-900 leading-none">{customizations.confirmationTitle || 'Order Confirmed.'}</h2>
             {checkoutData.paymentMethod === 'deposit' && (
               <p className="text-lg text-emerald-600 font-medium leading-relaxed">
                 You paid {formatPrice(confirmationAmounts.paid, seller.currency)}. Remaining balance of {formatPrice(confirmationAmounts.remaining, seller.currency)} due on delivery.
@@ -1716,10 +1716,10 @@ if (response.paymentLink && response.reference) {
   const renderContact = () => (
     <div className="py-32 min-h-screen" style={{ backgroundColor: mainBgColor }}>
       <div className="max-w-screen-2xl mx-auto px-6 lg:px-12">
-        <div className="grid lg:grid-cols-2 gap-32 items-start">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-32 items-start">
           <div className="space-y-20">
             <div className="space-y-6">
-              <h2 className="text-7xl font-black tracking-tighter text-gray-900 leading-none">Get in Touch.</h2>
+              <h2 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tighter text-gray-900 leading-none">Get in Touch.</h2>
               <p className="text-xl text-gray-500 font-medium leading-relaxed">
                 Have a question or want to discuss a custom requirement? Our team of modern lifestyle consultants is here to help.
               </p>
@@ -1756,7 +1756,7 @@ if (response.paymentLink && response.reference) {
             </div>
           </div>
 
-          <div className="bg-white rounded-[60px] p-16 border border-gray-100 shadow-2xl shadow-indigo-50/50">
+          <div className="bg-white rounded-3xl sm:rounded-[60px] p-6 sm:p-10 lg:p-16 border border-gray-100 shadow-2xl shadow-indigo-50/50">
             <form onSubmit={handleContactSubmit} className="space-y-10">
               <div className="space-y-8">
                 <div className="space-y-3">
@@ -1831,7 +1831,7 @@ if (response.paymentLink && response.reference) {
       <div className="py-32 min-h-screen" style={{ backgroundColor: mainBgColor }}>
         <div className="max-w-screen-2xl mx-auto px-6 lg:px-12 space-y-20">
           <div className="text-center space-y-4">
-            <h2 className="text-6xl font-black tracking-tighter text-gray-900">Choose Your Plan.</h2>
+            <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-gray-900">Choose Your Plan.</h2>
             <p className="text-xl text-gray-500 font-medium">Elevate your business with our professional solutions</p>
           </div>
 
@@ -1839,7 +1839,7 @@ if (response.paymentLink && response.reference) {
             {tiers.map((tier) => (
               <div
                 key={tier.id}
-                className={`relative p-12 rounded-[50px] border-2 transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 ${
+                className={`relative p-6 sm:p-8 lg:p-12 rounded-3xl sm:rounded-[50px] border-2 transition-all duration-500 hover:shadow-2xl hover:-translate-y-2 ${
                   currentPlan === tier.id
                     ? 'border-indigo-600 bg-white shadow-xl shadow-indigo-50'
                     : 'border-gray-100 bg-white hover:border-indigo-100'
@@ -1900,7 +1900,7 @@ if (response.paymentLink && response.reference) {
             <ArrowRight className="w-4 h-4 rotate-180 transition-transform group-hover:-translate-x-2" />
             Back to Home
           </button>
-          <h2 className="text-6xl font-black tracking-tighter text-gray-900 leading-none">{policyPageData?.title}</h2>
+          <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-gray-900 leading-none">{policyPageData?.title}</h2>
         </div>
         
         <div className="text-gray-500 leading-relaxed whitespace-pre-wrap font-medium text-lg">
@@ -1915,7 +1915,7 @@ if (response.paymentLink && response.reference) {
     return (
       <div className="py-32 min-h-screen flex items-center justify-center bg-gray-50" style={{ backgroundColor: mainBgColor }}>
         <div className="max-w-4xl w-full px-6 grid md:grid-cols-2 gap-10">
-          <div className="bg-white rounded-[50px] p-16 border border-gray-100 shadow-2xl shadow-indigo-50/50 space-y-12 text-center group transition-all hover:-translate-y-2">
+          <div className="bg-white rounded-3xl sm:rounded-[50px] p-6 sm:p-10 lg:p-16 border border-gray-100 shadow-2xl shadow-indigo-50/50 space-y-8 sm:space-y-12 text-center group transition-all hover:-translate-y-2">
             <div className="w-20 h-20 bg-indigo-50 rounded-[30px] flex items-center justify-center mx-auto text-indigo-600 transition-all group-hover:scale-110">
               <LogIn size={32} />
             </div>
@@ -1931,7 +1931,7 @@ if (response.paymentLink && response.reference) {
             </button>
           </div>
 
-          <div className="bg-white rounded-[50px] p-16 border border-gray-100 shadow-2xl shadow-indigo-50/50 space-y-12 text-center group transition-all hover:-translate-y-2">
+          <div className="bg-white rounded-3xl sm:rounded-[50px] p-6 sm:p-10 lg:p-16 border border-gray-100 shadow-2xl shadow-indigo-50/50 space-y-8 sm:space-y-12 text-center group transition-all hover:-translate-y-2">
             <div className="w-20 h-20 bg-indigo-50 rounded-[30px] flex items-center justify-center mx-auto text-indigo-600 transition-all group-hover:scale-110">
               <UserPlus size={32} />
             </div>
@@ -2250,16 +2250,16 @@ if (response.paymentLink && response.reference) {
       </main>
 
       {view !== 'checkout' && view !== 'order-success' && (
-        <header 
+        <header id="header"
           className={`${customizations.stickyHeader !== false ? 'fixed' : 'absolute'} ${editMode ? 'top-16' : 'top-0'} left-0 right-0 z-50 transition-all duration-500 border-b border-gray-100/50`}
           style={{ 
             backgroundColor: customizations.headerBgColor || 'rgba(255, 255, 255, 0.85)',
             backdropFilter: 'blur(24px)'
           }}
         >
-          <div className="max-w-screen-2xl mx-auto px-6 lg:px-12 h-20 flex items-center justify-between">
-            <div className="flex items-center gap-12">
-              <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setView('home')}>
+          <div className="max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-12 h-16 lg:h-20 flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-3 lg:gap-12">
+              <div className="flex min-w-0 items-center gap-3 cursor-pointer group" onClick={() => { setView('home'); setMobileMenuOpen(false); }}>
                 {seller.logo ? (
                   <img src={seller.logo} alt={seller.storeName} className="h-9 w-auto object-contain transition-transform duration-500 group-hover:scale-110" />
                 ) : (
@@ -2276,7 +2276,7 @@ if (response.paymentLink && response.reference) {
                         style={{ color: customizations.headerTextColor || '#0f172a' }}
                       />
                     ) : (
-                      <h1 className="text-xl font-black tracking-tighter text-gray-900" style={{ color: customizations.headerTextColor || '#0f172a' }}>
+                    <h1 className="max-w-[34vw] truncate text-base sm:text-xl font-black tracking-tighter text-gray-900" style={{ color: customizations.headerTextColor || '#0f172a' }}>
                         {seller.storeName}
                       </h1>
                     )}
@@ -2317,10 +2317,10 @@ if (response.paymentLink && response.reference) {
               </nav>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex shrink-0 items-center gap-1 sm:gap-3">
               <div className="flex items-center gap-1 bg-gray-100/50 p-1 rounded-2xl">
                 <button 
-                  className="p-3 rounded-xl transition-all duration-300 relative group/cart-btn" 
+                  className="p-2 sm:p-3 rounded-xl transition-all duration-300 relative group/cart-btn"
                   style={{ color: customizations.headerTextColor || '#64748b' }}
                   onClick={() => setView('cart')}
                   onMouseEnter={(e) => {
@@ -2343,7 +2343,7 @@ if (response.paymentLink && response.reference) {
                   )}
                 </button>
                 <button 
-                  className={`p-3 rounded-xl transition-all duration-300 group/wish-btn ${
+                  className={`hidden sm:block p-2 sm:p-3 rounded-xl transition-all duration-300 group/wish-btn ${
                     wishlist.length > 0 
                       ? 'bg-red-50 text-red-500 hover:bg-red-500 hover:text-white' 
                       : ''
@@ -2369,25 +2369,58 @@ if (response.paymentLink && response.reference) {
               
               <button
                 onClick={() => navigate(user ? (user.role === 'customer' ? '/customer/dashboard' : '/seller/dashboard') : `/login?shop=${seller.id}`)}
-                className="px-8 py-3 bg-gray-900 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-indigo-600 hover:shadow-indigo-100 hover:shadow-2xl transition-all duration-500 active:scale-95"
+                className="hidden sm:block px-3 lg:px-8 py-3 bg-gray-900 text-white text-[9px] lg:text-[10px] font-black uppercase tracking-wider lg:tracking-[0.2em] rounded-xl lg:rounded-2xl hover:bg-indigo-600 hover:shadow-indigo-100 hover:shadow-2xl transition-all duration-500 active:scale-95"
               >
                 {user ? 'Dashboard' : 'Sign In'}
               </button>
+              <button
+                type="button"
+                aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+                aria-expanded={mobileMenuOpen}
+                onClick={() => setMobileMenuOpen(open => !open)}
+                className="rounded-xl p-2 text-gray-700 hover:bg-gray-100 lg:hidden"
+              >
+                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
             </div>
           </div>
+          {mobileMenuOpen && (
+            <nav className="absolute left-0 right-0 top-full border-t border-gray-100 bg-white px-4 py-3 shadow-xl lg:hidden">
+              {[
+                { label: 'Home', view: 'home' as View },
+                { label: 'Collection', view: 'shop' as View },
+                { label: 'Contact', view: 'contact' as View },
+                { label: 'Wishlist', view: 'shop' as View },
+                { label: user ? 'Dashboard' : 'Sign In', action: 'account' }
+              ].map(item => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    if (item.action === 'account') navigate(user ? (user.role === 'customer' ? '/customer/dashboard' : '/seller/dashboard') : `/login?shop=${seller.id}`);
+                    else if (item.view) setView(item.view);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="block w-full rounded-xl px-4 py-3 text-left text-xs font-black uppercase tracking-widest text-gray-700 hover:bg-indigo-50 hover:text-indigo-700"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </nav>
+          )}
         </header>
       )}
 
       {view !== 'checkout' && view !== 'order-success' && (
-        <footer 
-          className="border-t border-gray-100 pt-32 pb-20 px-6 lg:px-12 mt-32"
+        <footer id="footer"
+          className="border-t border-gray-100 pt-16 pb-12 px-6 lg:px-12 mt-20 lg:mt-32 lg:pt-32 lg:pb-20"
           style={{ 
             backgroundColor: customizations.footerBgColor || '#ffffff',
             color: customizations.footerTextColor || '#0f172a'
           }}
         >
           <div className="max-w-screen-2xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-20 pb-20 border-b border-gray-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-20 pb-12 lg:pb-20 border-b border-gray-100">
               <div className="space-y-10">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl rotate-3">

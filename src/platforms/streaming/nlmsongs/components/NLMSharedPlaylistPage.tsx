@@ -30,7 +30,7 @@ const SharedPlaylistPage = ({ isVisible = true }: { isVisible?: boolean }) => {
     return () => { active = false; };
   }, [isVisible, playlistId, retryCount]);
   const closeMobileNav = useCallback(() => setMobileNavOpen(false), []);
-  const navigateDiscovery = (view: 'Genres' | 'My List' | 'Playlists') => { navigate(`/nlmsongs/${view === 'My List' ? 'my-list' : view.toLowerCase()}`); closeMobileNav(); };
+  const navigateDiscovery = (view: 'Genres' | 'Playlists') => { navigate(`/nlmsongs/${view.toLowerCase()}`); closeMobileNav(); };
   const navigateView = (view: NLMView) => { navigate(view === 'Settings' ? '/nlmsongs/settings' : view === 'Your Library' ? '/nlmsongs/library' : view === 'Downloads' ? '/nlmsongs/downloads' : '/nlmsongs/listen'); closeMobileNav(); };
   const playTracks = (trackIds: string[]) => window.dispatchEvent(new CustomEvent('nlm:play-playlist', { detail: { trackIds } }));
   const copyPlaylistLink = async () => {

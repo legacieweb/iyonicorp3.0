@@ -2,11 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Input, Card } from '../../components/ui';
-import { Store, Users, Eye, EyeOff, CheckCircle, ArrowLeft, Package, Briefcase, Building2, Link as LinkIcon } from 'lucide-react';
+import { Store, Eye, EyeOff, CheckCircle, ArrowLeft, Package, Briefcase, Link as LinkIcon } from 'lucide-react';
 import { getAuthErrorDetails } from '../../utils/authErrors';
 import { managerInvitationAPI } from '../../services/api';
 import { getVipAuthTheme } from '../../utils/vipAuthTheme';
 import './vip-auth.css';
+
+const PRODUCT_SHOP_THEME_IDS = new Set([
+  'neon-pulse', 'modern-ecommerce', 'luxury-boutique', 'beauty-store', 'shoe-store',
+  'jewelry-store', 'bakery-store', 'couture-store', 'crown-stroke'
+]);
 
 interface RegisterProps {
   onSwitchToLogin: () => void;
@@ -30,6 +35,8 @@ export const Register: React.FC<RegisterProps> = ({
   const signupParams = new URLSearchParams(location.search);
   const storeSubdomain = signupParams.get('subdomain');
   const selectedThemeId = signupParams.get('theme') || signupParams.get('platform');
+  const isProductThemeSignup = Boolean(selectedThemeId && PRODUCT_SHOP_THEME_IDS.has(selectedThemeId.toLowerCase()));
+  const isPlatformThemeSignup = Boolean(selectedThemeId && !isProductThemeSignup);
   const isUtormeSignup = signupParams.get('platform') === 'utorme';
   const isUtormeTutorSignup = isUtormeSignup && preselectedRole === 'seller';
   const isUtormeStudentSignup = isUtormeSignup && preselectedRole === 'customer';
@@ -193,7 +200,7 @@ export const Register: React.FC<RegisterProps> = ({
         themeId: selectedThemeId || (isTsppSignup ? 'tspp' : undefined),
         ...(accountRole === 'seller' ? {
           storeName: formData.storeName,
-          ...(!isTsppSignup ? {
+          ...(!isTsppSignup && !isPlatformThemeSignup ? {
             subdomain: formData.subdomain,
             shopType: formData.shopType,
           } : {}),
@@ -288,6 +295,12 @@ export const Register: React.FC<RegisterProps> = ({
     return <div className="min-h-screen flex items-center justify-center p-4 text-red-600">{invitationError}</div>;
   }
 
+  const isThemeSignup = Boolean(selectedThemeId);
+  const selectedThemeName = vipTheme?.name || selectedThemeId?.split(/[-_]/).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+  const benefitHeading = formData.role === 'seller'
+    ? isTsppSchoolSignup ? 'Your school workspace' : isUtormeTutorSignup ? 'Your tutor workspace' : isProductThemeSignup ? 'Your product storefront' : isPlatformThemeSignup ? `${selectedThemeName || 'Platform'} workspace` : 'Your business workspace'
+    : formData.role === 'customer' ? isTsppTeacherSignup ? 'Your educator profile' : isUtormeStudentSignup ? 'Your learning space' : isShopSignup ? 'Your shopping account' : 'Your account, made useful'
+      : 'Your management workspace';
   const benefits = {
      seller: isUtormeTutorSignup ? [
       'Create a tutor profile and service page',
@@ -301,6 +314,16 @@ export const Register: React.FC<RegisterProps> = ({
       'Schedule interviews and collect feedback',
       'Branded school employer page',
       'Auto-renewing subscription',
+    ] : isProductThemeSignup ? [
+      'Launch a storefront designed for your products',
+      'Manage products and orders in one workspace',
+      'Customize the look and feel of your store',
+      'Keep your customers and business details together',
+    ] : isPlatformThemeSignup ? [
+      'Start with tools built for your platform',
+      'Manage your workspace from one place',
+      'Bring your team and customers together',
+      'Shape the experience around your business',
     ] : [
       'AI-Powered Shop Management',
       'Instant IyonicPay Integration',
@@ -334,11 +357,10 @@ export const Register: React.FC<RegisterProps> = ({
       'Manage your favorite products',
       'Get personalized recommendations',
     ] : [
-      'Shop from thousands of stores',
-      'Track your orders in real-time',
-      'Securely pay with IyonicPay',
-      'Manage your favorite products',
-      'Get personalized recommendations',
+      'Keep your activity and preferences together',
+      'Get a smoother experience across Iyonicorp',
+      'Stay connected to the services you use',
+      'Access your account securely from anywhere',
     ],
   };
 
@@ -359,13 +381,14 @@ export const Register: React.FC<RegisterProps> = ({
 
   return (
     <div className={`auth-page-shell min-h-screen flex flex-col md:flex-row bg-white ${vipTheme ? 'vip-auth-shell' : ''}`} data-vip-theme={vipTheme?.id} style={getAuthStyles()}>
-      {/* Left Side - Information & Benefits */}
+      {/* Left Side - Context for every account and platform */}
       <div 
-        className="vip-auth-brand-panel hidden md:flex md:w-2/5 p-12 text-white flex-col justify-between relative overflow-hidden"
+        className="vip-auth-brand-panel flex min-h-[26rem] w-full flex-col justify-between p-5 text-white relative overflow-hidden sm:p-7 md:min-h-screen md:w-[42%] md:p-8 lg:w-[45%] lg:p-12"
         style={vipTheme || isTsppSignup ? { background: isTsppSignup ? 'linear-gradient(145deg, #123b3b, #1f5a55)' : `linear-gradient(145deg, ${themeSecondary}, ${themePrimary})` } : undefined}
       >
         <div className="relative z-10">
-          <div className="flex items-center space-x-2 mb-12">
+          <div className="flex items-center justify-between gap-3 mb-12">
+            <div className="flex min-w-0 items-center space-x-3">
             {storeInfo?.logo ? (
               <img src={storeInfo.logo} alt={storeInfo.storeName} className="w-10 h-10 object-cover rounded-xl" />
             ) : (
@@ -373,60 +396,42 @@ export const Register: React.FC<RegisterProps> = ({
                 <img src="/logo.png" alt="Iyonicorp Logo" className="w-8 h-8 object-contain" />
               </div>
             )}
-            <span className="text-2xl font-bold tracking-tight">{storeInfo?.storeName || vipTheme?.name || 'Iyonicorp'}</span>
+            <span className="truncate text-xl font-extrabold tracking-tight">{storeInfo?.storeName || selectedThemeName || 'Iyonicorp'}</span>
+            </div>
+            <span className="shrink-0 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-white/80">{formData.role === 'customer' ? 'Member account' : isThemeSignup ? 'Platform setup' : 'Business account'}</span>
           </div>
-          
-          <h2 className={`text-4xl font-extrabold leading-tight mb-6 ${isTsppSignup ? 'text-[#f8f5ed]' : ''}`}>
-            {vipTheme ? vipTheme.headline : storeInfo ? `Join ${storeInfo.storeName}` : 'Start your journey'} <br />
-            {!vipTheme && <span className={isTsppSignup ? 'text-[#d8b978]' : 'text-purple-300'}>with us today.</span>}
+
+          <p className="mb-4 text-xs font-bold uppercase tracking-[.22em] text-white/65">A better way to get started</p>
+          <h2 className={`mb-5 max-w-[13ch] text-4xl font-extrabold leading-[1.02] tracking-tight lg:text-5xl ${isTsppSignup ? 'text-[#f8f5ed]' : ''}`}>
+            {vipTheme ? vipTheme.headline : storeInfo ? `Welcome to ${storeInfo.storeName}` : isProductThemeSignup ? 'Your store starts here.' : isPlatformThemeSignup ? 'Your work, in its own space.' : formData.role === 'customer' ? 'Make your account work for you.' : formData.role === 'seller_manager' ? 'Bring every business into focus.' : 'Build something that feels like yours.'}
           </h2>
-          <p className={`text-lg max-w-md mb-8 ${isTsppSignup ? 'text-[#e0eeea]' : 'text-purple-100'}`}>
+          <p className={`text-base max-w-lg mb-8 leading-7 ${isTsppSignup ? 'text-[#e0eeea]' : 'text-white/72'}`}>
             {isTsppSchoolSignup
               ? 'Create your school hiring workspace to publish roles, review verified candidates, and manage interviews in one place.'
               : isTsppTeacherSignup
                 ? 'Build your professional profile, verify your credentials, and connect with schools looking for teachers and staff.'
                 : vipTheme ? vipTheme.description : storeInfo
                 ? `Become a member of ${storeInfo.storeName} and enjoy exclusive benefits, track your orders, and more.`
-                : 'Join the fastest growing platform for sellers and managers. Everything you need to succeed in one place.'}
+                : isProductThemeSignup ? `Create your ${selectedThemeName} storefront and bring your products, customers, and brand together.`
+                  : isPlatformThemeSignup ? `Set up ${selectedThemeName} for your organization with a workspace designed around the way you work.`
+                    : formData.role === 'customer' ? 'One secure account keeps your preferences, activity, and the services you use close at hand.'
+                      : 'A clear, capable workspace for running your business and keeping the important details moving.'}
           </p>
-          
-          <div className="space-y-6">
-            <div className={`p-6 rounded-2xl backdrop-blur-md border transition-all duration-500 ${
-              formData.role === 'seller' 
-                ? 'bg-blue-500/10 border-blue-400/30' 
-                : formData.role === 'customer'
-                ? 'bg-green-500/10 border-green-400/30'
-                : 'bg-purple-500/10 border-purple-400/30'
-            }`}>
-              <h3 className="text-xl font-bold mb-4 flex items-center">
-                {formData.role === 'seller' ? (
-                  <>{isTsppSchoolSignup ? <Building2 className="w-6 h-6 mr-2 text-blue-300" /> : <Store className="w-6 h-6 mr-2 text-blue-300" />}{isUtormeTutorSignup ? 'Tutor Benefits' : isTsppSchoolSignup ? 'School Benefits' : 'Seller Benefits'}</>
-                ) : formData.role === 'customer' ? (
-                  <><Package className="w-6 h-6 mr-2 text-green-300" />{isUtormeStudentSignup ? 'Student Benefits' : isTsppTeacherSignup ? 'Educator Benefits' : 'Customer Benefits'}</>
-                ) : (
-                  <><Users className="w-6 h-6 mr-2 text-purple-300" /> Manager Benefits</>
-                )}
-              </h3>
-              <ul className="space-y-3">
-                {benefits[formData.role].map((benefit, index) => (
-                  <li key={index} className="flex items-start space-x-3">
-                    <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5 text-green-400" />
-                    <span className="text-sm text-gray-100 leading-relaxed">{benefit}</span>
-                  </li>
-                ))}
-              </ul>
+          <div className="rounded-3xl border border-white/12 bg-white/[.07] p-5 backdrop-blur-xl lg:p-6">
+            <div className="mb-5 flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/12 text-white"><CheckCircle className="h-5 w-5" /></span>
+              <div><h3 className="font-bold text-white">{benefitHeading}</h3><p className="mt-0.5 text-xs text-white/55">A few things you can do</p></div>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white/5 p-4 rounded-xl border border-white/10 text-center">
-                <p className="text-2xl font-bold text-white">{isTsppSignup ? (isTsppSchoolSignup ? 'School' : 'Teacher / worker') : initialSellerId ? 'Verified' : isUtormeSignup ? (isUtormeTutorSignup ? 'Tutor' : 'Learn') : '10K+'}</p>
-                <p className={`text-xs uppercase tracking-wider ${isTsppSignup ? 'text-[#e0eeea]' : 'text-purple-200'}`}>{isTsppSignup ? (isTsppSchoolSignup ? 'Hiring workspace' : 'Professional profile') : initialSellerId ? 'Shop' : isUtormeSignup ? (isUtormeTutorSignup ? 'Business account' : 'Student account') : 'Active Sellers'}</p>
-              </div>
-              <div className="bg-white/5 p-4 rounded-xl border border-white/10 text-center">
-                <p className="text-2xl font-bold text-white">{isTsppSignup ? 'Verified' : isUtormeSignup ? '1:1' : '24/7'}</p>
-                <p className={`text-xs uppercase tracking-wider ${isTsppSignup ? 'text-[#e0eeea]' : 'text-purple-200'}`}>{isTsppSignup ? (isTsppSchoolSignup ? 'Candidate profiles' : 'Credentials') : isUtormeSignup ? 'Tutor sessions' : 'Expert Support'}</p>
-              </div>
-            </div>
+            <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              {benefits[formData.role].slice(0, 4).map((benefit, index) => (
+                <li key={index} className="flex items-start gap-2.5 text-sm leading-5 text-white/80">
+                  <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--theme-primary,#c6f04a)]" />{benefit}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-2">
+            {[formData.role === 'customer' ? 'One secure account' : 'Built around your work', isProductThemeSignup ? 'Product storefront' : isPlatformThemeSignup ? 'Dedicated workspace' : 'Simple to manage'].map((item) => <span key={item} className="rounded-full border border-white/15 bg-white/[.04] px-3 py-1.5 text-xs font-semibold text-white/65">{item}</span>)}
           </div>
         </div>
         
@@ -434,8 +439,8 @@ export const Register: React.FC<RegisterProps> = ({
         <div className="absolute top-1/4 -right-20 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute -bottom-20 -left-20 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl"></div>
         
-        <div className="relative z-10 text-purple-200 text-sm">
-          © 2026 Iyonicorp.
+        <div className="relative z-10 flex items-center justify-between gap-4 text-xs text-white/45">
+          <span>© 2026 Iyonicorp</span><span>Thoughtful tools for what comes next.</span>
         </div>
       </div>
 
@@ -584,7 +589,12 @@ export const Register: React.FC<RegisterProps> = ({
 
             {formData.role === 'seller' && (
               <div className="space-y-6">
-                {!isUtormeTutorSignup && !isTsppSchoolSignup && (
+                {isProductThemeSignup ? (
+                  <div className="flex items-center gap-3 rounded-2xl border border-blue-200 bg-blue-50/70 p-4 text-blue-950">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600 shadow-sm"><Package className="h-5 w-5" /></span>
+                    <span><span className="block text-sm font-bold">Product storefront selected</span><span className="mt-0.5 block text-xs text-blue-800/75">Your account will be set up for selling products.</span></span>
+                  </div>
+                ) : !isPlatformThemeSignup && !isUtormeTutorSignup && !isTsppSchoolSignup && (
                 <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
                   <p className="text-sm font-semibold text-blue-900 mb-3">Shop Type</p>
                   <div className="grid grid-cols-2 gap-3">
@@ -619,15 +629,15 @@ export const Register: React.FC<RegisterProps> = ({
 
                 <div className={`grid grid-cols-1 gap-6 p-4 rounded-2xl border ${isTsppSignup ? 'md:grid-cols-1 border-white/10 bg-white/5' : 'md:grid-cols-2 bg-blue-50/50 border-blue-100'}`}>
                 <Input
-                   label={isUtormeTutorSignup ? 'Tutor or practice name' : isTsppSchoolSignup ? 'School name' : 'Store Name'}
+                  label={isUtormeTutorSignup ? 'Tutor or practice name' : isTsppSchoolSignup ? 'School name' : isPlatformThemeSignup ? 'Workspace or business name' : 'Store Name'}
                   type="text"
-                  placeholder={isUtormeTutorSignup ? 'Your tutoring name' : isTsppSchoolSignup ? 'Your school name' : 'My Awesome Store'}
+                  placeholder={isUtormeTutorSignup ? 'Your tutoring name' : isTsppSchoolSignup ? 'Your school name' : isPlatformThemeSignup ? 'Your workspace' : 'My Awesome Store'}
                   value={formData.storeName}
                   onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
                   required
                   className="bg-white border-gray-200 rounded-xl"
                 />
-                {!isTsppSignup && <Input
+                {!isTsppSignup && !isPlatformThemeSignup && <Input
                   label="Preferred subdomain (optional)"
                   type="text"
                   placeholder="mystore"

@@ -29,13 +29,17 @@ export const useFavorites = (userId?: string | null) => {
   }, []);
 
   useEffect(() => {
+    const unsubscribe = subscribeToFavorites(setFavorites);
     const storageHandler = (event: StorageEvent) => {
       if (event.key === LOCAL_STORAGE_KEYS.favorites) {
         syncFromStorage();
       }
     };
     window.addEventListener('storage', storageHandler);
-    return () => window.removeEventListener('storage', storageHandler);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('storage', storageHandler);
+    };
   }, [syncFromStorage]);
 
   useEffect(() => {

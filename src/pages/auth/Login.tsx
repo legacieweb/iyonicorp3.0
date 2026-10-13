@@ -2,11 +2,16 @@ import React, { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth, UserRole } from '../../context/AuthContext';
 import { Button, Input, Card } from '../../components/ui';
-import { Store, Shield, Users, Eye, EyeOff, ArrowLeft, KeyRound, Mail, Check, AlertCircle, X } from 'lucide-react';
+import { Store, Eye, EyeOff, ArrowLeft, KeyRound, Mail, Check, AlertCircle, X } from 'lucide-react';
 import { authAPI } from '../../services/api';
 import { getAuthErrorDetails } from '../../utils/authErrors';
 import { getVipAuthTheme } from '../../utils/vipAuthTheme';
 import './vip-auth.css';
+
+const PRODUCT_SHOP_THEME_IDS = new Set([
+  'neon-pulse', 'modern-ecommerce', 'luxury-boutique', 'beauty-store', 'shoe-store',
+  'jewelry-store', 'bakery-store', 'couture-store', 'crown-stroke'
+]);
 
 interface LoginProps {
   onSwitchToRegister: () => void;
@@ -25,6 +30,11 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
   const [showStoreSelection, setShowStoreSelection] = useState(false);
   const [storeInfo, setStoreInfo] = useState<any>(null);
   const vipTheme = getVipAuthTheme(location.pathname, location.search, storeInfo?.themeId || storeInfo?.theme?.selectedTheme);
+  const loginParams = new URLSearchParams(location.search);
+  const selectedThemeId = (loginParams.get('theme') || loginParams.get('platform') || '').toLowerCase();
+  const isProductThemeLogin = PRODUCT_SHOP_THEME_IDS.has(selectedThemeId);
+  const selectedThemeName = storeInfo?.storeName || vipTheme?.name || selectedThemeId.split(/[-_]/).filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+  const isCustomerLogin = loginParams.get('role') === 'customer' || Boolean(loginParams.get('shop') || loginParams.get('subdomain'));
   const [resetStep, setResetStep] = useState<'email' | 'otp' | 'newPassword' | 'success'>('email');
   const [resetEmail, setResetEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -255,13 +265,14 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
 
   return (
     <div className={`auth-page-shell min-h-screen flex flex-col md:flex-row bg-white ${vipTheme ? 'vip-auth-shell' : ''}`} data-vip-theme={vipTheme?.id} style={getThemeStyles()}>
-      {/* Left Side - Branding & Illustration */}
+      {/* Left Side - Contextual account and platform branding */}
       <div 
-        className="vip-auth-brand-panel hidden md:flex md:w-1/2 p-12 text-white flex-col justify-between relative overflow-hidden"
+        className="vip-auth-brand-panel flex min-h-[22rem] w-full flex-col justify-between p-5 text-white relative overflow-hidden sm:p-7 md:min-h-screen md:w-1/2 md:p-9 lg:p-12"
         style={vipTheme ? { background: `linear-gradient(145deg, ${themeSecondary}, ${themePrimary})` } : undefined}
       >
         <div className="relative z-10">
-          <div className="flex items-center space-x-2 mb-12">
+          <div className="mb-10 flex items-center justify-between gap-3 lg:mb-16">
+            <div className="flex min-w-0 items-center space-x-3">
             {storeInfo?.logo ? (
               <img src={storeInfo.logo} alt={storeInfo.storeName} className="w-10 h-10 object-cover rounded-xl" />
             ) : (
@@ -269,37 +280,33 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
                 <img src="/logo.png" alt="Iyonicorp Logo" className="w-8 h-8 object-contain" />
               </div>
             )}
-            <span className="text-2xl font-bold tracking-tight">{storeInfo?.storeName || vipTheme?.name || 'Iyonicorp'}</span>
+            <span className="truncate text-xl font-extrabold tracking-tight">{selectedThemeName || 'Iyonicorp'}</span>
+            </div>
+            <span className="shrink-0 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-white/80">{isCustomerLogin ? 'Member account' : isProductThemeLogin ? 'Store account' : selectedThemeId ? 'Platform access' : 'Secure sign in'}</span>
           </div>
-          
-          <h2 className="text-5xl font-extrabold leading-tight mb-6">
-            {vipTheme ? vipTheme.headline : storeInfo ? `Welcome to ${storeInfo.storeName}` : 'The future of e-commerce is here.'}
+
+          <p className="mb-4 text-xs font-bold uppercase tracking-[.22em] text-white/65">Good to have you back</p>
+          <h2 className="mb-5 max-w-[13ch] text-4xl font-extrabold leading-[1.02] tracking-tight lg:text-5xl">
+            {vipTheme ? vipTheme.headline : storeInfo ? `Welcome to ${storeInfo.storeName}` : isProductThemeLogin ? 'Your storefront, all in one place.' : selectedThemeId ? 'Pick up where your team left off.' : isCustomerLogin ? 'Your account, ready when you are.' : 'Your work, in its own space.'}
           </h2>
-          <p className="text-xl text-blue-100 max-w-lg mb-8">
+          <p className="mb-8 max-w-lg text-base leading-7 text-white/72">
             {vipTheme ? vipTheme.description : storeInfo 
               ? `Sign in to access your account at ${storeInfo.storeName}, track orders, and manage your profile.`
-              : 'Empowering thousands of businesses to grow, manage, and scale their online presence with ease.'}
+              : isProductThemeLogin ? `Sign in to manage your ${selectedThemeName} store, products, and orders.`
+                : selectedThemeId ? `Return to your ${selectedThemeName} workspace and continue managing the work that matters.`
+                  : isCustomerLogin ? 'Access your preferences, activity, and the stores or services you use with one secure account.'
+                    : 'Sign in to reach your Iyonicorp workspace and keep your business moving.'}
           </p>
-          
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20">
-              <div className="w-10 h-10 bg-blue-500/30 rounded-xl flex items-center justify-center text-blue-200">
-                <Shield className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="font-semibold text-white">{vipTheme ? `${vipTheme.name} workspace` : 'Enterprise Security'}</p>
-                <p className="text-sm text-blue-200">{vipTheme ? 'Your tailored tools are ready after sign-in.' : 'Bank-grade protection for your data'}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20">
-              <div className="w-10 h-10 bg-indigo-500/30 rounded-xl flex items-center justify-center text-indigo-200">
-                <Users className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="font-semibold text-white">{vipTheme ? 'Built around your work' : 'Multi-vendor Support'}</p>
-                <p className="text-sm text-blue-200">{vipTheme ? 'A focused space for the way your business runs.' : 'Manage everything from one dashboard'}</p>
-              </div>
-            </div>
+          <div className="rounded-3xl border border-white/12 bg-white/[.07] p-5 backdrop-blur-xl lg:p-6">
+            <p className="mb-4 text-xs font-bold uppercase tracking-[.18em] text-white/55">A smoother way to get things done</p>
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {(isCustomerLogin
+                ? ['One secure account for your activity', 'Your preferences close at hand', 'Easy access to stores and services', 'Pick up right where you left off']
+                : isProductThemeLogin
+                  ? ['Products and orders in one workspace', 'A storefront shaped around your brand', 'Quick access to your business tools', 'Your store, ready for the next sale']
+                  : ['A focused space for your work', 'Your tools together in one place', 'Stay connected to your team and customers', 'Secure access across your devices']
+              ).map((benefit) => <li key={benefit} className="flex items-start gap-2.5 text-sm leading-5 text-white/80"><Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--theme-primary,#c6f04a)]" />{benefit}</li>)}
+            </ul>
           </div>
         </div>
         
@@ -307,12 +314,8 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl -mr-20 -mt-20 animate-pulse"></div>
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl -ml-20 -mb-20"></div>
         
-        <div className="relative z-10 flex items-center justify-between">
-          <p className="text-blue-200 text-sm">© 2026 Iyonicorp</p>
-          <div className="flex space-x-4 text-sm text-blue-200">
-            <a href="#" className="hover:text-white transition-colors">Privacy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms</a>
-          </div>
+        <div className="relative z-10 flex items-center justify-between gap-4 pt-8 text-xs text-white/45">
+          <p>© 2026 Iyonicorp</p><p>Thoughtful tools for what comes next.</p>
         </div>
       </div>
 
@@ -332,8 +335,8 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
           </div>
 
           <div className="mb-10 text-center md:text-left">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{vipTheme ? `Welcome back to ${vipTheme.name}` : 'Welcome Back'}</h1>
-            <p className="text-gray-500">{vipTheme ? vipTheme.description : 'Enter your credentials to access your account'}</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{vipTheme ? `Welcome back to ${vipTheme.name}` : selectedThemeName ? `Welcome back to ${selectedThemeName}` : 'Welcome Back'}</h1>
+            <p className="text-gray-500">{vipTheme?.description || (isProductThemeLogin ? 'Sign in to continue to your product storefront.' : selectedThemeId ? `Sign in to continue to ${selectedThemeName}.` : 'Enter your credentials to access your account.')}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

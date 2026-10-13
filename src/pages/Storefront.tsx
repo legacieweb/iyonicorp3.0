@@ -61,6 +61,121 @@ const EDITABLE_SECTIONS = [
   { id: 'confirmation', label: 'Confirmation', fields: [{ key: 'confirmationTitle', label: 'Confirmation title' }, { key: 'confirmationMessage', label: 'Confirmation message' }, { key: 'confirmationHomeLabel', label: 'Home button' }, { key: 'confirmationTrackLabel', label: 'Track button' }] }
 ];
 
+// Keep the Modern E-commerce editor in sync with the controls the theme actually reads.
+// Each control is scoped to a section so sellers can edit every part of this theme from the rail.
+const MODERN_ECOMMERCE_SECTIONS = [
+  { id: 'header', label: 'Header', fields: [
+    { key: 'headerBgColor', label: 'Background color', type: 'color' }, { key: 'headerTextColor', label: 'Text color', type: 'color' }, { key: 'stickyHeader', label: 'Sticky header', type: 'toggle' }
+  ] },
+  { id: 'hero', label: 'Hero', hideKey: 'hideHero', fields: [
+    { key: 'heroBadgeText', label: 'Badge', type: 'text' }, { key: 'heroTitle', label: 'Title', type: 'textarea' }, { key: 'heroSubtitle', label: 'Description', type: 'textarea' },
+    { key: 'heroImage', label: 'Hero image URL', type: 'url' }, { key: 'heroTitleColor', label: 'Title color', type: 'color' }, { key: 'heroBadgeBgColor', label: 'Badge background', type: 'color' }, { key: 'heroBadgeTextColor', label: 'Badge text color', type: 'color' }, { key: 'heroSubtitleColor', label: 'Description color', type: 'color' }
+  ] },
+  { id: 'story', label: 'Story', hideKey: 'hideStory', fields: [
+    { key: 'storyTitle', label: 'Title', type: 'textarea' }, { key: 'storyDescription', label: 'Description', type: 'textarea' }, { key: 'storyImage', label: 'Story image URL', type: 'url' }
+  ] },
+  { id: 'features', label: 'Features', hideKey: 'hideFeatures', fields: [
+    { key: 'feature_0_icon', label: 'Feature 1 icon', type: 'text' }, { key: 'feature_0_title', label: 'Feature 1 title', type: 'text' }, { key: 'feature_0_desc', label: 'Feature 1 description', type: 'text' },
+    { key: 'feature_1_icon', label: 'Feature 2 icon', type: 'text' }, { key: 'feature_1_title', label: 'Feature 2 title', type: 'text' }, { key: 'feature_1_desc', label: 'Feature 2 description', type: 'text' },
+    { key: 'feature_2_icon', label: 'Feature 3 icon', type: 'text' }, { key: 'feature_2_title', label: 'Feature 3 title', type: 'text' }, { key: 'feature_2_desc', label: 'Feature 3 description', type: 'text' },
+    { key: 'feature_3_icon', label: 'Feature 4 icon', type: 'text' }, { key: 'feature_3_title', label: 'Feature 4 title', type: 'text' }, { key: 'feature_3_desc', label: 'Feature 4 description', type: 'text' },
+    { key: 'featuresBgColor', label: 'Background color', type: 'color' }
+  ] },
+  { id: 'productGrid', label: 'Product grid', hideKey: 'hideProductGrid', fields: [
+    { key: 'productGridTitle', label: 'Title', type: 'textarea' }, { key: 'productGridSubtitle', label: 'Description', type: 'textarea' }, { key: 'cardBgColor', label: 'Product card color', type: 'color' }
+  ] },
+  { id: 'newsletter', label: 'Newsletter', hideKey: 'hideNewsletter', fields: [
+    { key: 'newsletterTitle', label: 'Title', type: 'textarea' }, { key: 'newsletterSubtitle', label: 'Description', type: 'textarea' }, { key: 'newsletterBgColor', label: 'Background color', type: 'color' }, { key: 'newsletterTitleColor', label: 'Title color', type: 'color' }, { key: 'newsletterSubtitleColor', label: 'Description color', type: 'color' }, { key: 'newsletterButtonLabel', label: 'Button label', type: 'text' }
+  ] },
+  { id: 'footer', label: 'Footer', fields: [
+    { key: 'footerBgColor', label: 'Background color', type: 'color' }, { key: 'footerTextColor', label: 'Text color', type: 'color' }
+  ] },
+  { id: 'cart', label: 'Cart', fields: [ { key: 'cartTitle', label: 'Title', type: 'text' }, { key: 'cartEmptyText', label: 'Empty cart message', type: 'textarea' }, { key: 'cartCheckoutLabel', label: 'Checkout button', type: 'text' } ] },
+  { id: 'checkout', label: 'Checkout', fields: [ { key: 'checkoutTitle', label: 'Title', type: 'text' }, { key: 'checkoutSubtitle', label: 'Description', type: 'textarea' }, { key: 'checkoutSubmitLabel', label: 'Submit button', type: 'text' } ] },
+  { id: 'confirmation', label: 'Order confirmation', fields: [ { key: 'confirmationTitle', label: 'Title', type: 'text' }, { key: 'confirmationMessage', label: 'Message', type: 'textarea' }, { key: 'confirmationHomeLabel', label: 'Home button', type: 'text' }, { key: 'confirmationTrackLabel', label: 'Track order button', type: 'text' } ] }
+];
+
+const NEON_PULSE_SECTIONS = [
+  { id: 'header', label: 'Header', hideKey: 'hideHeader', fields: [
+    { key: 'headerLabel', label: 'Brand label', type: 'text' }, { key: 'headerShopLabel', label: 'Shop link', type: 'text' },
+    { key: 'headerStoryLabel', label: 'Story link', type: 'text' }, { key: 'headerContactLabel', label: 'Contact link', type: 'text' },
+    { key: 'headerBgColor', label: 'Background color', type: 'color', defaultValue: '#f1f2ed' }, { key: 'headerTextColor', label: 'Text color', type: 'color', defaultValue: '#12131a' }
+  ] },
+  { id: 'hero', label: 'Hero', hideKey: 'hideHero', fields: [
+    { key: 'heroEyebrow', label: 'Eyebrow', type: 'text' }, { key: 'heroTitle', label: 'Title', type: 'text' },
+    { key: 'heroAccent', label: 'Accent title', type: 'text' }, { key: 'heroDescription', label: 'Description', type: 'textarea' },
+    { key: 'heroButtonLabel', label: 'Button label', type: 'text' },
+    { key: 'heroDescriptionColor', label: 'Description color', type: 'color', defaultValue: '#67676d' },
+    { key: 'heroPanelColor', label: 'Image panel color', type: 'color', defaultValue: '#3155ff' }, { key: 'heroTextColor', label: 'Text color', type: 'color', defaultValue: '#12131a' }
+  ] },
+  { id: 'marquee', label: 'Marquee', hideKey: 'hideMarquee', fields: [
+    { key: 'marqueeText', label: 'Scrolling message', type: 'textarea' }, { key: 'marqueeBgColor', label: 'Background color', type: 'color', defaultValue: '#d7ff38' },
+    { key: 'marqueeTextColor', label: 'Text color', type: 'color', defaultValue: '#12131a' }
+  ] },
+  { id: 'productGrid', label: 'Product grid', hideKey: 'hideProductGrid', fields: [
+    { key: 'productGridEyebrow', label: 'Eyebrow', type: 'text' }, { key: 'productGridTitle', label: 'Title', type: 'text' },
+    { key: 'productGridSearchPlaceholder', label: 'Search placeholder', type: 'text' }, { key: 'productCardColor', label: 'Card background', type: 'color', defaultValue: '#ffffff' }
+  ] },
+  { id: 'story', label: 'Story', hideKey: 'hideStory', fields: [
+    { key: 'storyTitle', label: 'Panel title', type: 'textarea' }, { key: 'storyLead', label: 'Lead', type: 'textarea' },
+    { key: 'storyDescription', label: 'Description', type: 'textarea' },
+    { key: 'storyPanelColor', label: 'Panel background', type: 'color', defaultValue: '#12131a' }, { key: 'storyTextColor', label: 'Panel text color', type: 'color', defaultValue: '#ffffff' }
+  ] },
+  { id: 'footer', label: 'Footer', hideKey: 'hideFooter', fields: [
+    { key: 'footerTagline', label: 'Tagline', type: 'text' }, { key: 'footerInstagramUrl', label: 'Instagram URL', type: 'url' },
+    { key: 'footerFacebookUrl', label: 'Facebook URL', type: 'url' }, { key: 'footerWebsiteUrl', label: 'Website URL', type: 'url' },
+    { key: 'footerBgColor', label: 'Background color', type: 'color', defaultValue: '#f1f2ed' }, { key: 'footerTextColor', label: 'Text color', type: 'color', defaultValue: '#12131a' }
+  ] },
+  { id: 'cart', label: 'Cart', fields: [
+    { key: 'cartTitle', label: 'Cart label', type: 'text' }, { key: 'cartHeading', label: 'Cart heading', type: 'text' },
+    { key: 'cartEmptyText', label: 'Empty cart message', type: 'textarea' }, { key: 'cartCheckoutLabel', label: 'Checkout button', type: 'text' },
+    { key: 'cartBgColor', label: 'Cart background', type: 'color', defaultValue: '#f1f2ed' }
+  ] }
+];
+
+// These themes read their customization values directly from the theme object. Keep
+// their editor fields declared here so a setting is available before its first save.
+const PRODUCT_THEME_FIELDS: Record<string, { id: string; keys: string }[]> = {
+  'bakery-store': [
+    { id: 'hero', keys: 'heroImage heroSubtitle heroTitle1 heroCtaText' },
+    { id: 'features', keys: 'feature_0_icon feature_0_title feature_0_desc feature_1_icon feature_1_title feature_1_desc feature_2_icon feature_2_title feature_2_desc' },
+    { id: 'productGrid', keys: 'productGridTitle productGridSubtitle' },
+    { id: 'story', keys: 'storyImage storyTitle storyText' },
+    { id: 'footer', keys: 'footerBgColor footerTextColor' }, { id: 'global', keys: 'mainBgColor' }
+  ],
+  'beauty-store': [
+    { id: 'header', keys: 'headerBgColor headerTextColor' }, { id: 'hero', keys: 'heroImage heroSubtitle heroTitle1 heroTitleColor heroCtaText' },
+    { id: 'features', keys: 'feature_0_icon feature_0_title feature_0_desc feature_1_icon feature_1_title feature_1_desc feature_2_icon feature_2_title feature_2_desc feature_3_icon feature_3_title feature_3_desc featuresBgColor' },
+    { id: 'productGrid', keys: 'productGridTitle productGridSubtitle' }, { id: 'story', keys: 'storyImage storyTitle storyText' },
+    { id: 'newsletter', keys: 'newsletterBgColor newsletterTitle newsletterSubtitle' }, { id: 'footer', keys: 'footerBgColor footerTextColor' }, { id: 'global', keys: 'mainBgColor' }
+  ],
+  'couture-store': [
+    { id: 'hero', keys: 'heroImage heroTitle1 heroSubtitle heroCtaText' },
+    { id: 'features', keys: 'feature_0_icon feature_0_title feature_0_desc feature_1_icon feature_1_title feature_1_desc feature_2_icon feature_2_title feature_2_desc' },
+    { id: 'productGrid', keys: 'productGridTitle productGridSubtitle' }, { id: 'story', keys: 'storyImage storyTitle storyText' },
+    { id: 'footer', keys: 'footerBgColor footerTextColor' }, { id: 'global', keys: 'mainBgColor mainTextColor' }
+  ],
+  'jewelry-store': [
+    { id: 'hero', keys: 'heroImage heroSubtitle heroTitle1 heroCtaText' },
+    { id: 'features', keys: 'feature_0_icon feature_0_title feature_0_desc feature_1_icon feature_1_title feature_1_desc feature_2_icon feature_2_title feature_2_desc' },
+    { id: 'productGrid', keys: 'productGridTitle' }, { id: 'story', keys: 'storyImage storyTitle storyText storyFeatureTitle storyFeatureText' },
+    { id: 'consult', keys: 'consultBgImage consultTitle consultSubtitle consultCta' }, { id: 'footer', keys: 'footerBgColor footerTextColor' }, { id: 'global', keys: 'mainBgColor mainTextColor' }
+  ],
+  'luxury-boutique': [
+    { id: 'header', keys: 'headerBgColor headerBorderColor headerShape headerTextColor headerActiveTextColor headerIconColor headerBadgeBgColor headerBadgeTextColor headerButtonBgColor headerButtonTextColor headerButtonRadius headerLogoutColor stickyHeader' },
+    { id: 'hero', keys: 'heroImage heroSubtitle heroSubtitleColor heroTitle1 heroTitle1Color heroTitle2 heroTitle2Color' },
+    { id: 'features', keys: 'feature_0_icon feature_0_title feature_0_desc feature_1_icon feature_1_title feature_1_desc feature_2_icon feature_2_title feature_2_desc feature_3_icon feature_3_title feature_3_desc featuresBgColor' },
+    { id: 'arrivals', keys: 'cardBgColor' }, { id: 'global', keys: 'mainBgColor' }, { id: 'footer', keys: 'footerBgColor footerTextColor' }
+  ],
+  'shoe-store': [
+    { id: 'hero', keys: 'heroImage heroSubtitle heroTitle1 heroCtaText' },
+    { id: 'features', keys: 'feature_0_icon feature_0_title feature_0_desc feature_1_icon feature_1_title feature_1_desc feature_2_icon feature_2_title feature_2_desc' },
+    { id: 'productGrid', keys: 'productGridTitle productGridSubtitle' }, { id: 'story', keys: 'storyImage storyTitle storyText' },
+    { id: 'featuredBanner', keys: 'featuredBannerBgColor featuredBannerImage featuredBannerTitle featuredBannerSubtitle featuredBannerCta' },
+    { id: 'newsletter', keys: 'newsletterTitle newsletterSubtitle' }, { id: 'footer', keys: 'footerBgColor footerTextColor' }, { id: 'global', keys: 'mainBgColor' }
+  ]
+};
+
 const EDITOR_DEFAULTS: Record<string, string> = {
   headerLabel: 'Your store name',
   headerShopLabel: 'Shop',
@@ -96,13 +211,13 @@ const EDITOR_DEFAULTS: Record<string, string> = {
   confirmationTrackLabel: 'Track Order'
 };
 
-const SECTION_ORDER = ['header', 'hero', 'features', 'productGrid', 'story', 'newsletter', 'consult', 'footer', 'cart', 'checkout', 'confirmation', 'code', 'global'];
+const SECTION_ORDER = ['header', 'hero', 'marquee', 'features', 'productGrid', 'featuredBanner', 'arrivals', 'story', 'newsletter', 'consult', 'footer', 'cart', 'checkout', 'confirmation', 'code', 'global'];
 const SECTION_LABELS: Record<string, string> = {
   header: 'Header', hero: 'Hero', features: 'Features', productGrid: 'Product grid', story: 'Story',
-  newsletter: 'Newsletter', consult: 'Consultation', footer: 'Footer', cart: 'Cart', checkout: 'Checkout', confirmation: 'Confirmation', code: 'CSS & embeds', global: 'Global'
+  marquee: 'Marquee', featuredBanner: 'Featured banner', arrivals: 'New arrivals', newsletter: 'Newsletter', consult: 'Consultation', footer: 'Footer', cart: 'Cart', checkout: 'Checkout', confirmation: 'Confirmation', code: 'CSS & embeds', global: 'Global'
 };
 const SECTION_HIDE_KEYS: Record<string, string> = {
-  header: 'hideHeader', hero: 'hideHero', features: 'hideFeatures', productGrid: 'hideProductGrid', story: 'hideStory', newsletter: 'hideNewsletter', consult: 'hideConsult', footer: 'hideFooter'
+  header: 'hideHeader', hero: 'hideHero', features: 'hideFeatures', productGrid: 'hideProductGrid', arrivals: 'hideArrivals', story: 'hideStory', newsletter: 'hideNewsletter', consult: 'hideConsult', footer: 'hideFooter'
 };
 
 const sanitizeThemeCss = (value: string) => value
@@ -126,20 +241,38 @@ const SecureEmbed: React.FC<{ code?: string }> = ({ code }) => {
   }
 };
 
-const scanThemeSections = (themeId: string, customizations: Record<string, any>) => {
-  const sections = new Map<string, { id: string; label: string; hideKey?: string; fields: { key: string; label: string }[] }>();
+const scanThemeSections = (themeId: string, customizations: Record<string, any>): { id: string; label: string; hideKey?: string; fields: { key: string; label: string; type?: string; defaultValue?: string }[] }[] => {
+  if (themeId === 'modern-ecommerce') return MODERN_ECOMMERCE_SECTIONS;
+  if (themeId === 'neon-pulse') return NEON_PULSE_SECTIONS;
+  const sections = new Map<string, { id: string; label: string; hideKey?: string; fields: { key: string; label: string; type?: string; defaultValue?: string }[] }>();
   SECTION_ORDER.forEach(id => sections.set(id, { id, label: SECTION_LABELS[id], hideKey: SECTION_HIDE_KEYS[id], fields: [] }));
   sections.get('code')?.fields.push({ key: 'customCss', label: 'Global CSS' }, { key: 'embedCode', label: 'Safe iframe embed' });
 
+  const inferField = (key: string) => {
+    const type = /color|bgcolor|textcolor|bordercolor/i.test(key) ? 'color'
+      : /^(sticky|show|enable)/i.test(key) ? 'toggle'
+      : /image|url|src/i.test(key) ? 'url'
+      : /description|subtitle|storytext|message|tagline|emptytext/i.test(key) ? 'textarea' : 'text';
+    const label = key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').replace(/\b\w/g, character => character.toUpperCase());
+    return { key, label, type };
+  };
+
+  PRODUCT_THEME_FIELDS[themeId]?.forEach(({ id, keys }) => {
+    const section = sections.get(id);
+    keys.split(/\s+/).filter(Boolean).forEach(key => {
+      if (section && !section.fields.some(field => field.key === key)) section.fields.push(inferField(key));
+    });
+  });
+
   Object.keys(customizations).forEach(key => {
     const normalizedKey = key.toLowerCase();
-    const matchedPrefix = ['header', 'hero', 'story', 'newsletter', 'footer', 'cart', 'checkout', 'confirmation', 'productgrid', 'consult'].find(prefix => normalizedKey.startsWith(prefix));
+    const matchedPrefix = ['header', 'hero', 'story', 'newsletter', 'footer', 'cart', 'checkout', 'confirmation', 'productgrid', 'featuredBanner', 'consult', 'arrivals', 'marquee', 'features'].find(prefix => normalizedKey.startsWith(prefix.toLowerCase()));
     const sectionId = key.startsWith('feature_') || key.startsWith('stat_')
       ? 'features'
-      : matchedPrefix === 'productgrid' ? 'productGrid' : matchedPrefix || key.split('_')[0];
+      : matchedPrefix === 'productgrid' ? 'productGrid' : matchedPrefix || (normalizedKey.includes('bgcolor') || normalizedKey.includes('textcolor') ? 'global' : key.split('_')[0]);
     const section = sections.get(sectionId) || sections.get('global');
     if (!section || section.fields.some(field => field.key === key) || key.startsWith('hide')) return;
-    section.fields.push({ key, label: key.replace(/_/g, ' ').replace(/\b\w/g, character => character.toUpperCase()) });
+    section.fields.push(inferField(key));
   });
 
   const baseFields = themeId === 'neon-pulse'
@@ -588,7 +721,7 @@ export const Storefront: React.FC = () => {
       onImageUpload: handleImageUpload,
       onSelectSection: (section: string) => {
         setActiveEditorSection(section);
-        document.getElementById(section === 'productGrid' ? 'shop' : section)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById(section)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       },
       hideInlineEditor: true
     } : {};
@@ -685,16 +818,16 @@ export const Storefront: React.FC = () => {
       {isSellerOfThisStore && !editMode && sellerData && (
         <button
           onClick={() => setEditMode(true)}
-          className="fixed right-5 top-1/2 z-[60] flex -translate-y-1/2 items-center gap-2 rounded-l-2xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-2xl transition-all hover:bg-blue-700"
+          className="fixed bottom-4 right-4 top-auto z-[60] flex items-center gap-2 rounded-full bg-blue-600 p-3 text-sm font-bold text-white shadow-2xl transition-all hover:bg-blue-700 sm:bottom-auto sm:right-5 sm:top-1/2 sm:-translate-y-1/2 sm:rounded-l-2xl sm:rounded-r-none sm:px-4 sm:py-3"
         >
           <Edit3 className="w-6 h-6" />
-          <span>Edit theme</span>
+          <span className="hidden sm:inline">Edit theme</span>
         </button>
       )}
       
       {/* Save actions stay together with the theme controls. */}
       {editMode && isSellerOfThisStore && (
-        <aside className="fixed right-0 top-0 z-[60] flex h-full w-[min(24rem,92vw)] flex-col overflow-hidden border-l border-gray-200 bg-white p-6 shadow-2xl">
+        <aside className="fixed inset-x-0 bottom-0 top-auto z-[60] flex h-[78dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-gray-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-2xl sm:p-6 md:inset-y-0 md:left-auto md:right-0 md:top-0 md:h-full md:w-[min(24rem,92vw)] md:rounded-none md:border-l md:border-t-0">
           <div className="flex items-start justify-between gap-4 border-b border-gray-100 pb-5">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600">Seller workspace</p>
@@ -705,17 +838,17 @@ export const Storefront: React.FC = () => {
               <X className="h-5 w-5" />
             </button>
           </div>
-          <div className="mt-6 flex-1 space-y-5 overflow-y-auto pr-1">
+          <div className="mt-4 flex-1 space-y-5 overflow-y-auto overscroll-contain pr-1 sm:mt-6">
             <div>
               <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Editable sections</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-2">
                 {editorSections.map(section => (
                   <button
                     key={section.id}
                     onClick={() => {
                       const nextSection = activeEditorSection === section.id ? null : section.id;
                       setActiveEditorSection(nextSection);
-                      if (nextSection) document.getElementById(nextSection === 'productGrid' ? 'shop' : nextSection)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      if (nextSection) document.getElementById(nextSection)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }}
                     className={`rounded-xl border px-3 py-3 text-left text-xs font-black transition ${section.hideKey && sellerData?.theme?.customizations?.[section.hideKey] ? 'border-dashed border-gray-300 text-gray-400 line-through' : activeEditorSection === section.id ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-600 hover:border-blue-300'}`}
                   >
@@ -730,13 +863,15 @@ export const Storefront: React.FC = () => {
                 {editorSections.find(section => section.id === activeEditorSection)?.fields.map(field => (
                   <label key={field.key} className="block text-xs font-bold text-gray-600">
                     {field.label}
-                    <textarea
-                      value={getEditorValue(field.key)}
-                      onChange={(event) => updateThemeCustomization(activeEditorSection, field.key, event.target.value)}
-                      placeholder="Leave blank to use the default"
-                      rows={field.key.toLowerCase().includes('description') || field.key === 'storyLead' ? 3 : 2}
-                      className="mt-1 w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-blue-500"
-                    />
+                    {field.type === 'color' ? (
+                      <input type="color" value={getEditorValue(field.key) || field.defaultValue || '#ffffff'} onChange={(event) => updateThemeCustomization(activeEditorSection, field.key, event.target.value)} className="mt-1 block h-10 w-full cursor-pointer rounded-xl border border-gray-200 bg-white p-1" />
+                    ) : field.type === 'toggle' ? (
+                      <input type="checkbox" checked={sellerData?.theme?.customizations?.[field.key] !== false} onChange={(event) => updateThemeCustomization(activeEditorSection, field.key, event.target.checked)} className="mt-2 h-4 w-4 accent-blue-600" />
+                    ) : field.type === 'textarea' ? (
+                      <textarea value={getEditorValue(field.key)} onChange={(event) => updateThemeCustomization(activeEditorSection, field.key, event.target.value)} placeholder="Leave blank to use the default" rows={3} className="mt-1 w-full resize-y rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-blue-500" />
+                    ) : (
+                      <input type={field.type === 'url' ? 'url' : 'text'} value={getEditorValue(field.key)} onChange={(event) => updateThemeCustomization(activeEditorSection, field.key, event.target.value)} placeholder="Leave blank to use the default" className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-blue-500" />
+                    )}
                   </label>
                 ))}
                 {activeEditorSection === 'hero' && (

@@ -12,6 +12,7 @@ const NLMSongsRouter = ({ adminDashboard }: { adminDashboard?: ReactNode }) => {
   const navigate = useNavigate();
   const path = pathname.replace(/\/$/, '') || '/nlmsongs';
   useEffect(() => { if (path === '/nlmsongs/new') navigate('/nlmsongs/listen', { replace: true }); }, [path, navigate]);
+  useEffect(() => { if (path === '/nlmsongs/my-list') navigate('/nlmsongs/library', { replace: true }); }, [path, navigate]);
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
     void navigator.serviceWorker.register('/nlmsongs-service-worker.js').catch(() => {});

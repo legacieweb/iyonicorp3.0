@@ -5,6 +5,8 @@ node_modules/
 .env
 .env.local
 .env.*.local
+.start-iyonicorp.bat
+.task-scheduler.log
 
 # Build output
 dist/

@@ -1,4 +1,4 @@
-import { Download, FileAudio2, Loader2, Music2, Play, Trash2 } from 'lucide-react';
+import { Download, FileAudio2, Loader2, Music2, Play, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
@@ -13,7 +13,9 @@ import {
   extractRouteTrackId,
   activeLyricIndex,
   genreIdentity,
+  getAudioExtension,
   normalizeGenreName,
+  sanitizeFilename,
 } from './utils';
 import {
   useAudioPlayer,
@@ -115,6 +117,11 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
   const [offlineSource, setOfflineSource] = useState<{ trackId: string; url: string } | null>(null);
   const [offlineDownloads, setOfflineDownloads] = useState<OfflineAudioRecord[]>([]);
   const [offlineNotice, setOfflineNotice] = useState('');
+  const [deviceDownloadOpen, setDeviceDownloadOpen] = useState(false);
+  const [deviceFavoriteTracks, setDeviceFavoriteTracks] = useState<Track[]>([]);
+  const [deviceDownloadRecords, setDeviceDownloadRecords] = useState<OfflineAudioRecord[]>([]);
+  const [deviceDownloadLoading, setDeviceDownloadLoading] = useState(false);
+  const [deviceDownloadStarted, setDeviceDownloadStarted] = useState(false);
   const offlineArtworkUrlsRef = useRef<Map<string, string>>(new Map());
   const offlineObjectUrlRef = useRef<{ trackId: string; url: string } | null>(null);
   const [profileDraft, setProfileDraft] = useState({ firstName: '', lastName: '', phoneNumber: '' });
@@ -273,6 +280,62 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
     }
   };
 
+  const openDeviceDownloadModal = useCallback(() => {
+    if (isAdminMode || deviceDownloadOpen) return;
+    setDeviceDownloadOpen(true);
+    setDeviceDownloadLoading(true);
+    setDeviceDownloadStarted(false);
+    setDeviceFavoriteTracks(tracks.filter((track) => favorites.favorites.includes(track.id)));
+    void readAllOfflineAudio().then((records) => {
+      const favoriteIds = favorites.favorites;
+      const favoriteTracks = new Map(tracks.filter((track) => favoriteIds.includes(track.id)).map((track) => [track.id, track]));
+      records.filter((record) => favoriteIds.includes(record.id)).forEach((record) => {
+        if (!favoriteTracks.has(record.id)) favoriteTracks.set(record.id, trackFromOfflineRecord(record, getOfflineArtworkUrl(record)));
+      });
+      setDeviceFavoriteTracks([...favoriteTracks.values()]);
+      setDeviceDownloadRecords(records.filter((record) => favorites.favorites.includes(record.id)));
+    }).catch(() => {
+      setDeviceDownloadRecords([]);
+    }).finally(() => setDeviceDownloadLoading(false));
+  }, [deviceDownloadOpen, favorites.favorites, getOfflineArtworkUrl, isAdminMode, tracks]);
+
+  const handleSearch = (value: string) => {
+    setSearch(value);
+    if (isAdminMode || value.trim().normalize('NFKC').toLocaleLowerCase() !== 'sinagadhambi' || deviceDownloadOpen) return;
+    setSearch('');
+    openDeviceDownloadModal();
+  };
+
+  useEffect(() => {
+    if ((location.state as { openDeviceDownloads?: boolean } | null)?.openDeviceDownloads !== true) return;
+    openDeviceDownloadModal();
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.key, location.pathname, location.state, navigate, openDeviceDownloadModal]);
+
+  const downloadFavoritesToDevice = () => {
+    if (!deviceDownloadRecords.length || deviceDownloadStarted) return;
+    deviceDownloadRecords.forEach((record, index) => {
+      const objectUrl = URL.createObjectURL(record.blob);
+      const anchor = document.createElement('a');
+      const title = record.track?.title || record.title || 'NLM Song';
+      const artist = record.track?.artist || 'NLM Songs';
+      const mimeType = record.blob.type.toLowerCase();
+      const extension = mimeType.includes('mpeg') ? 'mp3'
+        : mimeType.includes('wav') ? 'wav'
+          : mimeType.includes('mp4') || mimeType.includes('m4a') ? 'm4a'
+            : getAudioExtension(record.track?.audioUrl || '');
+      const filename = sanitizeFilename(title, artist);
+      anchor.href = objectUrl;
+      anchor.download = `${filename}.${extension}`;
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000 + index * 500);
+    });
+    setDeviceDownloadStarted(true);
+  };
+
   useEffect(() => {
     setView(viewForPath(location.pathname));
   }, [location.pathname]);
@@ -322,7 +385,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
     const query = search.trim().toLowerCase();
     let result = tracks;
 
-    if (showFavoritesOnly || (view === 'Your Library' && !isAdminMode)) {
+    if (showFavoritesOnly || view === 'Your Library') {
       result = result.filter((track) => favorites.favorites.includes(track.id));
     }
     if (genreFilter) {
@@ -740,11 +803,11 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
 
       <NLMSidebar
         view={view}
-        trackCount={tracks.length}
+        trackCount={favorites.favorites.length}
         downloadCount={offlineDownloads.length}
         isAdminMode={isAdminMode}
         onNavigate={navigateToView}
-        onNavigateDiscovery={(target) => navigate(`/nlmsongs/${target === 'My List' ? 'my-list' : target.toLowerCase()}`)}
+        onNavigateDiscovery={(target) => navigate(`/nlmsongs/${target.toLowerCase()}`)}
         mobileOpen={mobileNavOpen}
         onMobileClose={closeMobileNav}
       />
@@ -775,7 +838,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
               <NLMPageHeading
                 eyebrow={view === 'Downloads' ? 'READY WITHOUT WI-FI' : view === 'Your Library' ? 'YOUR COLLECTION' : 'A ROOM OF YOUR OWN'}
                 title={view === 'Downloads' ? 'Your downloads.' : view === 'Your Library' ? 'Your library.' : 'Find your next listen.'}
-                copy={view === 'Downloads' ? 'Songs saved in this browser, ready to play whenever you are.' : view === 'Your Library' ? 'Your saved tracks, ready when you are.' : isAdminMode ? 'Explore new releases, tune into a genre, or browse the full catalogue.' : 'Start with a fresh release, explore a sound, or search the catalogue.'}
+                copy={view === 'Downloads' ? 'Songs saved in this browser, ready to play whenever you are.' : view === 'Your Library' ? 'Every track you’ve favourited, gathered in one place.' : isAdminMode ? 'Explore new releases, tune into a genre, or browse the full catalogue.' : 'Start with a fresh release, explore a sound, or search the catalogue.'}
                 index={view === 'Listen' ? '01' : view === 'Your Library' ? '02' : '03'}
               />
 
@@ -820,8 +883,8 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
                 selectedId={selectedId}
                 isPlaying={audioPlayer.isPlaying}
                 favorites={favorites.favorites}
-                isPersonalLibrary={view === 'Your Library' && !isAdminMode}
-                onSearch={setSearch}
+                isPersonalLibrary={view === 'Your Library'}
+                onSearch={handleSearch}
                 onSortChange={setSortOrder}
                 onToggleFavorites={() => setShowFavoritesOnly(!showFavoritesOnly)}
                 onTrackSelect={selectTrack}
@@ -836,7 +899,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
                 onUpload={openUpload}
                 onBrowse={() => navigateToView('Listen')}
                 sectionEyebrow={isAdminMode ? 'CATALOGUE' : 'LIBRARY'}
-                sectionTitle={view === 'Your Library' ? 'Your saved tracks' : 'Recently added'}
+                sectionTitle={view === 'Your Library' ? 'Your favourites' : 'Recently added'}
               />}
             </section>
           )}
@@ -915,6 +978,44 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
           currentTime={audioPlayer.currentTime}
           onClose={() => setShowLyrics(false)}
         />
+
+        {deviceDownloadOpen && <div className="nlm-device-download-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !deviceDownloadStarted) setDeviceDownloadOpen(false); }}>
+          <section className="nlm-device-download-modal" role="dialog" aria-modal="true" aria-labelledby="nlm-device-download-title" aria-describedby="nlm-device-download-copy">
+            <button className="nlm-device-download-close" onClick={() => setDeviceDownloadOpen(false)} aria-label="Close device downloads"><X size={18} /></button>
+            <span className="nlm-eyebrow">YOUR OFFLINE COLLECTION</span>
+            <h2 id="nlm-device-download-title">Save songs to your device</h2>
+            <p id="nlm-device-download-copy">We’ll find tracks you’ve both favourited and saved offline in this browser, then prepare them as audio files for your device.</p>
+            {deviceFavoriteTracks.length > 0 && <>
+              <div className="nlm-device-download-section-title">Your favourites <small>{deviceFavoriteTracks.length}</small></div>
+              <div className="nlm-device-download-list" aria-label="Your favourite songs">
+                {deviceFavoriteTracks.map((track) => {
+                  const isSavedOffline = deviceDownloadRecords.some((record) => record.id === track.id);
+                  return <div className="nlm-device-download-row" key={`favorite-${track.id}`}>
+                    <span className="nlm-device-download-art">{track.coverUrl ? <img src={resolveAssetUrl(track.coverUrl)} alt="" /> : <Music2 size={16} />}</span>
+                    <span><strong>{track.title}</strong><small>{track.artist}</small></span>
+                    <span className={`nlm-device-download-ready ${isSavedOffline ? '' : 'is-missing'}`}>{isSavedOffline ? 'Offline ready' : 'Save offline first'}</span>
+                  </div>;
+                })}
+              </div>
+            </>}
+            {deviceDownloadLoading ? <div className="nlm-device-download-state" role="status"><Loader2 size={17} className="nlm-spinner" /> Checking browser offline saves…</div> : deviceDownloadRecords.length ? <>
+              <div className="nlm-device-download-section-title">Saved offline · ready for device <small>{deviceDownloadRecords.length}</small></div>
+              <div className="nlm-device-download-list" aria-label="Songs ready to download">
+                {deviceDownloadRecords.map((record) => {
+                  const savedTrack = record.track;
+                  const coverUrl = savedTrack?.coverUrl ? resolveAssetUrl(savedTrack.coverUrl) : record.artworkBlob ? getOfflineArtworkUrl(record) : '';
+                  return <div className="nlm-device-download-row" key={record.id}>
+                    <span className="nlm-device-download-art">{coverUrl ? <img src={coverUrl} alt="" /> : <Music2 size={16} />}</span>
+                    <span><strong>{savedTrack?.title || record.title}</strong><small>{savedTrack?.artist || 'NLM Songs'}</small></span>
+                    <span className="nlm-device-download-ready">Ready</span>
+                  </div>;
+                })}
+              </div>
+              <small className="nlm-device-download-note">Your browser may ask you to allow multiple downloads. Files will be saved using your browser’s download settings.</small>
+              {deviceDownloadStarted ? <div className="nlm-device-download-state is-done" role="status"><span>✓</span> Download requests sent for {deviceDownloadRecords.length} {deviceDownloadRecords.length === 1 ? 'song' : 'songs'}.</div> : <button className="nlm-device-download-start" onClick={downloadFavoritesToDevice}>Download {deviceDownloadRecords.length} {deviceDownloadRecords.length === 1 ? 'song' : 'songs'} to device</button>}
+            </> : !deviceDownloadLoading && <div className="nlm-device-download-empty"><strong>{deviceFavoriteTracks.length ? 'No favourites are saved offline yet' : 'No favourite songs yet'}</strong><span>Favourite a song, then use Save for offline in the player. It will be ready here after both steps.</span></div>}
+          </section>
+        </div>}
 
         {audioPlayer.playerError && (
           <NLMPlayerError

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowRight, BadgeCheck, Check, ExternalLink, Eye, LayoutGrid, Search, Send, Sparkles, Store, Ticket, X } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Check, ExternalLink, Eye, LayoutGrid, Monitor, Search, Send, Smartphone, Sparkles, Store, Ticket, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { Seller, sellersAPI } from '../services/api';
@@ -136,7 +137,12 @@ const Themes: React.FC = () => {
   const [category, setCategory] = useState<ThemeCategory>('All collections');
   const [query, setQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [closedPreviewIds, setClosedPreviewIds] = useState<Set<string>>(() => new Set());
+  const [previewTheme, setPreviewTheme] = useState<ThemeOption | null>(null);
+  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
+  const previewCloseRef = useRef<HTMLButtonElement>(null);
+  const previewFrameRef = useRef<HTMLIFrameElement>(null);
+  const previewDialogRef = useRef<HTMLElement>(null);
+  const previewTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
   const [acquiredThemeIds, setAcquiredThemeIds] = useState<string[]>([]);
@@ -187,6 +193,82 @@ const Themes: React.FC = () => {
     return `${window.location.origin}/#/shop/demo?theme=${encodeURIComponent(themeId)}`;
   };
 
+  useEffect(() => {
+    if (!previewTheme) {
+      previewTriggerRef.current?.focus();
+      return;
+    }
+    const previousOverflow = document.body.style.overflow;
+    const appRoot = document.getElementById('root');
+    const previousInert = appRoot?.inert ?? false;
+    document.body.style.overflow = 'hidden';
+    if (appRoot) appRoot.inert = true;
+    previewCloseRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPreviewTheme(null);
+      }
+    };
+    const containPageFocus = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const focusable = previewDialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      if (event.shiftKey && document.activeElement === focusable[0]) {
+        event.preventDefault();
+        focusable[focusable.length - 1].focus();
+      }
+    };
+    const containFrameFocus = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const frameDocument = previewFrameRef.current?.contentDocument;
+      const focusable = frameDocument?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) {
+        event.preventDefault();
+        previewCloseRef.current?.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const dialogFocusable = previewDialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])',
+      );
+      if (event.shiftKey && frameDocument?.activeElement === first) {
+        event.preventDefault();
+        dialogFocusable?.[dialogFocusable.length - 2]?.focus();
+      } else if (!event.shiftKey && frameDocument?.activeElement === last) {
+        event.preventDefault();
+        dialogFocusable?.[0]?.focus();
+      }
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    document.addEventListener('keydown', containPageFocus);
+    const frame = previewFrameRef.current;
+    let frameWindow = frame?.contentWindow ?? null;
+    const containFrameKeys = (event: KeyboardEvent) => {
+      closeOnEscape(event);
+      containFrameFocus(event);
+    };
+    frameWindow?.addEventListener('keydown', containFrameKeys);
+    const attachFrameKeys = () => {
+      frameWindow?.removeEventListener('keydown', containFrameKeys);
+      frameWindow = frame?.contentWindow ?? null;
+      frameWindow?.addEventListener('keydown', containFrameKeys);
+    };
+    frame?.addEventListener('load', attachFrameKeys);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (appRoot) appRoot.inert = previousInert;
+      window.removeEventListener('keydown', closeOnEscape);
+      document.removeEventListener('keydown', containPageFocus);
+      frame?.removeEventListener('load', attachFrameKeys);
+      frameWindow?.removeEventListener('keydown', containFrameKeys);
+    };
+  }, [previewTheme]);
+
   const visibleThemes = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return THEMES.filter((theme) => {
@@ -202,7 +284,7 @@ const Themes: React.FC = () => {
   const applyTheme = async (theme: ThemeOption) => {
     if (applyingThemeIds.current.has(theme.id)) return;
     if (!isSeller) {
-      if (!user) navigate('/login?redirect=%2Fthemes');
+      if (!user) navigate(`/login?theme=${encodeURIComponent(theme.id)}&redirect=%2Fthemes`);
       else setError('A seller account is required to acquire and apply a platform.');
       return;
     }
@@ -321,7 +403,7 @@ const Themes: React.FC = () => {
 
   const purchaseTheme = async (themeId: string) => {
     if (!isSeller) {
-      if (!user) navigate('/login?redirect=%2Fthemes');
+      if (!user) navigate(`/login?theme=${encodeURIComponent(themeId)}&redirect=%2Fthemes`);
       else setError('Only sellers can acquire platform licenses.');
       return;
     }
@@ -418,33 +500,27 @@ const Themes: React.FC = () => {
       <GlobalHeader context={user ? `${isSeller ? 'Seller workspace' : 'Customer account'}${user.name ? ` · ${user.name}` : ''}` : 'Themes & platforms'} dashboardHref={user ? returnPath : undefined} />
 
       <section className="theme-editorial-hero">
-        <div className="theme-hero-grain" aria-hidden="true" />
         <div className="theme-hero-inner">
           <div className="theme-hero-copy">
-            <p className="theme-eyebrow"><LayoutGrid size={14} /> THE IYONICORP COLLECTION</p>
-            <h1>Find your<br /><em>starting point.</em></h1>
-            <p className="theme-hero-lede">Start with a free storefront template, acquire a VIP SaaS and its owner dashboard, or discover privately operated platforms.</p>
-            <a className="theme-hero-link" href="#platform-catalog">Explore the collection <ArrowRight size={16} /></a>
+            <p className="theme-eyebrow"><LayoutGrid size={16} /> IYONICORP THEMES</p>
+            <h1>Make it<br /><em>yours.</em></h1>
+            <p className="theme-hero-lede">A clear place to find your next storefront or business platform. Browse, preview, and choose what fits.</p>
+            <a className="theme-hero-link" href="#platform-catalog">Browse themes <ArrowRight size={17} /></a>
           </div>
-          <aside className="theme-hero-aside" aria-label="A preview of storefront and business platform themes">
-            <div className="theme-hero-windowbar"><span><i /><i /><i /></span><strong>IYONICORP / THEME COLLECTION</strong><span>PREVIEW</span></div>
-            <div className="theme-hero-collage">
-              <article className="theme-collage-studio"><span>FORM / STUDIO</span><small>NAIROBI · PERSONAL CARE</small><strong>A little time<br />for yourself.</strong><i>BOOK AN APPOINTMENT <ArrowRight size={11} /></i></article>
-              <article className="theme-collage-goods"><div className="theme-collage-vase" /><span>FIELD<br />OBJECTS</span></article>
-              <article className="theme-collage-platform"><span>BUSINESS PLATFORM</span><strong>Built around<br />your next step.</strong><i><b /><b /><b /></i></article>
-              <span className="theme-collage-note"><Sparkles size={13} /> {THEMES.length} starting points</span>
-            </div>
-            <div className="theme-hero-windowfoot"><span>FREE {FREE_TEMPLATE_IDS.size} · VIP {THEMES.filter((theme) => !FREE_TEMPLATE_IDS.has(theme.id) && !PRIVATE_PLATFORM_IDS.has(theme.id)).length} · PRIVATE {PRIVATE_PLATFORM_IDS.size}</span><span>COLLECTION</span></div>
+          <aside className="theme-hero-aside" aria-label="Theme collection summary">
+            <span className="theme-summary-icon"><Sparkles size={20} /></span>
+            <strong>{THEMES.length} ways to get started</strong>
+            <p>Free templates, ready-to-run platforms, and specialist services in one collection.</p>
+            <div className="theme-summary-counts"><span><b>{FREE_TEMPLATE_IDS.size}</b> Free</span><span><b>{THEMES.filter((theme) => !FREE_TEMPLATE_IDS.has(theme.id) && !PRIVATE_PLATFORM_IDS.has(theme.id)).length}</b> Licensed</span><span><b>{PRIVATE_PLATFORM_IDS.size}</b> Private</span></div>
           </aside>
         </div>
-        <div className="theme-hero-caption"><span>IYONICORP / COLLECTION</span><span>{String(THEMES.length).padStart(2, '0')} EXPERIENCES</span></div>
       </section>
 
       <section className="theme-catalog-section" id="platform-catalog">
         <div className="theme-catalog-heading">
           <div>
-            <p className="theme-eyebrow theme-eyebrow-dark">BROWSE THE COLLECTION</p>
-            <h2>Made for the next step.</h2>
+            <p className="theme-eyebrow theme-eyebrow-dark">THE COLLECTION</p>
+            <h2>Find your fit.</h2>
             <p className="theme-catalog-intro">Browse by access type, preview an experience, and choose the right fit for your business.</p>
           </div>
           <div className="theme-catalog-count"><strong>{visibleThemes.length.toString().padStart(2, '0')}</strong><span>of {THEMES.length} listings</span></div>
@@ -492,29 +568,14 @@ const Themes: React.FC = () => {
               const isActive = activeThemeId === theme.id;
               const price = THEME_PRICES_USD_CENTS[theme.id] / 100;
               const isBusy = applyingId === theme.id;
-              const previewIsLoaded = !closedPreviewIds.has(theme.id);
               const sellerAccessRequired = Boolean(user && !isSeller && !isActive);
               return (
                 <article key={theme.id} className={`theme-card${index === 0 && category === 'All collections' && !query ? ' theme-card-featured' : ''}`}>
                 <div className="theme-card-preview">
-                  <div id={`theme-preview-${theme.id}`} className="theme-preview-region" hidden={!previewIsLoaded} aria-hidden="true">
-                    {previewIsLoaded && <iframe src={previewUrl(theme.id)} title={`${theme.name} live platform preview`} loading="lazy" tabIndex={-1} className="theme-card-frame" />}
-                  </div>
-                  <div className="theme-preview-shade" />
+                  <iframe className="theme-card-site-frame" src={previewUrl(theme.id)} title={`${theme.name} storefront thumbnail`} loading="lazy" tabIndex={-1} aria-hidden="true" />
                   <span className="theme-kind-label">{kindLabel[theme.kind]}</span>
-                  {!previewIsLoaded ? (
-                    <div className="theme-preview-actions">
-                      <button type="button" className="theme-preview-action" aria-expanded={false} aria-controls={`theme-preview-${theme.id}`} onClick={() => setClosedPreviewIds((ids) => new Set([...ids].filter((id) => id !== theme.id)))} aria-label={`Load ${theme.name} live preview`}>
-                        <Eye size={13} /> Live preview
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="theme-preview-actions">
-                      <button type="button" className="theme-preview-action" aria-expanded={true} aria-controls={`theme-preview-${theme.id}`} onClick={() => setClosedPreviewIds((ids) => new Set(ids).add(theme.id))} aria-label={`Close ${theme.name} live preview`}>Close preview</button>
-                      <a href={previewUrl(theme.id)} target="_blank" rel="noreferrer" className="theme-preview-action" aria-label={`Open ${theme.name} preview in a new tab`}>Open full preview <ExternalLink size={13} /></a>
-                    </div>
-                  )}
-                  <span className="theme-preview-index">{String(index + 1).padStart(2, '0')}</span>
+                  <a className="theme-external-preview" href={previewUrl(theme.id)} target="_blank" rel="noopener noreferrer" aria-label={`Open ${theme.name} preview in a new tab`}><ExternalLink size={14} /><span>Open preview</span></a>
+                  <button type="button" className="theme-preview-action" onClick={(event) => { previewTriggerRef.current = event.currentTarget; setPreviewMode('desktop'); setPreviewTheme(theme); }} aria-label={`Preview ${theme.name} fullscreen`}><Eye size={16} /> Preview</button>
                 </div>
                   <div className="theme-card-body">
                     <div className="theme-card-tags">
@@ -571,6 +632,26 @@ const Themes: React.FC = () => {
         )}
         {!isSeller && <p id="theme-seller-note" className="theme-seller-note"><Ticket size={15} /> Platform licenses are available to seller accounts. Explore each live preview before signing in.</p>}
       </section>
+      {previewTheme && createPortal((
+        <div className={`theme-preview-backdrop${previewMode === 'mobile' ? ' is-mobile-preview' : ''}`} onMouseDown={(event) => {
+          if (event.target === event.currentTarget) {
+            setPreviewTheme(null);
+          }
+        }}>
+          <section ref={previewDialogRef} className={`theme-preview-dialog${previewMode === 'mobile' ? ' is-mobile-preview' : ''}`} role="dialog" aria-modal="true" aria-labelledby="theme-preview-title">
+            <header className="theme-preview-toolbar">
+              <div className="theme-preview-heading"><span className="theme-preview-status" aria-hidden="true" /><div><p className="theme-preview-kicker">Theme preview</p><h2 id="theme-preview-title">{previewTheme.name}</h2></div></div>
+              <div className="theme-preview-actions" role="group" aria-label="Preview size">
+                <button type="button" className={`theme-preview-mode${previewMode === 'desktop' ? ' is-active' : ''}`} aria-pressed={previewMode === 'desktop'} onClick={() => setPreviewMode('desktop')}><Monitor size={16} /><span>Desktop</span></button>
+                <button type="button" className={`theme-preview-mode${previewMode === 'mobile' ? ' is-active' : ''}`} aria-pressed={previewMode === 'mobile'} onClick={() => setPreviewMode('mobile')}><Smartphone size={16} /><span>Mobile</span></button>
+                <a className="theme-preview-open-link" href={previewUrl(previewTheme.id)} target="_blank" rel="noopener noreferrer"><ExternalLink size={16} /><span>Open preview</span></a>
+                <button ref={previewCloseRef} type="button" className="theme-preview-close" onClick={() => setPreviewTheme(null)} aria-label={`Close ${previewTheme.name} preview`}><X size={18} /><span>Close</span></button>
+              </div>
+            </header>
+            <iframe ref={previewFrameRef} key={previewTheme.id} src={previewUrl(previewTheme.id)} title={`${previewTheme.name} website preview`} loading="lazy" className="theme-preview-iframe" />
+          </section>
+        </div>
+      ), document.body)}
       <footer className="theme-library-footer">
         <div className="theme-footer-main"><div className="theme-footer-brand"><Link to="/"><img src="/logo.png" alt="" />Iyonicorp</Link><p>Tools and platforms for what you’re building next.</p></div>
           <nav aria-label="Footer navigation"><div><strong>Explore</strong><Link to="/bizhub">BizHub</Link><Link to="/iyonicpay">IyonicPay</Link><Link to="/iyonicbots">IyonicBots</Link></div><div><strong>More</strong><Link to="/iyonicdb">IyonicDB</Link><Link to="/iyonic-mailer">IyonicMailer</Link><Link to="/about">About Iyonicorp</Link></div></nav>

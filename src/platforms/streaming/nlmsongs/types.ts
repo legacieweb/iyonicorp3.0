@@ -26,7 +26,7 @@ export interface Track {
 
 export type NLMView = 'Listen' | 'Your Library' | 'Downloads' | 'Settings';
 
-export type SiteView = 'Home' | 'Genres' | 'My List';
+export type SiteView = 'Home' | 'Genres';
 
 export type RepeatMode = 'off' | 'one' | 'all';
 

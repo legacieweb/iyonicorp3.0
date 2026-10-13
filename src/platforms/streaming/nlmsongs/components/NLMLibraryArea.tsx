@@ -176,7 +176,7 @@ const EmptyState = ({ search, isAdminMode, isPersonalLibrary, showFavoritesOnly,
         {search
           ? 'No tracks match those filters.'
           : isPersonalLibrary
-            ? 'Your library is ready for a first save.'
+            ? 'Your library is ready for a first favourite.'
             : showFavoritesOnly
               ? 'No favorites saved yet.'
           : isAdminMode
@@ -187,7 +187,7 @@ const EmptyState = ({ search, isAdminMode, isPersonalLibrary, showFavoritesOnly,
         {search
           ? 'Try another search, choose a different sound, or clear the current filter.'
           : isPersonalLibrary
-            ? 'Save tracks from the catalogue and they will be collected here for your next visit.'
+            ? 'Favourite tracks from the catalogue and they will be collected here for your next visit.'
             : showFavoritesOnly
               ? 'Favorite a track to keep it close, or return to the full catalogue.'
           : isAdminMode

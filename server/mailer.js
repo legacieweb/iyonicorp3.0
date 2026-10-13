@@ -15,7 +15,7 @@ const smtpPass = process.env.SMTP_PASS?.trim();
 
 const smtpConfigured = Boolean(smtpUser && smtpPass);
 
-const transporter = smtpConfigured
+const createSmtpTransporter = () => smtpConfigured
   ? nodemailer.createTransport({
       host: smtpHost,
       port: smtpPort,
@@ -33,6 +33,60 @@ const transporter = smtpConfigured
     })
   : null;
 
+let transporter = createSmtpTransporter();
+let smtpRecoveryTimer = null;
+
+const verifySmtpTransporter = async () => {
+  if (!transporter) return false;
+  try {
+    await transporter.verify();
+    if (smtpRecoveryTimer) {
+      clearTimeout(smtpRecoveryTimer);
+      smtpRecoveryTimer = null;
+      console.log('[SMTP] Connection recovered before the scheduled transport restart.');
+    }
+    console.log('✅ Gmail SMTP authentication successful');
+    return true;
+  } catch (error) {
+    console.error('❌ Gmail SMTP verification failed; the API server will stay online while the mail service retries.');
+    console.error('Code:', error.code);
+    console.error('Response:', error.response);
+    console.error('Details:', error.message);
+    scheduleSmtpRecovery();
+    return false;
+  }
+};
+
+const scheduleSmtpRecovery = () => {
+  if (!smtpConfigured || smtpRecoveryTimer) return;
+
+  let secondsRemaining = 30;
+  const countDown = () => {
+    console.warn(`[SMTP] Mail service restart in ${secondsRemaining}s`);
+    if (secondsRemaining === 0) {
+      smtpRecoveryTimer = null;
+      try {
+        transporter?.close();
+      } catch (error) {
+        console.warn('[SMTP] Could not close the previous transport cleanly:', error.message);
+      }
+      try {
+        transporter = createSmtpTransporter();
+      } catch (error) {
+        console.error('[SMTP] Could not recreate the mail transport:', error.message);
+        scheduleSmtpRecovery();
+        return;
+      }
+      void verifySmtpTransporter();
+      return;
+    }
+    secondsRemaining -= 1;
+    smtpRecoveryTimer = setTimeout(countDown, 1000);
+  };
+
+  countDown();
+};
+
 if (!smtpConfigured) {
   console.warn(
     'SMTP is not configured. Set SMTP_USER and SMTP_PASS in the backend .env file.'
@@ -44,15 +98,7 @@ if (!smtpConfigured) {
 
 
 if (transporter) {
-  transporter.verify()
-    .then(() => {
-      console.log('✅ Gmail SMTP authentication successful');
-    })
-    .catch((error) => {
-      console.error('❌ Gmail SMTP authentication failed');
-      console.error('Code:', error.code);
-      console.error('Response:', error.response);
-    });
+  void verifySmtpTransporter();
 }
 
 // Build a nodemailer transporter from email marketing settings
@@ -161,6 +207,10 @@ export const sendEmail = async ({ to, subject, text, html, from }) => {
     console.log('Email sent: %s', info.messageId);
     return info;
   } catch (error) {
+    if (['EDNS', 'EAUTH', 'ETIMEDOUT', 'ESOCKET', 'ECONNECTION', 'ECONNREFUSED'].includes(error.code) || error.responseCode === 535) {
+      console.error('SMTP service failure; scheduling a mail-service restart.');
+      scheduleSmtpRecovery();
+    }
     if (error.code === 'EAUTH' || error.responseCode === 535) {
       console.error('SMTP authentication failed. For Gmail, ensure 2FA is enabled and SMTP_PASS is a valid 16-character app password for SMTP_USER.');
     } else {
