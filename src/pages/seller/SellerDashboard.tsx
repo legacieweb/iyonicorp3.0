@@ -258,12 +258,12 @@ const BillingSection = ({ seller, onUpgrade }: { seller: any, onUpgrade: (plan: 
   const hasFreeBasicSlot = isProfessionalManager && (manager?.stats?.totalSellers || 0) < 4;
 
   const tiers = pricingConfig ? [
-    { id: 'starter', name: 'Starter', price: pricingConfig.plans.starter.price, limit: pricingConfig.plans.starter.productLimit || 20, features: ['20 Products Limit', 'IyonicPay Integration Only', '7% Transaction Commission', 'Basic IyonicBots Access'] },
+    { id: 'starter', name: 'Starter', price: pricingConfig.plans.starter.price, limit: pricingConfig.plans.starter.productLimit || 20, features: ['20 Products Limit', 'IyonicPay Integration Only', '7% Transaction Commission', 'Basic Iyonic Intelligence access'] },
     { id: 'basic', name: 'Basic', price: hasFreeBasicSlot ? 0 : (pricingConfig.plans.basic?.price || 15), limit: pricingConfig.plans.basic?.productLimit || 100, features: ['100 Products Limit', 'Custom Payment Gateways', 'Advanced AI Analytics', 'Standard Templates', 'Priority Support'] },
     { id: 'professional', name: 'Professional', price: hasFreeProfessionalSlot ? 0 : pricingConfig.plans.professional.price, limit: pricingConfig.plans.professional.productLimit || Infinity, features: pricingConfig.plans.professional.features },
     { id: 'enterprise', name: 'Enterprise', price: pricingConfig.plans.enterprise.price, limit: pricingConfig.plans.enterprise.productLimit || Infinity, features: pricingConfig.plans.enterprise.features }
   ] : [
-    { id: 'starter', name: 'Starter', price: 0, limit: 20, features: ['20 Products Limit', 'IyonicPay Integration Only', '7% Transaction Commission', 'Basic IyonicBots Access'] },
+    { id: 'starter', name: 'Starter', price: 0, limit: 20, features: ['20 Products Limit', 'IyonicPay Integration Only', '7% Transaction Commission', 'Basic Iyonic Intelligence access'] },
     { id: 'basic', name: 'Basic', price: hasFreeBasicSlot ? 0 : 15, limit: 100, features: ['100 Products Limit', 'Custom Payment Gateways', 'Advanced AI Analytics', 'Standard Templates', 'Priority Support'] },
     { id: 'professional', name: 'Professional', price: hasFreeProfessionalSlot ? 0 : 29, limit: Infinity, features: ['Unlimited Products & Services', 'Custom Domain (.com/.net)', 'Advanced AI SEO Tools', 'Zero Transaction Fees', 'IyonicBot Assistant (Basic)'] },
     { id: 'enterprise', name: 'Enterprise', price: 99, limit: Infinity, features: ['Full AI Shop Automation', 'Priority 24/7 Support', 'Custom API Access', 'Multi-staff Accounts', 'Advanced Fraud Protection', 'Dedicated Account Manager'] }
@@ -2070,11 +2070,11 @@ const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
             )}
             {user?.role === 'seller' && (
               <Link
-                to="/iyonicbots"
+                to="/iyonicintelligence"
                 className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-blue-600 hover:bg-blue-50 transition-all border border-transparent hover:border-blue-100"
               >
                 <BotIcon className="w-4 h-4" />
-                <span className="font-semibold">IyonicBots</span>
+                <span className="font-semibold">Iyonic Intelligence</span>
               </Link>
             )}
 

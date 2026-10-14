@@ -654,7 +654,7 @@ const Themes: React.FC = () => {
       ), document.body)}
       <footer className="theme-library-footer">
         <div className="theme-footer-main"><div className="theme-footer-brand"><Link to="/"><img src="/logo.png" alt="" />Iyonicorp</Link><p>Tools and platforms for what you’re building next.</p></div>
-          <nav aria-label="Footer navigation"><div><strong>Explore</strong><Link to="/bizhub">BizHub</Link><Link to="/iyonicpay">IyonicPay</Link><Link to="/iyonicbots">IyonicBots</Link></div><div><strong>More</strong><Link to="/iyonicdb">IyonicDB</Link><Link to="/iyonic-mailer">IyonicMailer</Link><Link to="/about">About Iyonicorp</Link></div></nav>
+          <nav aria-label="Footer navigation"><div><strong>Explore</strong><Link to="/bizhub">BizHub</Link><Link to="/iyonicpay">IyonicPay</Link><Link to="/iyonicintelligence">Iyonic Intelligence</Link></div><div><strong>More</strong><Link to="/iyonicdb">IyonicDB</Link><Link to="/iyonic-mailer">IyonicMailer</Link><Link to="/about">About Iyonicorp</Link></div></nav>
         </div><div className="theme-footer-bottom"><span>© {new Date().getFullYear()} Iyonicorp</span><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link><Link className="theme-footer-backtop" to="#platform-catalog">Back to collection ↑</Link></div>
       </footer>
 

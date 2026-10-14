@@ -6875,7 +6875,7 @@ app.post('/api/bots/billing/paystack/initialize', authenticateToken, async (req,
     const email = userResult.rows[0]?.email;
     if (!email) return res.status(422).json({ message: 'We could not find an email address for this account.' });
     const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY);
-    const callbackUrl = `${process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:4000'}/#/iyonicbots?plan=${encodeURIComponent(planId)}`;
+    const callbackUrl = `${process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:4000'}/#/iyonicintelligence?plan=${encodeURIComponent(planId)}`;
     const payment = await new Promise((resolve, reject) => {
       paystack.transaction.initialize({
         email,

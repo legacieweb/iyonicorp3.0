@@ -79,7 +79,7 @@ export const Press: React.FC = () => (
           Iyoni is a modular Business Operating System: one technology foundation for distinct business experiences and shared platform services.
         </SectionHeading>
         <div className="space-y-6 leading-7 text-gray-600">
-          <p>BizHub is the commerce engine, IyonicPay is payment infrastructure, and IyonicBots is Iyoni’s AI and automation engine. Dedicated vertical experiences and storefront themes are available through the platform catalog.</p>
+          <p>BizHub is the commerce engine, IyonicPay is payment infrastructure, and Iyonic Intelligence is Iyoni's AI and automation engine. Dedicated vertical experiences and storefront themes are available through the platform catalog.</p>
           <p>For accurate product details, current availability, or interview requests, please contact the press team before publication.</p>
         </div>
         <div className="mt-12 border-t border-gray-200 pt-8">
@@ -151,11 +151,11 @@ export const Documentation: React.FC = () => (
 
 export const APIReference: React.FC = () => (
   <StaticPage title="API reference" description="A practical reference for the API conventions and account endpoints currently used by Iyonicorp." eyebrow="Resources / Developers" icon={Book}>
-    <div className="grid gap-14 lg:grid-cols-[minmax(0,1fr)_17rem]">
-      <div className="max-w-4xl">
+    <div className="api-reference-layout grid gap-14 lg:grid-cols-[minmax(0,1fr)_17rem]">
+      <div className="api-reference-content max-w-4xl">
         <section>
           <SectionHeading eyebrow="Getting connected" title="Requests, authentication, and responses">
-            The web client sends JSON requests to the API base URL configured with <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">VITE_API_URL</code>. When unset, local development uses <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">http://localhost:2823/api</code> and production uses the current host's <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">/api</code> endpoint.
+            The web client sends JSON requests to the API base URL configured with <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">VITE_API_URL</code>. When unset, local development uses <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">https://api.iyonicorp.com/api</code> and production uses the current host's <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">/api</code> endpoint.
           </SectionHeading>
           <div className="grid gap-6 border-y border-gray-200 py-6 sm:grid-cols-2">
             <div><h2 className="font-bold text-gray-950">Content type</h2><p className="mt-2 text-sm leading-6 text-gray-600">Send JSON with <code>Content-Type: application/json</code> for standard requests.</p></div>
@@ -164,7 +164,7 @@ export const APIReference: React.FC = () => (
         </section>
         <section className="mt-14">
           <SectionHeading eyebrow="Account endpoints" title="Start with authentication" />
-          <div className="divide-y divide-gray-200 border-y border-gray-200">
+          <div className="api-reference-endpoints divide-y divide-gray-200 border-y border-gray-200">
             {[
               { method: 'POST', path: '/auth/register', purpose: 'Create a seller, manager, or customer account.' },
               { method: 'POST', path: '/auth/login', purpose: 'Authenticate with an email address and password.' },

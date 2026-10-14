@@ -1,0 +1,129 @@
+/* IyonicPay uses the Iyonicorp homepage system: warm paper, forest green and a restrained periwinkle accent. */
+.home-shell.product-marketing.product-pay,.home-shell.product-marketing.product-pay *,.home-shell.product-marketing.product-pay *::before,.home-shell.product-marketing.product-pay *::after{box-sizing:border-box}
+.home-shell.product-marketing.product-pay{--pay-paper:#f5f2e9;--pay-panel:#fffdf8;--pay-ink:#172d25;--pay-green:#1d4434;--pay-blue:#4768ed;--pay-soft:#e8ece3;--pay-line:#d4dbd0;width:100%;min-height:100vh;margin:0 auto;overflow:hidden;background:var(--pay-paper);color:var(--pay-ink);font-family:'DM Sans','Segoe UI',sans-serif}
+.home-shell.product-marketing.product-pay .home-header{position:sticky;top:0;z-index:50;width:100%;border-bottom:1px solid #343a30;background:rgba(16,18,15,.96);backdrop-filter:blur(14px)}
+.home-shell.product-marketing.product-pay .home-nav{position:relative;display:flex;align-items:center;justify-content:space-between;gap:32px;width:min(1320px,calc(100% - 64px));min-height:78px;margin:0 auto}
+.home-shell.product-marketing.product-pay .home-brand{display:inline-flex;align-items:center;gap:10px;flex:0 0 auto;color:#f0f1e9;font-size:21px;font-weight:800;letter-spacing:-.06em;text-decoration:none;white-space:nowrap}
+.home-shell.product-marketing.product-pay .home-brand img{display:block;width:36px;height:36px;object-fit:contain}
+.home-shell.product-marketing.product-pay .home-brand .brand-period{color:#a9c6ff}
+.home-shell.product-marketing.product-pay .nav-links{display:flex;align-items:center;justify-content:center;gap:clamp(22px,3vw,42px);margin-left:auto}
+.home-shell.product-marketing.product-pay .nav-links a,.home-shell.product-marketing.product-pay .nav-login{padding:10px 0;border:0;background:none;color:#bbc2b5;font:600 12px 'Manrope',sans-serif;text-decoration:none;cursor:pointer;transition:color .18s ease}
+.home-shell.product-marketing.product-pay .nav-links a:hover,.home-shell.product-marketing.product-pay .nav-login:hover{color:#a9c6ff}
+.home-shell.product-marketing.product-pay .nav-actions{display:flex;align-items:center;gap:22px;flex:0 0 auto}
+.home-shell.product-marketing.product-pay .nav-cta{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:42px;padding:0 16px;border:1px solid #a9c6ff;background:#a9c6ff;color:#14251d;font:700 11px 'Manrope',sans-serif;text-decoration:none;cursor:pointer;transition:background .18s ease,color .18s ease,transform .18s ease}
+.home-shell.product-marketing.product-pay .nav-cta:hover{transform:translateY(-1px);background:#c6d5ff}
+.home-shell.product-marketing.product-pay .nav-cta:disabled{opacity:.6;cursor:wait}
+.home-shell.product-marketing.product-pay .menu-toggle{display:none;align-items:center;justify-content:center;width:42px;height:42px;border:1px solid #343a30;background:transparent;color:#f0f1e9;cursor:pointer}
+.home-shell.product-marketing.product-pay .mobile-nav{display:none}
+.home-shell.product-marketing.product-pay .home-header a:focus-visible,.home-shell.product-marketing.product-pay .home-header button:focus-visible{outline:2px solid #a9c6ff;outline-offset:4px}
+.home-shell.product-marketing.product-pay .platform-hero{position:relative;isolation:isolate;display:grid;grid-template-columns:.9fr 1.1fr;align-items:center;gap:clamp(48px,8vw,118px);width:min(1320px,calc(100% - 96px));min-height:680px;margin:0 auto;padding:78px 0 82px;background:transparent;color:var(--pay-ink)}
+.home-shell.product-marketing.product-pay .platform-hero::before{content:"";position:absolute;z-index:-1;top:0;right:-22vw;bottom:0;left:43%;background:radial-gradient(ellipse at 55% 45%,#e8eadc 0,transparent 68%)}
+.home-shell.product-marketing.product-pay .platform-hero-copy{position:relative;z-index:2;max-width:600px}
+.home-shell.product-marketing.product-pay .platform-hero .eyebrow{display:flex;align-items:center;gap:10px;margin:0 0 22px;color:#566858;font:700 9px 'DM Sans',sans-serif;letter-spacing:.14em;text-transform:uppercase}
+.home-shell.product-marketing.product-pay .eyebrow-mark{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:var(--pay-blue);box-shadow:0 0 0 4px #4768ed17}
+.home-shell.product-marketing.product-pay .platform-hero h1{max-width:650px;margin:0;color:var(--pay-ink);font:600 clamp(62px,7vw,98px)/.88 'Manrope',sans-serif;letter-spacing:-.09em}
+.home-shell.product-marketing.product-pay .platform-hero h1 em{display:inline-block;color:var(--pay-blue);font-style:normal}
+.home-shell.product-marketing.product-pay .hero-lede{max-width:440px;margin:25px 0 0;color:#526454;font-size:15px;line-height:1.8}
+.home-shell.product-marketing.product-pay .hero-actions{display:flex;align-items:center;flex-wrap:wrap;gap:18px 24px;margin-top:28px}
+.home-shell.product-marketing.product-pay .button{display:inline-flex;align-items:center;justify-content:center;gap:20px;min-height:50px;padding:0 18px;border:1px solid transparent;font:700 12px 'DM Sans',sans-serif;text-decoration:none;cursor:pointer;transition:transform .2s ease,background .2s ease,color .2s ease}
+.home-shell.product-marketing.product-pay .button:hover{transform:translateY(-3px)}
+.home-shell.product-marketing.product-pay .button-dark{background:var(--pay-ink);color:#fffdf8}
+.home-shell.product-marketing.product-pay .button-dark:hover{background:var(--pay-blue);color:#fff}
+.home-shell.product-marketing.product-pay .text-link{display:inline-flex;align-items:center;gap:8px;padding:10px 0;border:0;background:none;color:#314a3b;font:700 12px 'DM Sans',sans-serif;cursor:pointer}
+.home-shell.product-marketing.product-pay .text-link:hover{color:var(--pay-blue)}
+.home-shell.product-marketing.product-pay .hero-footnote{display:flex;align-items:flex-start;gap:11px;max-width:420px;margin:53px 0 0;color:#68766b;font-size:9px;font-weight:600;line-height:1.7;letter-spacing:.035em}
+.home-shell.product-marketing.product-pay .hero-footnote strong{color:#314a3b;font-weight:750}
+.home-shell.product-marketing.product-pay .footnote-rule{width:25px;height:1px;flex:0 0 25px;margin-top:7px;background:#9da79a}
+.home-shell.product-marketing.product-pay .platform-hero-visual{position:relative;display:flex;flex-direction:column;justify-content:center;width:100%;max-width:590px;min-height:450px;margin:0 0 0 auto;padding:26px;border:1px solid #c7cec1;background:#fbfaf4;color:var(--pay-ink);box-shadow:16px 17px 0 #204d3b0b,0 35px 80px #33443212;transform:rotate(.7deg)}
+.home-shell.product-marketing.product-pay .platform-hero-visual::before{content:"";position:absolute;inset:13px;border:1px solid #dce0d5;pointer-events:none}
+.home-shell.product-marketing.product-pay .map-topline{display:flex;justify-content:space-between;margin:0 0 24px;color:#56675a;font-size:9px;font-weight:700;letter-spacing:.1em}
+.home-shell.product-marketing.product-pay .map-industry-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.home-shell.product-marketing.product-pay .map-industry-row span{display:grid;min-height:35px;place-items:center;padding:6px;border:1px solid #d4dbd0;background:#f3f3eb;color:#465b4b;font-size:9px;font-weight:650;text-align:center}
+.home-shell.product-marketing.product-pay .map-connectors{display:grid;grid-template-columns:repeat(4,1fr);justify-items:center;height:31px}
+.home-shell.product-marketing.product-pay .map-connectors i{width:1px;height:100%;background:#adb9a8}
+.home-shell.product-marketing.product-pay .map-core{position:relative;display:grid;grid-template-columns:46px 1fr auto;align-items:center;gap:17px;min-height:92px;padding:15px 18px;border:1px solid #a9c6ff;background:#e3e8fc;color:var(--pay-ink);box-shadow:0 10px 25px #4768ed10}
+.home-shell.product-marketing.product-pay .core-symbol{display:flex;align-items:flex-end;justify-content:center;gap:4px;width:42px;height:42px;padding:8px;border:1px solid #b6c3ed;border-radius:50%}
+.home-shell.product-marketing.product-pay .core-symbol span{width:5px;border-radius:5px;background:#4768ed}.home-shell.product-marketing.product-pay .core-symbol span:nth-child(1){height:12px}.home-shell.product-marketing.product-pay .core-symbol span:nth-child(2){height:20px}.home-shell.product-marketing.product-pay .core-symbol span:nth-child(3){height:15px}
+.home-shell.product-marketing.product-pay .core-overline{display:block;margin-bottom:6px;color:#56698e;font:700 8px 'Space Mono',monospace;letter-spacing:.12em}
+.home-shell.product-marketing.product-pay .map-core strong{display:block;color:#172d25;font:700 20px 'Space Mono',monospace;letter-spacing:-.04em}
+.home-shell.product-marketing.product-pay .map-core>svg{color:#4768ed}
+.home-shell.product-marketing.product-pay .map-lower-label{display:flex;align-items:center;justify-content:space-between;margin:22px 0 11px;color:#657365;font-size:8px;font-weight:700;letter-spacing:.11em}
+.home-shell.product-marketing.product-pay .map-lower-label span{color:#4768ed;font-size:14px}
+.home-shell.product-marketing.product-pay .map-capabilities{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.home-shell.product-marketing.product-pay .map-capabilities span{padding:9px 5px;border:1px solid #d4dbd0;background:#f6f5ed;color:#536556;font-size:8px;font-weight:650;text-align:center}
+.home-shell.product-marketing.product-pay .map-caption{display:flex;align-items:center;gap:8px;max-width:none;margin:20px 0 0;color:#657365;font-size:9px;line-height:1.5}
+.home-shell.product-marketing.product-pay .caption-dot{width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:var(--pay-blue)}
+.home-shell.product-marketing.product-pay #features.section-wrap{width:100%;margin:0;padding:98px max(48px,calc((100% - 1120px)/2)) 100px;background:var(--pay-soft);color:var(--pay-ink)}
+.home-shell.product-marketing.product-pay .section-intro{display:flex;align-items:end;justify-content:space-between;gap:40px;max-width:1120px;margin:0 auto 40px}
+.home-shell.product-marketing.product-pay .section-intro .eyebrow{margin:0 0 14px;color:#566858;font-size:9px;font-weight:700;letter-spacing:.13em}
+.home-shell.product-marketing.product-pay .section-intro h2{max-width:670px;margin:0;color:var(--pay-ink);font:600 clamp(45px,5.8vw,70px)/.98 'Manrope',sans-serif;letter-spacing:-.085em}
+.home-shell.product-marketing.product-pay .section-intro>p:not(.eyebrow){max-width:350px;margin:0 0 4px;color:#647165;font-size:13px;line-height:1.85}
+.home-shell.product-marketing.product-pay .capability-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-width:1120px;margin:0 auto;border:0}
+.home-shell.product-marketing.product-pay .capability-card{position:relative;display:flex;flex-direction:column;align-items:flex-start;width:100%;min-height:218px;margin:0;padding:19px 18px;border:1px solid #d0d8cc;border-radius:0;background:#f8f7f0;color:var(--pay-ink);font:inherit;text-align:left;text-decoration:none;cursor:pointer;transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+.home-shell.product-marketing.product-pay .capability-card:hover{transform:translateY(-4px);border-color:#839580;background:#fffdf8;box-shadow:0 12px 24px #3d513c12}
+.home-shell.product-marketing.product-pay .capability-index{align-self:flex-end;color:#8b9589;font:8px 'Space Mono',monospace}
+.home-shell.product-marketing.product-pay .capability-card>svg:not(.capability-arrow){margin:15px 0 13px;color:var(--pay-blue)}
+.home-shell.product-marketing.product-pay .capability-card strong{margin:0;color:var(--pay-ink);font:700 15px 'Manrope',sans-serif;letter-spacing:-.04em}
+.home-shell.product-marketing.product-pay .capability-card p{max-width:285px;margin:7px 0 14px;color:#5f6f61;font-size:10px;line-height:1.55}
+.home-shell.product-marketing.product-pay .capability-arrow{position:absolute;top:17px;right:17px;color:#65766a}
+.home-shell.product-marketing.product-pay .capability-link-label{display:inline-flex;align-items:center;gap:7px;margin-top:auto;color:#385443;font-size:9px;font-weight:700}
+.home-shell.product-marketing.product-pay .capability-link-label svg{color:var(--pay-blue)}
+.home-shell.product-marketing.product-pay .capability-card:hover .capability-link-label{color:var(--pay-blue)}
+.home-shell.product-marketing.product-pay .capability-card:focus-visible{outline:3px solid var(--pay-blue);outline-offset:4px}
+.home-shell.product-marketing.product-pay .architecture-section{min-height:380px;padding:0 max(48px,calc((100% - 1120px)/2));background:#dce9d7;color:var(--pay-ink)}
+.home-shell.product-marketing.product-pay .architecture-inner{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:1120px;min-height:380px;margin:0 auto;padding:68px 0;gap:clamp(48px,8vw,110px)}
+.home-shell.product-marketing.product-pay .architecture-stamp{position:relative;display:flex;flex:0 0 116px;flex-direction:column;align-items:center;justify-content:center;gap:13px;width:116px;height:116px;border:1px solid #8da08a;border-radius:50%;color:#365a42;text-align:center;transform:rotate(-8deg)}
+.home-shell.product-marketing.product-pay .architecture-stamp span{font:700 9px/1.4 'Space Mono',monospace;letter-spacing:.08em}
+.home-shell.product-marketing.product-pay .architecture-stamp svg{color:#4768ed}
+.home-shell.product-marketing.product-pay .architecture-copy{max-width:760px}
+.home-shell.product-marketing.product-pay .architecture-copy .eyebrow{margin:0 0 13px;color:#566858;font-size:9px;font-weight:700;letter-spacing:.13em}
+.home-shell.product-marketing.product-pay .architecture-copy h2{margin:0;color:var(--pay-ink);font:600 clamp(43px,5.6vw,68px)/.98 'Manrope',sans-serif;letter-spacing:-.085em}
+.home-shell.product-marketing.product-pay .architecture-copy h2 em{color:var(--pay-blue);font-style:normal}
+.home-shell.product-marketing.product-pay .architecture-copy>p{max-width:530px;margin:15px 0 0;color:#536657;font-size:12px;line-height:1.8}
+.home-shell.product-marketing.product-pay .architecture-steps{display:flex;align-items:center;gap:12px;margin:24px 0 0;padding:0;border:0}
+.home-shell.product-marketing.product-pay .architecture-steps span{display:flex;align-items:center;gap:7px;color:#385443;font-size:9px;font-weight:700;white-space:nowrap}
+.home-shell.product-marketing.product-pay .architecture-steps b{color:#4768ed;font:700 8px 'Space Mono',monospace}
+.home-shell.product-marketing.product-pay .architecture-steps i{width:20px;height:1px;background:#a2b29e}
+.home-shell.product-marketing.product-pay .closing-cta{position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;min-height:405px;padding:76px max(48px,calc((100% - 1120px)/2)) 78px;overflow:hidden;background:#1d4434;color:#f5f2e9}
+.home-shell.product-marketing.product-pay .closing-cta::before{content:"";position:absolute;z-index:-1;top:50%;right:8%;width:600px;height:600px;border:1px solid #d5e7d21d;border-radius:50%;box-shadow:0 0 0 52px #d5e7d20a,0 0 0 118px #d5e7d207;transform:translateY(-50%)}
+.home-shell.product-marketing.product-pay .closing-orbit{position:absolute;z-index:-1;top:50%;right:14%;width:300px;height:300px;border:1px dashed #d5e7d255;border-radius:50%;transform:translateY(-50%) rotate(-18deg)}
+.home-shell.product-marketing.product-pay .closing-orbit span{position:absolute;width:8px;height:8px;border-radius:50%;background:#a9c6ff}.home-shell.product-marketing.product-pay .closing-orbit span:nth-child(1){top:12%;left:34%}.home-shell.product-marketing.product-pay .closing-orbit span:nth-child(2){right:3%;top:52%}.home-shell.product-marketing.product-pay .closing-orbit span:nth-child(3){bottom:13%;left:22%}
+.home-shell.product-marketing.product-pay .closing-copy{position:relative;z-index:1;max-width:740px}
+.home-shell.product-marketing.product-pay .closing-copy .eyebrow{margin:0 0 15px;color:#bad0bc;font-size:9px;font-weight:700;letter-spacing:.13em}
+.home-shell.product-marketing.product-pay .closing-copy h2{margin:0;color:#f5f2e9;font:600 clamp(58px,7.2vw,88px)/.9 'Manrope',sans-serif;letter-spacing:-.09em}
+.home-shell.product-marketing.product-pay .closing-copy h2 em{color:#a9c6ff;font-style:normal}
+.home-shell.product-marketing.product-pay .closing-copy>p:not(.eyebrow){max-width:410px;margin:18px 0 0;color:#d1dfd2;font-size:13px;line-height:1.75}
+.home-shell.product-marketing.product-pay .closing-copy .hero-actions{margin-top:24px}
+.home-shell.product-marketing.product-pay .button-light{background:#f5f2e9;color:#1c4233}
+.home-shell.product-marketing.product-pay .button-light:hover{background:#a9c6ff;color:#172d25}
+.home-shell.product-marketing.product-pay .closing-login{display:inline-flex;align-items:center;gap:8px;padding:11px 0;border:0;background:transparent;color:#f5f2e9;font:700 12px 'DM Sans',sans-serif;cursor:pointer}
+.home-shell.product-marketing.product-pay .closing-login:hover{color:#a9c6ff}
+.home-shell.product-marketing.product-pay .closing-foot{position:absolute;right:max(48px,calc((100% - 1120px)/2));bottom:22px;color:#bad0bc;font:8px 'Space Mono',monospace;letter-spacing:.13em}
+@media(max-width:920px){.home-shell.product-marketing.product-pay .platform-hero{grid-template-columns:1fr;gap:42px;min-height:0;padding:72px 0 78px}.home-shell.product-marketing.product-pay .platform-hero-copy{max-width:760px}.home-shell.product-marketing.product-pay .platform-hero-visual{justify-self:center;max-width:680px;margin:0}.home-shell.product-marketing.product-pay #features.section-wrap{padding:78px 40px}.home-shell.product-marketing.product-pay .section-intro{align-items:flex-start;flex-direction:column;gap:14px}.home-shell.product-marketing.product-pay .section-intro>p:not(.eyebrow){max-width:540px}.home-shell.product-marketing.product-pay .capability-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.home-shell.product-marketing.product-pay .architecture-inner{justify-content:flex-start;gap:48px}.home-shell.product-marketing.product-pay .architecture-steps{flex-wrap:wrap}.home-shell.product-marketing.product-pay .closing-orbit{right:-80px;opacity:.55}}
+@media(max-width:760px){.home-shell.product-marketing.product-pay .home-nav{width:calc(100% - 40px);min-height:70px;gap:16px}.home-shell.product-marketing.product-pay .nav-links{gap:20px}.home-shell.product-marketing.product-pay .nav-links a,.home-shell.product-marketing.product-pay .nav-login{font-size:11px}.home-shell.product-marketing.product-pay .nav-actions{gap:14px}}
+@media(max-width:680px){.home-shell.product-marketing.product-pay .home-nav{width:calc(100% - 36px);min-height:66px}.home-shell.product-marketing.product-pay .home-brand{font-size:19px}.home-shell.product-marketing.product-pay .home-brand img{width:32px;height:32px}.home-shell.product-marketing.product-pay .nav-links,.home-shell.product-marketing.product-pay .nav-actions{display:none}.home-shell.product-marketing.product-pay .menu-toggle{display:inline-flex;margin-left:auto}.home-shell.product-marketing.product-pay .mobile-nav{position:absolute;top:calc(100% + 1px);left:-18px;right:-18px;z-index:60;display:flex;flex-direction:column;gap:0;padding:10px 18px 18px;border-bottom:1px solid #343a30;background:#151812;box-shadow:0 18px 28px #0004}.home-shell.product-marketing.product-pay .mobile-nav a,.home-shell.product-marketing.product-pay .mobile-nav button:not(.nav-cta){display:flex;align-items:center;min-height:48px;padding:0 4px;border:0;border-bottom:1px solid #343a30;background:transparent;color:#f0f1e9;font:600 13px 'Manrope',sans-serif;text-align:left;text-decoration:none}.home-shell.product-marketing.product-pay .mobile-nav .nav-cta{margin-top:14px}.home-shell.product-marketing.product-pay .platform-hero{width:calc(100% - 40px);gap:34px;padding:54px 0 64px}.home-shell.product-marketing.product-pay .platform-hero h1{font-size:clamp(50px,12vw,72px)}.home-shell.product-marketing.product-pay .hero-lede{font-size:14px}.home-shell.product-marketing.product-pay .hero-footnote{margin-top:37px}.home-shell.product-marketing.product-pay .platform-hero-visual{min-height:340px;padding:19px;transform:none}.home-shell.product-marketing.product-pay .map-industry-row,.home-shell.product-marketing.product-pay .map-capabilities{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.home-shell.product-marketing.product-pay .map-connectors{height:20px}.home-shell.product-marketing.product-pay .map-core{grid-template-columns:35px 1fr auto;gap:11px;min-height:76px;padding:12px}.home-shell.product-marketing.product-pay .core-symbol{width:34px;height:34px;padding:5px}.home-shell.product-marketing.product-pay .map-core strong{font-size:16px}.home-shell.product-marketing.product-pay .map-caption{margin-top:16px}.home-shell.product-marketing.product-pay #features.section-wrap{padding:68px 20px}.home-shell.product-marketing.product-pay .section-intro{margin-bottom:27px}.home-shell.product-marketing.product-pay .section-intro h2{font-size:clamp(39px,9.7vw,54px)}.home-shell.product-marketing.product-pay .capability-grid{grid-template-columns:1fr;gap:9px}.home-shell.product-marketing.product-pay .capability-card,.home-shell.product-marketing.product-pay .capability-card:first-child{min-height:0;padding:19px}.home-shell.product-marketing.product-pay .capability-card>svg:not(.capability-arrow){margin:14px 0 12px}.home-shell.product-marketing.product-pay .architecture-section{padding:0 22px}.home-shell.product-marketing.product-pay .architecture-inner{min-height:0;flex-direction:column;align-items:flex-start;gap:27px;padding:58px 0}.home-shell.product-marketing.product-pay .architecture-stamp{flex-basis:88px;width:88px;height:88px}.home-shell.product-marketing.product-pay .architecture-copy h2{font-size:clamp(39px,9.8vw,52px)}.home-shell.product-marketing.product-pay .architecture-steps{align-items:flex-start;gap:12px}.home-shell.product-marketing.product-pay .architecture-steps i{display:none}.home-shell.product-marketing.product-pay .architecture-steps span{white-space:normal}.home-shell.product-marketing.product-pay .closing-cta{min-height:430px;padding:64px 22px 78px}.home-shell.product-marketing.product-pay .closing-copy h2{font-size:clamp(54px,12vw,72px)}.home-shell.product-marketing.product-pay .closing-copy .hero-actions{align-items:flex-start;flex-direction:column;gap:12px}.home-shell.product-marketing.product-pay .closing-orbit,.home-shell.product-marketing.product-pay .closing-cta::before{right:-250px;opacity:.28}.home-shell.product-marketing.product-pay .closing-foot{right:22px;left:22px;bottom:18px;font-size:7px}}
+@media(prefers-reduced-motion:reduce){.home-shell.product-marketing.product-pay *,.home-shell.product-marketing.product-pay *::before,.home-shell.product-marketing.product-pay *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+/* Keep the Pay architecture panel readable across the product-marketing cascade. */
+.home-shell.product-marketing.product-pay .architecture-section{background:#dce9d7;color:#172d25}
+.home-shell.product-marketing.product-pay .architecture-copy .eyebrow{color:#405545;font-size:10px}
+.home-shell.product-marketing.product-pay .architecture-copy h2{color:#172d25}
+.home-shell.product-marketing.product-pay .architecture-copy h2 em{color:#304fcf}
+.home-shell.product-marketing.product-pay .architecture-copy>p{color:#3f5144;font-size:14px;line-height:1.75}
+.home-shell.product-marketing.product-pay .architecture-steps span{color:#2d4435;font-size:11px}
+.home-shell.product-marketing.product-pay .architecture-steps b{color:#304fcf;font-size:9px}
+@media(max-width:680px){
+  .home-shell.product-marketing.product-pay .architecture-copy .eyebrow{font-size:10px;line-height:1.5}
+  .home-shell.product-marketing.product-pay .architecture-copy>p{font-size:15px;line-height:1.7}
+  .home-shell.product-marketing.product-pay .architecture-steps{gap:14px}
+  .home-shell.product-marketing.product-pay .architecture-steps span{font-size:12px;line-height:1.5}
+  .home-shell.product-marketing.product-pay .architecture-steps b{font-size:10px}
+}
+/* The shared .section-wrap rule paints the architecture content dark; style that node directly. */
+.home-shell.product-marketing.product-pay .section-wrap.architecture-inner{background:#1d4434;color:#f5f2e9}
+.home-shell.product-marketing.product-pay .architecture-section{background:#10120f}
+.home-shell.product-marketing.product-pay .architecture-inner .architecture-copy .eyebrow{color:#c7d9ca}
+.home-shell.product-marketing.product-pay .architecture-inner .architecture-copy h2{color:#f5f2e9}
+.home-shell.product-marketing.product-pay .architecture-inner .architecture-copy h2 em{color:#a9c6ff}
+.home-shell.product-marketing.product-pay .architecture-inner .architecture-copy>p{color:#e0e9e1}
+.home-shell.product-marketing.product-pay .architecture-inner .architecture-steps span{color:#e0e9e1}
+.home-shell.product-marketing.product-pay .architecture-inner .architecture-steps b{color:#a9c6ff}

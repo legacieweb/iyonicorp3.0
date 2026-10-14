@@ -30,7 +30,7 @@ const nav: { id: Section; label: string; icon: React.ReactNode }[] = [
   { id: 'store-settings', label: 'Store settings', icon: <Settings size={18} /> },
   { id: 'billing', label: 'Billing', icon: <CreditCard size={18} /> },
   { id: 'themes', label: 'Themes', icon: <LayoutDashboard size={18} /> },
-  { id: 'bots', label: 'IyonicBots', icon: <Bot size={18} /> },
+  { id: 'bots', label: 'Iyonic Intelligence', icon: <Bot size={18} /> },
   { id: 'pay', label: 'IyonicPay', icon: <DollarSign size={18} /> },
 ];
 
@@ -63,7 +63,7 @@ const CrownStrokeAdmin: React.FC = () => {
   const setSection = (nextSection: Section) => {
     const destinations: Partial<Record<Section, string>> = {
       themes: '/themes',
-      bots: '/iyonicbots',
+      bots: '/iyonicintelligence',
       pay: '/iyonicpay',
     };
     const destination = destinations[nextSection];

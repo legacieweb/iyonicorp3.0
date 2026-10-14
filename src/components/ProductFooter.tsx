@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, ChevronUp } from 'lucide-react';
 
@@ -15,7 +15,7 @@ const footerGroups = [
       { name: 'Find your platform', href: '/themes' },
       { name: 'BizHub', href: '/bizhub' },
       { name: 'IyonicPay', href: '/iyonicpay' },
-      { name: 'IyonicBots', href: '/iyonicbots' },
+      { name: 'Iyonic Intelligence', href: '/iyonicintelligence' },
     ],
   },
   {
@@ -55,7 +55,7 @@ export const ProductFooter: React.FC<ProductFooterProps> = ({ product, accentCla
   const copyright = {
     BizHub: 'BizHub. Powered by Iyonicorp.',
     IyonicPay: 'IyonicPay by Iyonicorp. All rights reserved.',
-    IyonicBots: 'Iyonic AI Engine by Iyonicorp. All rights reserved.',
+    IyonicBots: 'Iyonic Intelligence by Iyonicorp. All rights reserved.',
   }[product];
 
   return (

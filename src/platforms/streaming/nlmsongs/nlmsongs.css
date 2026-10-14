@@ -4942,3 +4942,229 @@
   .nlm-player-portal .nlm-player .nlm-play-button { width: 34px; height: 34px; }
   .nlm-player-portal .nlm-player .nlm-seek-row { gap: 5px; }
 }
+
+/* Editorial track detail refresh */
+.nlm-app .nlm-detail-page { width: 100%; max-width: 1320px; margin: 0 auto; padding: clamp(18px, 3.2vw, 42px) clamp(16px, 4vw, 52px) 54px; }
+.nlm-app .nlm-detail-back { display: inline-flex; align-items: center; gap: 9px; min-height: 40px; margin: 0 0 20px; padding: 0 13px; border: 1px solid var(--nlm-line); border-radius: 8px; color: #c2c4bb; background: rgba(255,255,255,.025); font: 500 11px 'Space Grotesk', sans-serif; transition: border-color var(--nlm-transition), color var(--nlm-transition), background var(--nlm-transition); }
+.nlm-app .nlm-detail-back:hover { border-color: var(--nlm-indigo); color: var(--nlm-indigo-glow); background: rgba(213,178,102,.06); }
+.nlm-app .nlm-detail-back:focus-visible, .nlm-app .nlm-details-lyrics-open:focus-visible { outline: 2px solid var(--nlm-indigo); outline-offset: 3px; }
+.nlm-app .nlm-details-shell { position: relative; display: grid; grid-template-columns: minmax(240px, 390px) minmax(0, 1fr); grid-template-rows: auto minmax(150px, 1fr); align-items: center; gap: clamp(24px, 4vw, 52px) clamp(32px, 6vw, 82px); max-width: none; padding: clamp(22px, 4.4vw, 60px); overflow: hidden; border: 1px solid rgba(213,178,102,.14); border-radius: 18px; background: radial-gradient(ellipse at 17% 6%, rgba(213,178,102,.11), transparent 42%), radial-gradient(ellipse at 93% 56%, rgba(154,217,208,.055), transparent 36%), linear-gradient(145deg, #191d23 0%, #12161c 72%); box-shadow: 0 28px 78px rgba(0,0,0,.28); }
+.nlm-app .nlm-details-shell::before { position: absolute; top: 0; left: clamp(22px, 4.4vw, 60px); width: 72px; height: 2px; background: var(--nlm-gradient-accent); content: ''; }
+.nlm-app .nlm-details-art-wrap { grid-column: 1; grid-row: 1 / span 2; display: flex; flex-direction: column; align-items: flex-start; width: 100%; margin: 0; gap: 13px; }
+.nlm-app .nlm-details-art { width: 100%; max-width: 390px; height: auto; aspect-ratio: 1; overflow: hidden; border: 1px solid rgba(255,255,255,.13); border-radius: 12px; background: #101319; box-shadow: 0 24px 52px rgba(0,0,0,.4), 0 0 48px rgba(213,178,102,.09); }
+.nlm-app .nlm-details-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.nlm-app .nlm-details-art-fallback { display: grid; width: 100%; height: 100%; place-items: center; color: var(--nlm-indigo); background: radial-gradient(circle at 35% 35%, rgba(213,178,102,.18), transparent 35%), var(--nlm-ink); }
+.nlm-app .nlm-details-art-caption { display: inline-flex; align-items: center; gap: 8px; color: #7f898c; font: 9px 'DM Mono', monospace; }
+.nlm-app .nlm-details-art-caption-mark { width: 5px; height: 5px; border-radius: 50%; background: var(--nlm-cyan); box-shadow: 0 0 9px rgba(154,217,208,.65); }
+.nlm-app .nlm-details-genre { align-self: flex-start; margin-top: 3px; padding: 6px 9px; border: 1px solid rgba(213,178,102,.2); border-radius: 4px; color: var(--nlm-indigo-glow); background: rgba(213,178,102,.075); font: 500 8px 'DM Mono', monospace; letter-spacing: .1em; }
+.nlm-app .nlm-details-meta { grid-column: 2; grid-row: 1; align-self: center; min-width: 0; padding: 4px 0 10px; text-align: left; }
+.nlm-app .nlm-details-kicker { display: flex; align-items: center; gap: 11px; color: var(--nlm-muted); font: 9px 'DM Mono', monospace; letter-spacing: .12em; text-transform: uppercase; }
+.nlm-app .nlm-details-meta .nlm-eyebrow { color: var(--nlm-indigo); letter-spacing: inherit; }
+.nlm-app .nlm-details-kicker-divider { width: 22px; height: 1px; background: rgba(213,178,102,.38); }
+.nlm-app .nlm-details-kicker-label { color: #828a8d; }
+.nlm-app .nlm-details-meta h1 { max-width: 780px; margin: 22px 0 0; color: #f4f2e9; font: 700 clamp(38px, 5.2vw, 74px)/.99 'Space Grotesk', sans-serif; letter-spacing: -.065em; overflow-wrap: anywhere; }
+.nlm-app .nlm-details-artist { margin: 15px 0 0; color: var(--nlm-indigo-glow); font: 500 clamp(15px, 1.6vw, 18px) 'Space Grotesk', sans-serif; }
+.nlm-app .nlm-details-description { max-width: 620px; margin: 22px 0 0; color: #a5aaa7; font-size: 13px; line-height: 1.85; }
+.nlm-app .nlm-details-tags { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; margin: 20px 0 0; padding: 0; list-style: none; }
+.nlm-app .nlm-details-tag { padding: 6px 9px; border: 1px solid rgba(154,217,208,.14); border-radius: 5px; color: #a5cec5; background: rgba(154,217,208,.045); font: 8px 'DM Mono', monospace; }
+.nlm-app .nlm-details-lyrics { grid-column: 2; grid-row: 2; align-self: stretch; width: 100%; max-height: 290px; min-width: 0; margin: 0; padding: 20px 0 0; overflow: hidden; border: 0; border-top: 1px solid rgba(235,231,216,.1); border-radius: 0; background: transparent; text-align: left; }
+.nlm-app .nlm-details-lyrics-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 13px; }
+.nlm-app .nlm-details-section-index { color: #7f8a8b; font: 8px 'DM Mono', monospace; letter-spacing: .12em; }
+.nlm-app .nlm-details-lyrics h2 { margin: 5px 0 0; color: #e7e6dd; font: 600 18px 'Space Grotesk', sans-serif; }
+.nlm-app .nlm-details-lyrics-open { display: inline-flex; align-items: center; gap: 7px; padding: 6px 0; border: 0; color: var(--nlm-indigo); background: transparent; font: 500 10px 'Space Grotesk', sans-serif; cursor: pointer; }
+.nlm-app .nlm-details-lyrics-open:hover { color: var(--nlm-indigo-glow); }
+.nlm-app .nlm-details-lyrics .nlm-lyric-lines { max-height: 178px; overflow: auto; scrollbar-width: thin; scrollbar-color: rgba(213,178,102,.24) transparent; }
+.nlm-app .nlm-details-lyrics p, .nlm-app .nlm-detail-no-lyrics { margin: 0 0 8px; color: #929a9a; font-size: 12px; line-height: 1.8; }
+.nlm-app .nlm-details-lyrics .nlm-lyric-lines p.is-current { color: #f1d7a1; }
+.nlm-app .nlm-details-lyrics .nlm-lyric-lines p.is-past { color: #687273; }
+@media (max-width: 760px) {
+  .nlm-app .nlm-detail-page { padding: 16px 16px 36px; }
+  .nlm-app .nlm-details-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; gap: 25px; padding: clamp(18px, 5vw, 30px); }
+  .nlm-app .nlm-details-shell::before { left: clamp(18px, 5vw, 30px); }
+  .nlm-app .nlm-details-art-wrap { grid-column: 1; grid-row: auto; align-items: center; width: min(100%, 330px); justify-self: center; }
+  .nlm-app .nlm-details-art { max-width: 330px; }
+  .nlm-app .nlm-details-meta { grid-column: 1; grid-row: auto; padding: 0; text-align: center; }
+  .nlm-app .nlm-details-kicker { justify-content: center; }
+  .nlm-app .nlm-details-meta h1 { margin-top: 16px; font-size: clamp(34px, 9vw, 52px); }
+  .nlm-app .nlm-details-description { margin: 16px auto 0; }
+  .nlm-app .nlm-details-tags { justify-content: center; }
+  .nlm-app .nlm-details-lyrics { grid-column: 1; grid-row: auto; max-height: 260px; padding-top: 18px; }
+}
+@media (max-width: 420px) {
+  .nlm-app .nlm-detail-page { padding: 12px 12px 28px; }
+  .nlm-app .nlm-details-shell { gap: 21px; padding: 20px 16px; border-radius: 13px; }
+  .nlm-app .nlm-details-meta h1 { font-size: clamp(31px, 10vw, 42px); }
+  .nlm-app .nlm-details-lyrics-heading { align-items: center; }
+}
+
+/* Immersive artwork-background track detail */
+.nlm-app .nlm-details-shell { display: block; max-width: none; padding: 0; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.nlm-app .nlm-details-shell::before { display: none; }
+.nlm-app .nlm-details-hero { position: relative; isolation: isolate; display: flex; min-height: clamp(480px, 61vw, 720px); align-items: flex-end; overflow: hidden; padding: clamp(26px, 6vw, 76px); border: 1px solid rgba(213,178,102,.14); border-radius: 16px; background: #141820; box-shadow: 0 28px 78px rgba(0,0,0,.32); }
+.nlm-app .nlm-details-hero-art, .nlm-app .nlm-details-hero-art-fallback, .nlm-app .nlm-details-hero-shade { position: absolute; z-index: -1; inset: 0; width: 100%; height: 100%; }
+.nlm-app .nlm-details-hero-art { object-fit: cover; object-position: center 40%; transform: scale(1.015); }
+.nlm-app .nlm-details-hero-art-fallback { display: grid; place-items: center; color: rgba(213,178,102,.65); background: radial-gradient(ellipse at 50% 36%, rgba(213,178,102,.22), transparent 35%), linear-gradient(140deg, #202832, #11151b); }
+.nlm-app .nlm-details-hero-shade { background: linear-gradient(90deg, rgba(7,9,13,.84) 0%, rgba(8,10,14,.55) 44%, rgba(8,10,14,.12) 100%), linear-gradient(0deg, rgba(7,9,13,.96) 0%, rgba(7,9,13,.63) 25%, rgba(7,9,13,.08) 76%), linear-gradient(180deg, rgba(7,9,13,.22), transparent 28%); }
+.nlm-app .nlm-details-meta { position: relative; z-index: 1; width: min(100%, 880px); padding: 0; text-align: left; }
+.nlm-app .nlm-details-kicker { display: flex; align-items: center; gap: 11px; color: #d0d1ca; font: 9px 'DM Mono', monospace; letter-spacing: .13em; text-transform: uppercase; }
+.nlm-app .nlm-details-meta .nlm-eyebrow { color: var(--nlm-indigo-glow); letter-spacing: inherit; }
+.nlm-app .nlm-details-kicker-divider { width: 22px; height: 1px; background: rgba(241,215,161,.65); }
+.nlm-app .nlm-details-kicker-label { color: rgba(235,235,229,.75); }
+.nlm-app .nlm-details-genre { display: inline-flex; margin: 22px 0 0; padding: 7px 10px; border: 1px solid rgba(241,215,161,.43); border-radius: 4px; color: #f1d7a1; background: rgba(11,14,18,.48); font: 500 8px 'DM Mono', monospace; letter-spacing: .13em; text-transform: uppercase; backdrop-filter: blur(8px); }
+.nlm-app .nlm-details-meta h1 { max-width: 950px; margin: 17px 0 0; color: #fffdf7; font: 700 clamp(46px, 8.2vw, 104px)/.92 'Space Grotesk', sans-serif; letter-spacing: -.075em; overflow-wrap: anywhere; text-shadow: 0 3px 30px rgba(0,0,0,.4); }
+.nlm-app .nlm-details-artist { margin: 17px 0 0; color: #f1d7a1; font: 500 clamp(18px, 2.1vw, 25px) 'Space Grotesk', sans-serif; text-shadow: 0 2px 16px rgba(0,0,0,.65); }
+.nlm-app .nlm-details-description { max-width: 640px; margin: 18px 0 0; color: rgba(245,244,237,.84); font-size: 14px; line-height: 1.8; text-shadow: 0 2px 15px rgba(0,0,0,.75); }
+.nlm-app .nlm-details-tags { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; margin: 20px 0 0; padding: 0; list-style: none; }
+.nlm-app .nlm-details-tag { padding: 6px 9px; border: 1px solid rgba(245,244,237,.23); border-radius: 5px; color: #f2f0e9; background: rgba(10,13,17,.42); font: 8px 'DM Mono', monospace; backdrop-filter: blur(7px); }
+.nlm-app .nlm-details-art-caption { display: flex; align-items: center; gap: 8px; margin-top: 22px; color: rgba(231,232,226,.68); font: 9px 'DM Mono', monospace; letter-spacing: .04em; }
+.nlm-app .nlm-details-art-caption i { width: 5px; height: 5px; border-radius: 50%; background: var(--nlm-cyan); box-shadow: 0 0 9px rgba(154,217,208,.7); }
+.nlm-app .nlm-details-lyrics { width: min(100%, 980px); max-height: none; margin: clamp(38px, 6vw, 74px) auto 20px; padding: 0 clamp(4px, 2vw, 20px); overflow: visible; border: 0; background: transparent; text-align: left; }
+.nlm-app .nlm-details-lyrics-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 28px; padding-bottom: 18px; border-bottom: 1px solid rgba(235,231,216,.12); }
+.nlm-app .nlm-details-section-index { color: var(--nlm-indigo); font: 9px 'DM Mono', monospace; letter-spacing: .14em; }
+.nlm-app .nlm-details-lyrics h2 { margin: 8px 0 0; color: #f1efe7; font: 600 clamp(28px, 4vw, 42px)/1 'Space Grotesk', sans-serif; letter-spacing: -.05em; }
+.nlm-app .nlm-details-lyrics-open { display: inline-flex; align-items: center; gap: 7px; padding: 8px 0; border: 0; color: var(--nlm-indigo); background: transparent; font: 500 11px 'Space Grotesk', sans-serif; cursor: pointer; }
+.nlm-app .nlm-details-lyrics-open:hover { color: var(--nlm-indigo-glow); }
+.nlm-app .nlm-details-lyrics .nlm-lyric-lines { max-height: none; overflow: visible; }
+.nlm-app .nlm-details-lyrics p, .nlm-app .nlm-detail-no-lyrics { max-width: 760px; margin: 0 0 18px; color: #aeb5b2; font: 400 clamp(17px, 2vw, 22px)/1.8 'Space Grotesk', sans-serif; letter-spacing: -.015em; }
+.nlm-app .nlm-details-lyrics .nlm-lyric-lines p.is-current { color: #f1d7a1; text-shadow: 0 0 22px rgba(213,178,102,.23); }
+.nlm-app .nlm-details-lyrics .nlm-lyric-lines p.is-past { color: #697271; }
+@media (max-width: 760px) {
+  .nlm-app .nlm-detail-page { padding: 14px 14px 34px; }
+  .nlm-app .nlm-details-hero { min-height: 610px; min-height: min(78svh, 680px); padding: 26px 22px 30px; border-radius: 12px; }
+  .nlm-app .nlm-details-hero-art { object-position: center; }
+  .nlm-app .nlm-details-hero-shade { background: linear-gradient(0deg, rgba(7,9,13,.98) 0%, rgba(7,9,13,.86) 37%, rgba(7,9,13,.3) 72%, rgba(7,9,13,.15) 100%), linear-gradient(90deg, rgba(7,9,13,.3), transparent 95%); }
+  .nlm-app .nlm-details-meta { width: 100%; }
+  .nlm-app .nlm-details-meta h1 { margin-top: 15px; font-size: clamp(42px, 11vw, 68px); }
+  .nlm-app .nlm-details-description { font-size: 13px; }
+  .nlm-app .nlm-details-lyrics { margin-top: 38px; padding: 0 4px; }
+  .nlm-app .nlm-details-lyrics-heading { margin-bottom: 21px; }
+  .nlm-app .nlm-details-lyrics p, .nlm-app .nlm-detail-no-lyrics { font-size: clamp(16px, 4.7vw, 19px); line-height: 1.75; margin-bottom: 15px; }
+}
+@media (max-width: 420px) {
+  .nlm-app .nlm-detail-page { padding: 12px 10px 28px; }
+  .nlm-app .nlm-detail-back { margin-bottom: 14px; }
+  .nlm-app .nlm-details-hero { min-height: 620px; min-height: min(82svh, 700px); padding: 21px 16px 23px; }
+  .nlm-app .nlm-details-meta h1 { font-size: clamp(38px, 11.5vw, 54px); }
+  .nlm-app .nlm-details-lyrics-heading { align-items: center; }
+}
+
+/* Carry the album image through the full track section, including lyrics. */
+.nlm-app .nlm-details-shell { position: relative; isolation: isolate; display: flow-root; overflow: hidden; min-height: 0; padding: 0 0 52px; border: 1px solid rgba(213,178,102,.14); border-radius: 16px; background: #11151b; box-shadow: 0 28px 78px rgba(0,0,0,.32); }
+.nlm-app .nlm-details-section-art, .nlm-app .nlm-details-section-art-fallback { position: absolute; z-index: -2; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.nlm-app .nlm-details-section-art-fallback { display: grid; place-items: center; color: rgba(213,178,102,.65); background: radial-gradient(ellipse at 50% 25%, rgba(213,178,102,.22), transparent 35%), linear-gradient(140deg, #202832, #11151b); }
+.nlm-app .nlm-details-shell::before { position: absolute; z-index: -1; inset: 0; display: block; width: auto; height: auto; background: linear-gradient(90deg, rgba(7,9,13,.82), rgba(8,10,14,.5) 45%, rgba(8,10,14,.36)), linear-gradient(0deg, rgba(7,9,13,.97) 0%, rgba(7,9,13,.75) 38%, rgba(7,9,13,.32) 75%, rgba(7,9,13,.4)); content: ''; }
+.nlm-app .nlm-details-hero { position: relative; z-index: 1; display: flex; min-height: clamp(470px, 57vw, 680px); align-items: flex-end; overflow: visible; padding: clamp(28px, 6vw, 76px); border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.nlm-app .nlm-details-meta { width: min(100%, 880px); }
+.nlm-app .nlm-details-lyrics { position: relative; z-index: 1; width: min(50%, 680px); max-height: none; margin: 0 7% 0 auto; padding: 25px 28px 20px; overflow: visible; border: 1px solid rgba(235,231,216,.12); border-radius: 12px; background: rgba(10,13,17,.76); text-align: left; box-shadow: 0 18px 48px rgba(0,0,0,.2); backdrop-filter: blur(12px); }
+.nlm-app .nlm-details-lyrics-heading { margin-bottom: 22px; padding-bottom: 16px; }
+.nlm-app .nlm-details-lyrics .nlm-lyric-lines { max-height: 390px; overflow: auto; scrollbar-width: thin; scrollbar-color: rgba(213,178,102,.3) transparent; }
+.nlm-app .nlm-details-lyrics p, .nlm-app .nlm-detail-no-lyrics { font-size: clamp(16px, 1.5vw, 19px); line-height: 1.8; margin-bottom: 14px; }
+@media (max-width: 760px) {
+  .nlm-app .nlm-details-shell { padding-bottom: 28px; border-radius: 12px; }
+  .nlm-app .nlm-details-section-art { object-position: center top; }
+  .nlm-app .nlm-details-shell::before { background: linear-gradient(0deg, rgba(7,9,13,.99) 0%, rgba(7,9,13,.91) 34%, rgba(7,9,13,.68) 62%, rgba(7,9,13,.35) 100%); }
+  .nlm-app .nlm-details-hero { min-height: min(78svh, 660px); padding: 26px 22px 30px; }
+  .nlm-app .nlm-details-lyrics { width: auto; max-width: none; margin: 0 16px; padding: 22px 20px 16px; }
+  .nlm-app .nlm-details-lyrics .nlm-lyric-lines { max-height: 440px; }
+}
+@media (max-width: 420px) {
+  .nlm-app .nlm-details-shell { padding-bottom: 20px; }
+  .nlm-app .nlm-details-hero { min-height: min(82svh, 680px); padding: 21px 16px 24px; }
+  .nlm-app .nlm-details-lyrics { margin: 0 10px; padding: 20px 15px 13px; }
+}
+
+/* Page-level artwork with a contained lyrics viewport. */
+.nlm-app .nlm-detail-page { position: relative; isolation: isolate; display: flex; flex-direction: column; min-height: calc(100vh - 128px); min-height: calc(100svh - 128px); overflow: hidden; }
+.nlm-app .nlm-details-page-art, .nlm-app .nlm-details-page-art-fallback { position: absolute; z-index: -2; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%; }
+.nlm-app .nlm-details-page-art-fallback { display: grid; place-items: center; color: rgba(213,178,102,.65); background: radial-gradient(ellipse at 50% 25%, rgba(213,178,102,.22), transparent 35%), linear-gradient(140deg, #202832, #11151b); }
+.nlm-app .nlm-detail-page::after { position: absolute; z-index: -1; inset: 0; background: linear-gradient(90deg, rgba(7,9,13,.8), rgba(8,10,14,.48) 48%, rgba(8,10,14,.35)), linear-gradient(0deg, rgba(7,9,13,.96), rgba(7,9,13,.62) 56%, rgba(7,9,13,.28)); content: ''; }
+.nlm-app .nlm-detail-back, .nlm-app .nlm-details-shell { position: relative; z-index: 1; }
+.nlm-app .nlm-details-shell { display: flex; flex: 1 0 auto; flex-direction: column; height: calc(100svh - 280px); min-height: 560px; padding: 0; overflow: visible; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.nlm-app .nlm-details-hero { flex: 0 0 auto; min-height: clamp(280px, 38svh, 420px); padding: clamp(24px, 5vw, 64px); }
+.nlm-app .nlm-details-lyrics { display: flex; flex: 1 1 auto; flex-direction: column; align-self: stretch; width: 100%; height: auto; min-height: 0; max-height: none; margin: 0; overflow: hidden; padding: 24px clamp(22px, 5vw, 64px) 20px; border: 1px solid rgba(235,231,216,.14); border-right: 0; border-bottom: 0; border-left: 0; border-radius: 0; background: rgba(10,13,17,.68); box-shadow: 0 -12px 48px rgba(0,0,0,.16); backdrop-filter: blur(12px); }
+.nlm-app .nlm-details-lyrics-heading { flex: 0 0 auto; }
+.nlm-app .nlm-details-lyrics .nlm-lyric-lines { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; overscroll-behavior: contain; }
+@media (max-width: 760px) {
+  .nlm-app .nlm-detail-page { min-height: calc(100svh - 120px); }
+  .nlm-app .nlm-details-shell { height: calc(100svh - 230px); min-height: 520px; }
+  .nlm-app .nlm-details-hero { min-height: clamp(270px, 38svh, 390px); }
+  .nlm-app .nlm-details-lyrics { width: 100%; height: auto; min-height: 0; max-height: none; margin: 0; padding: 20px 22px; }
+}
+@media (max-width: 420px) {
+  .nlm-app .nlm-detail-page { min-height: calc(100svh - 110px); }
+  .nlm-app .nlm-details-shell { height: calc(100svh - 210px); min-height: 500px; padding-bottom: 0; }
+  .nlm-app .nlm-details-hero { min-height: 270px; padding: 21px 16px 24px; }
+  .nlm-app .nlm-details-lyrics { width: 100%; height: auto; min-height: 0; margin: 0; padding: 18px 16px 14px; }
+}
+
+/* Restore page scrolling and keep lyrics visible in a full-width scroll panel. */
+.nlm-app .nlm-detail-page { overflow: visible; }
+.nlm-app .nlm-details-shell { height: auto; min-height: calc(100svh - 220px); }
+.nlm-app .nlm-details-hero { min-height: clamp(290px, 38svh, 420px); }
+.nlm-app .nlm-details-lyrics { display: flex; flex: 1 0 auto; width: 100%; min-height: 320px; height: auto; max-height: none; margin: 0; overflow: hidden; }
+.nlm-app .nlm-details-lyrics .nlm-lyric-lines { flex: 1 1 auto; min-height: 160px; max-height: min(48svh, 480px); overflow-y: auto; overscroll-behavior: contain; }
+.nlm-app.nlm-detail-player-visible { grid-template-rows: minmax(100vh, auto) auto; }
+.nlm-app.nlm-detail-player-visible > .nlm-main { min-height: 100vh; overflow: visible; }
+.nlm-app .nlm-details-lyrics, .nlm-app .nlm-details-lyrics-heading, .nlm-app .nlm-details-lyrics .nlm-lyric-lines { visibility: visible; opacity: 1; }
+.nlm-app .nlm-detail-page { background: transparent; }
+.nlm-app .nlm-detail-page::after { background: linear-gradient(90deg, rgba(7,9,13,.26), rgba(8,10,14,.12) 52%, rgba(8,10,14,.06)), linear-gradient(0deg, rgba(7,9,13,.42), rgba(7,9,13,.12) 56%, rgba(7,9,13,.08)); }
+.nlm-app .nlm-details-shell { background: transparent; }
+.nlm-app .nlm-details-shell::before { background: transparent; }
+.nlm-app .nlm-details-lyrics { background: rgba(10,13,17,.42); backdrop-filter: blur(8px); }
+@media (max-width: 760px) {
+  .nlm-app .nlm-details-shell { min-height: calc(100svh - 180px); }
+  .nlm-app .nlm-details-hero { min-height: clamp(270px, 38svh, 390px); }
+  .nlm-app .nlm-details-lyrics { min-height: 280px; }
+}
+
+/* Home latest-release and genre-route polish */
+.nlm-genre-route-hero { min-height: 360px; }
+.nlm-genre-route-hero .nlm-hero-copy h1 { max-width: 620px; font-size: clamp(42px, 6vw, 72px); }
+.nlm-genre-route-hero .nlm-hero-art { width: min(34vw, 300px); aspect-ratio: 1; }
+.nlm-catalog-pagination { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 28px auto 8px; }
+.nlm-catalog-pagination > button,
+.nlm-page-number-list button { min-width: 36px; min-height: 36px; padding: 0 11px; border: 1px solid rgba(213,178,102,.16); border-radius: 7px; color: #c6c8c1; background: rgba(255,255,255,.025); font: 500 11px 'DM Mono', monospace; transition: border-color .18s ease, color .18s ease, background .18s ease; }
+.nlm-catalog-pagination > button:hover:not(:disabled),
+.nlm-page-number-list button:hover { border-color: var(--nlm-indigo); color: var(--nlm-indigo-glow); background: rgba(213,178,102,.07); }
+.nlm-catalog-pagination button:focus-visible { outline: 2px solid var(--nlm-indigo); outline-offset: 3px; }
+.nlm-catalog-pagination button:disabled { opacity: .42; cursor: not-allowed; }
+.nlm-page-number-list { display: flex; gap: 6px; }
+.nlm-page-number-list button[aria-current="page"] { border-color: rgba(213,178,102,.5); color: #11151d; background: var(--nlm-gradient-accent); }
+@media (max-width: 640px) {
+  .nlm-genre-route-hero { min-height: 0; }
+  .nlm-genre-route-hero .nlm-hero-art { width: min(40vw, 180px); }
+  .nlm-catalog-pagination { flex-wrap: wrap; gap: 8px; }
+  .nlm-catalog-pagination > button, .nlm-page-number-list button { min-width: 32px; min-height: 33px; padding: 0 8px; }
+  .nlm-page-number-list { flex-wrap: wrap; justify-content: center; }
+}
+
+@keyframes nlm-sleep-sheet-rise {
+  from { opacity: .7; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (max-width: 600px) {
+  .nlm-sleep-overlay { place-items: end center; padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .nlm-sleep-modal { position: relative; width: 100%; max-width: 520px; max-height: min(78dvh, 640px); overflow-y: auto; padding: 24px 18px calc(18px + env(safe-area-inset-bottom, 0px)); border-radius: 20px 20px 12px 12px; transform-origin: bottom center; animation: nlm-sleep-sheet-rise .34s cubic-bezier(.2,.78,.24,1) both; }
+  .nlm-sleep-modal::before { display: block; width: 38px; height: 4px; margin: -12px auto 18px; border-radius: 99px; background: rgba(245,244,233,.27); content: ''; }
+  .nlm-sleep-options { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .nlm-sleep-options button { min-width: 0; min-height: 46px; padding: 10px 12px; touch-action: manipulation; }
+  .nlm-sleep-options .nlm-sleep-cancel { grid-column: 1 / -1; width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nlm-sleep-modal { animation: none !important; }
+}
+
+/* Let inline lyrics use the complete details section without a popup. */
+.nlm-app .nlm-details-lyrics { display: flex; flex: 0 0 auto; flex-direction: column; height: clamp(320px, 45svh, 480px); min-height: 320px; max-height: 480px; padding-top: 28px; }
+.nlm-app .nlm-details-lyrics-heading { flex: 0 0 auto; }
+.nlm-app .nlm-details-lyrics .nlm-lyric-lines { flex: 1 1 auto; min-height: 0; max-height: none; overflow-y: auto; }
+@media (max-width: 760px) {
+  .nlm-app .nlm-details-lyrics { height: clamp(280px, 43svh, 380px); min-height: 280px; max-height: 380px; padding-top: 22px; }
+}
+
+/* Keep the lyrics panel centered within half of the artwork section. */
+.nlm-app .nlm-details-lyrics { align-self: center; width: min(50%, 760px); min-width: 0; margin-inline: auto; }
+.nlm-app .nlm-details-lyrics .nlm-lyric-lines { width: 100%; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .nlm-app .nlm-details-lyrics { width: calc(100% - 28px); max-width: 620px; }
+}

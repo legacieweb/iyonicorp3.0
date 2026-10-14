@@ -231,14 +231,6 @@
 .product-marketing .closing-orbit span {
   background: var(--pm-accent);
 }
-.product-marketing .icorp-footer {
-  background: #0b0d0a;
-  color: #899184;
-  border-color: #282d25;
-}
-.product-marketing .icorp-footer a {
-  color: #c4cbbd;
-}
 /*DB marketing shell, deliberately excluding the separate console experience.*/
 .idb-site {
   --idb-paper: #10120f;

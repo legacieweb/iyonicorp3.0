@@ -44,7 +44,8 @@ const createGraph = (audio: HTMLAudioElement): NlmAudioGraph => {
       filter.gain.value = 0;
       return filter;
     });
-    graph.analyser.fftSize = 128;
+    graph.analyser.fftSize = 2048;
+    graph.analyser.smoothingTimeConstant = 0.78;
     return graph;
   } catch (error) {
     graph.failed = true;

@@ -267,7 +267,7 @@ export const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onBackToHomepa
     <div className={`auth-page-shell min-h-screen flex flex-col md:flex-row bg-white ${vipTheme ? 'vip-auth-shell' : ''}`} data-vip-theme={vipTheme?.id} style={getThemeStyles()}>
       {/* Left Side - Contextual account and platform branding */}
       <div 
-        className="vip-auth-brand-panel flex min-h-[22rem] w-full flex-col justify-between p-5 text-white relative overflow-hidden sm:p-7 md:min-h-screen md:w-1/2 md:p-9 lg:p-12"
+        className="vip-auth-brand-panel hidden min-h-[22rem] w-full flex-col justify-between p-5 text-white relative overflow-hidden sm:p-7 md:flex md:min-h-screen md:w-1/2 md:p-9 lg:p-12"
         style={vipTheme ? { background: `linear-gradient(145deg, ${themeSecondary}, ${themePrimary})` } : undefined}
       >
         <div className="relative z-10">

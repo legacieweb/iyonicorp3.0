@@ -33,7 +33,6 @@ import {
   NLMTopbar,
   NLMHeroPanel,
   NLMUploadForm,
-  NLMLyricsOverlay,
   NLMTrackDetail,
   NLMQueuePanel,
   NLMEQModal,
@@ -110,7 +109,6 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
   const [playHistoryCounts, setPlayHistoryCounts] = useState<Record<string, number> | null>(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const [showLyrics, setShowLyrics] = useState(false);
   const [showEqualizer, setShowEqualizer] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   const [showVisualizer, setShowVisualizer] = useState(false);
@@ -803,20 +801,6 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
     playbackSessionRef.current = null;
   }, [selectedId, user]);
 
-  useEffect(() => {
-    if (!showLyrics) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setShowLyrics(false);
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', closeOnEscape);
-    };
-  }, [showLyrics]);
-
   const selectTrack = async (track: Track) => {
     if (!await authorizeTrack(track)) return;
     const switchingTrack = selectedId !== track.id;
@@ -825,7 +809,6 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
     }
     setSelectedId(track.id);
     setView('Listen');
-    setShowLyrics(false);
     navigate(`/nlmsongs/track/${encodeURIComponent(track.id)}`);
     if (!switchingTrack) {
       void togglePlaybackWithAccess();
@@ -835,7 +818,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
   const showTrackLyrics = (track: Track) => {
     setSelectedId(track.id);
     setView('Listen');
-    setShowLyrics(true);
+    navigate(`/nlmsongs/track/${encodeURIComponent(track.id)}`);
   };
 
   const discoveryContent = view === 'Listen' ? <div className="nlm-discovery-shelves">
@@ -1195,7 +1178,6 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
               track={detailTrack}
               currentTime={audioPlayer.currentTime}
               onBack={() => navigate('/nlmsongs/listen')}
-              onShowLyrics={() => setShowLyrics(true)}
             />
           )}
 
@@ -1219,14 +1201,6 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
             </section>
           )}
         </div>
-
-        <NLMLyricsOverlay
-          track={selectedTrack}
-          isOpen={showLyrics}
-          isPlaying={audioPlayer.isPlaying}
-          currentTime={audioPlayer.currentTime}
-          onClose={() => setShowLyrics(false)}
-        />
 
         {deviceDownloadOpen && <div className="nlm-device-download-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setDeviceDownloadOpen(false); }}>
           <section className="nlm-device-download-modal" role="dialog" aria-modal="true" aria-labelledby="nlm-device-download-title" aria-describedby="nlm-device-download-copy">

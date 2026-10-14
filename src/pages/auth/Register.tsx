@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Button, Input, Card } from '../../components/ui';
-import { Store, Eye, EyeOff, CheckCircle, ArrowLeft, Package, Briefcase, Link as LinkIcon } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, ArrowLeft, Package, Briefcase, Link as LinkIcon } from 'lucide-react';
 import { getAuthErrorDetails } from '../../utils/authErrors';
 import { managerInvitationAPI } from '../../services/api';
 import { getVipAuthTheme } from '../../utils/vipAuthTheme';
@@ -301,6 +301,12 @@ export const Register: React.FC<RegisterProps> = ({
     ? isTsppSchoolSignup ? 'Your school workspace' : isUtormeTutorSignup ? 'Your tutor workspace' : isProductThemeSignup ? 'Your product storefront' : isPlatformThemeSignup ? `${selectedThemeName || 'Platform'} workspace` : 'Your business workspace'
     : formData.role === 'customer' ? isTsppTeacherSignup ? 'Your educator profile' : isUtormeStudentSignup ? 'Your learning space' : isShopSignup ? 'Your shopping account' : 'Your account, made useful'
       : 'Your management workspace';
+  const accountTypeLabel = formData.role === 'seller_manager'
+    ? 'Business manager'
+    : isTsppSchoolSignup ? 'School workspace'
+      : isTsppTeacherSignup ? 'Educator account'
+        : isShopSignup || formData.role === 'customer' ? 'Customer account'
+          : 'Merchant account';
   const benefits = {
      seller: isUtormeTutorSignup ? [
       'Create a tutor profile and service page',
@@ -383,7 +389,7 @@ export const Register: React.FC<RegisterProps> = ({
     <div className={`auth-page-shell min-h-screen flex flex-col md:flex-row bg-white ${vipTheme ? 'vip-auth-shell' : ''}`} data-vip-theme={vipTheme?.id} style={getAuthStyles()}>
       {/* Left Side - Context for every account and platform */}
       <div 
-        className="vip-auth-brand-panel flex min-h-[26rem] w-full flex-col justify-between p-5 text-white relative overflow-hidden sm:p-7 md:min-h-screen md:w-[42%] md:p-8 lg:w-[45%] lg:p-12"
+        className="vip-auth-brand-panel hidden min-h-[26rem] w-full flex-col justify-between p-5 text-white relative overflow-hidden sm:p-7 md:flex md:min-h-screen md:w-[42%] md:p-8 lg:w-[45%] lg:p-12"
         style={vipTheme || isTsppSignup ? { background: isTsppSignup ? 'linear-gradient(145deg, #123b3b, #1f5a55)' : `linear-gradient(145deg, ${themeSecondary}, ${themePrimary})` } : undefined}
       >
         <div className="relative z-10">
@@ -398,7 +404,7 @@ export const Register: React.FC<RegisterProps> = ({
             )}
             <span className="truncate text-xl font-extrabold tracking-tight">{storeInfo?.storeName || selectedThemeName || 'Iyonicorp'}</span>
             </div>
-            <span className="shrink-0 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-white/80">{formData.role === 'customer' ? 'Member account' : isThemeSignup ? 'Platform setup' : 'Business account'}</span>
+            <span className="shrink-0 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[.16em] text-white/80">{formData.role === 'customer' ? 'Member account' : formData.role === 'seller_manager' ? 'Manager account' : isThemeSignup ? 'Platform setup' : 'Merchant account'}</span>
           </div>
 
           <p className="mb-4 text-xs font-bold uppercase tracking-[.22em] text-white/65">A better way to get started</p>
@@ -460,6 +466,7 @@ export const Register: React.FC<RegisterProps> = ({
           </div>
 
           <div className="mb-8 text-center md:text-left">
+            {!vipTheme && !isShopSignup && !isInvitation && <p className="mb-3 inline-flex rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600">{accountTypeLabel}</p>}
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               {isTsppSchoolSignup
                 ? 'Create your school account'
@@ -469,7 +476,7 @@ export const Register: React.FC<RegisterProps> = ({
                     ? `Join ${vipTheme.name}`
                     : isShopSignup
                       ? 'Create Your Account'
-                      : 'Build your business with Iyonicorp'}
+                      : formData.role === 'seller_manager' ? 'Create your manager account' : formData.role === 'seller' ? 'Create your merchant account' : 'Create your account'}
             </h1>
             <p className="text-gray-500">
               {isTsppSchoolSignup
@@ -480,7 +487,7 @@ export const Register: React.FC<RegisterProps> = ({
                     ? vipTheme.description
                     : isShopSignup
                       ? 'Fill in the details below to get started'
-                      : 'Create an account for your seller or manager business.'}
+                      : formData.role === 'seller_manager' ? 'Set up a manager workspace for the businesses you support.' : formData.role === 'seller' ? 'Set up one business with a merchant workspace.' : 'Create a secure Iyonicorp account to get started.'}
             </p>
           </div>
 
@@ -512,36 +519,6 @@ export const Register: React.FC<RegisterProps> = ({
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Role Selection Tabs */}
-            {!selectedThemeId && !isShopSignup && !managerSlug && !isInvitation && !isUtormeSignup && !isTsppSignup && preselectedRole !== 'customer' && (
-              <div className="bg-gray-100 p-1 rounded-2xl flex max-w-lg mx-auto md:mx-0">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'seller' })}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center justify-center space-x-1 ${
-                    formData.role === 'seller'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Store className="w-3.5 h-3.5" />
-                  <span>Seller</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, role: 'seller_manager' })}
-                  className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-medium transition-all flex items-center justify-center space-x-1 ${
-                    formData.role === 'seller_manager'
-                      ? 'bg-white text-purple-600 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  <Briefcase className="w-3.5 h-3.5" />
-                  <span>Manager</span>
-                </button>
-              </div>
-            )}
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input
                 label="First Name"

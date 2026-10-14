@@ -1,10 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, ArrowUpRight, Search, Sparkles } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { ArrowRight, ArrowUpRight, Sparkles, Store, Layers3 } from 'lucide-react';
 import SEO from '../components/SEO';
 import GlobalHeader from '../components/GlobalHeader';
 import { HomepageFooter } from '../components/HomepageFooter';
-import { getThemeDashboardRoute } from '../utils/themeDashboard';
 import './bizhub.css';
 
 interface IyonicShopProps {
@@ -12,78 +11,57 @@ interface IyonicShopProps {
   onSignIn?: () => void;
 }
 
-type Platform = { id: string; name: string; category: string; fit: string; description: string; mark: string; tone: string; tags: string[] };
+const managerSignupHref = '/register?role=seller_manager';
 
-const PLATFORMS: Platform[] = [
-  { id: 'modern-ecommerce', name: 'Modern E-commerce', category: 'Retail & fashion', fit: 'For product brands', description: 'A clean, flexible storefront for fashion, home, and everyday retail.', mark: 'M / E', tone: 'sand', tags: ['Retail', 'Fashion', 'Products'] },
-  { id: 'luxury-boutique', name: 'Luxury Boutique', category: 'Retail & fashion', fit: 'For premium labels', description: 'Editorial product storytelling with a more considered, boutique feel.', mark: 'LB', tone: 'plum', tags: ['Luxury', 'Editorial', 'Retail'] },
-  { id: 'beauty-store', name: 'Beauty Store', category: 'Beauty & wellness', fit: 'For beauty brands', description: 'A polished home for skincare, cosmetics, and personal care ranges.', mark: 'BEAUTY', tone: 'rose', tags: ['Beauty', 'Skincare', 'Products'] },
-  { id: 'shoe-store', name: 'Shoe Store', category: 'Retail & fashion', fit: 'For footwear', description: 'Put collections, new drops, and standout pairs at the center.', mark: 'STEP', tone: 'blue', tags: ['Footwear', 'Fashion', 'Retail'] },
-  { id: 'jewelry-store', name: 'Jewelry Store', category: 'Retail & fashion', fit: 'For jewelry makers', description: 'A refined showcase for fine jewelry, accessories, and collections.', mark: 'AUREL', tone: 'gold', tags: ['Jewelry', 'Luxury', 'Accessories'] },
-  { id: 'bakery-store', name: 'Bakery Store', category: 'Food & hospitality', fit: 'For bakers & makers', description: 'An inviting storefront for baked goods, cafes, and local makers.', mark: 'DAILY\nLOAF', tone: 'bread', tags: ['Bakery', 'Food', 'Local'] },
-  { id: 'aura-salon', name: 'Aura Salon', category: 'Beauty & wellness', fit: 'For salons', description: 'Service menus and a welcoming booking experience for your clients.', mark: 'AURA', tone: 'mint', tags: ['Salon', 'Appointments', 'Services'] },
-  { id: 'creative-studio', name: 'Creative Studio', category: 'Creative & professional', fit: 'For studios & agencies', description: 'A distinctive digital home for creative practices and independent studios.', mark: 'STUDIO\nNº 08', tone: 'orange', tags: ['Creative', 'Studio', 'Services'] },
-  { id: 'elite-consulting', name: 'Elite Consulting', category: 'Creative & professional', fit: 'For consultants', description: 'A confident, structured presence for firms built on expertise.', mark: 'ELITE', tone: 'navy', tags: ['Consulting', 'Professional', 'Services'] },
-  { id: 'restaurant', name: 'The Restaurant', category: 'Food & hospitality', fit: 'For restaurants', description: 'Bring your menu, reservations, and guest experience together.', mark: 'TABLE\n& CO.', tone: 'red', tags: ['Restaurant', 'Food', 'Hospitality'] },
-  { id: 'event-planner', name: 'Event Flow', category: 'Events & experiences', fit: 'For event businesses', description: 'A dedicated workspace for event listings, bookings, and operations.', mark: 'EVENT\nFLOW', tone: 'violet', tags: ['Events', 'Bookings', 'Services'] },
-  { id: 'pulse-fit', name: 'Pulse Fit', category: 'Beauty & wellness', fit: 'For fitness studios', description: 'Manage classes, trainers, schedules, and member bookings.', mark: 'PULSE', tone: 'lime', tags: ['Fitness', 'Classes', 'Memberships'] },
-];
-
-const CATEGORIES = ['Everything', 'Retail & fashion', 'Beauty & wellness', 'Food & hospitality', 'Creative & professional', 'Events & experiences'];
-const signupHref = (platform: Platform) => {
-  const params = new URLSearchParams({ role: 'seller', platform: platform.id, theme: platform.id, redirect: getThemeDashboardRoute(platform.id) });
-  return `/register?${params.toString()}`;
-};
 
 export const IyonicShop: React.FC<IyonicShopProps> = ({ onSignIn }) => {
-  const [category, setCategory] = useState('Everything');
-  const [query, setQuery] = useState('');
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return PLATFORMS.filter((item) => (category === 'Everything' || item.category === category)
-      && (!needle || [item.name, item.fit, item.category, item.description, ...item.tags].join(' ').toLowerCase().includes(needle)));
-  }, [category, query]);
-  const featured = PLATFORMS[0];
+  const location = useLocation();
+  useEffect(() => {
+    if (location.hash !== '#your-path') return;
+    const frame = window.requestAnimationFrame(() => document.getElementById('your-path')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.hash, location.key]);
 
   return (
     <div className="bizhub-shell">
-      <SEO title="BizHub by Iyonicorp — Find your business platform" description="Choose a platform designed around the way your business works. Start with your business type, then build your customer experience with Iyoni." keywords="BizHub, business platforms, storefront themes, business tools, Iyonicorp" canonical="https://iyonicorp.com/bizhub" />
-      <GlobalHeader context="BizHub" />
+      <SEO title="BizHub by Iyonicorp — Find your business platform" description="Choose whether to run one business or manage a portfolio, then find the right Iyonicorp platform for each business." keywords="BizHub, business management, merchant account, manager account, Iyonicorp platforms" canonical="https://iyonicorp.com/bizhub" />
+      <GlobalHeader context="BizHub" signupHref="/bizhub#your-path" />
 
       <main>
         <section className="bh-intro" aria-labelledby="bh-title">
           <div className="bh-intro-copy">
             <p className="bh-kicker"><span /> IYONICORP BUSINESS HUB <span className="bh-kicker-line" /></p>
-            <h1 id="bh-title">The right platform<br />for <em>your kind</em> of business.</h1>
-            <p className="bh-lede">Start with what you do. We’ll help you find the platform built for it — so your storefront, tools, and customer experience start on the same page.</p>
-            <div className="bh-intro-actions"><a className="bh-primary" href="#platforms">Find your platform <ArrowRight size={17} /></a><button type="button" onClick={onSignIn}>Already have an account? <span>Log in</span></button></div>
-            <p className="bh-note"><Sparkles size={14} /> Choose your business setup first. Your workspace follows.</p>
+            <h1 id="bh-title">One business<br />or a <em>whole portfolio.</em></h1>
+            <p className="bh-lede">BizHub brings Iyonicorp’s business platforms together. Choose the path that fits you: run one business yourself, or manage infrastructure and services across multiple businesses.</p>
+            <div className="bh-intro-actions"><Link className="bh-primary" to="/bizhub#your-path">Choose your path <ArrowRight size={17} /></Link><button type="button" onClick={onSignIn}>Already have an account? <span>Log in</span></button></div>
+            <p className="bh-note"><Sparkles size={14} /> Start with your role. Find the right platform next.</p>
           </div>
-          <div className="bh-feature" aria-label="Featured platform: Modern E-commerce">
-            <div className="bh-feature-top"><span>BUILT FOR THE WAY YOU SELL</span><span>01 / 12</span></div>
-            <div className="bh-feature-art bh-art-sand"><span className="bh-art-label">FORM / FUNCTION</span><span className="bh-art-wordmark">M / E</span><span className="bh-art-orbit" /><span className="bh-art-product">OBJECTS<br />FOR EVERYDAY</span><span className="bh-art-small">Modern E-commerce</span></div>
-            <div className="bh-feature-bottom"><div><span>FEATURED STARTING POINT</span><strong>{featured.name}</strong></div><Link to={signupHref(featured)} aria-label="Choose Modern E-commerce"><ArrowUpRight size={20} /></Link></div>
+          <div className="bh-feature bh-feature-portfolio" aria-label="A portfolio of businesses connected through Iyonicorp infrastructure">
+            <div className="bh-feature-top"><span>ONE INFRASTRUCTURE</span><span>01 / MANY</span></div>
+            <div className="bh-portfolio-art"><span className="bh-portfolio-orbit bh-orbit-one" /><span className="bh-portfolio-orbit bh-orbit-two" /><span className="bh-portfolio-core">IYONI<br /><small>INFRASTRUCTURE</small></span><span className="bh-portfolio-node bh-node-one">STORE</span><span className="bh-portfolio-node bh-node-two">SERVICE</span><span className="bh-portfolio-node bh-node-three">STUDIO</span><span className="bh-portfolio-node bh-node-four">MORE</span></div>
+            <div className="bh-feature-bottom"><div><span>YOUR BUSINESS. YOUR SCALE.</span><strong>One workspace or a portfolio</strong></div><Link to="/bizhub#your-path" aria-label="Choose a BizHub path"><ArrowUpRight size={20} /></Link></div>
           </div>
           <div className="bh-vertical-note" aria-hidden="true">BUSINESS, BUILT AROUND YOU</div>
         </section>
 
-        <section className="bh-proof" aria-label="How BizHub works"><div><b>01</b><span><strong>Find your fit</strong><small>Choose a platform for your business</small></span></div><i /><div><b>02</b><span><strong>Set up your workspace</strong><small>Sign up with your platform selected</small></span></div><i /><div><b>03</b><span><strong>Welcome your customers</strong><small>They land in your platform experience</small></span></div><span className="bh-proof-aside">ONE BUSINESS. ONE HOME.</span></section>
-
-        <section id="platforms" className="bh-catalog" aria-labelledby="bh-catalog-title">
-          <div className="bh-catalog-heading"><div><p className="bh-kicker">A BETTER PLACE TO BEGIN</p><h2 id="bh-catalog-title">What do you <em>do?</em></h2></div><p>Every business has its own rhythm. Pick the one that sounds like yours.</p></div>
-          <div className="bh-tools"><div className="bh-tabs" role="group" aria-label="Filter platforms by business category">{CATEGORIES.map((item) => <button key={item} type="button" className={category === item ? 'is-active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div><label className="bh-search"><Search size={17} /><span className="sr-only">Search platforms</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search a business or platform" /></label></div>
-
-          {filtered.length ? <div className="bh-grid">{filtered.map((platform, index) => <article className="bh-card" key={platform.id} style={{ '--bh-i': index } as React.CSSProperties}>
-            <div className={`bh-card-art bh-art-${platform.tone}`}><span className="bh-card-meta">{platform.category}</span><span className="bh-card-mark">{platform.mark.split('\n').map((line) => <React.Fragment key={line}>{line}<br /></React.Fragment>)}</span><span className="bh-card-art-index">IYONI / {String(PLATFORMS.indexOf(platform) + 1).padStart(2, '0')}</span></div>
-            <div className="bh-card-body"><span className="bh-card-fit">{platform.fit}</span><h3>{platform.name}</h3><p>{platform.description}</p><div className="bh-tags">{platform.tags.slice(0, 3).map((tag) => <span key={tag}>{tag}</span>)}</div><Link to={signupHref(platform)} className="bh-card-link">Choose this platform <ArrowRight size={16} /></Link></div>
-          </article>)}</div> : <div className="bh-empty"><strong>No platform found yet.</strong><span>Try another search or browse every platform in the collection.</span><button type="button" onClick={() => { setQuery(''); setCategory('Everything'); }}>Clear filters</button></div>}
-          <div className="bh-all-platforms"><span>Looking for a different kind of business?</span><Link to="/themes">Browse all platforms <ArrowUpRight size={16} /></Link></div>
+        <section id="your-path" className="bh-paths" aria-labelledby="bh-paths-title">
+          <div className="bh-paths-heading"><p className="bh-kicker">TWO WAYS TO BUILD WITH IYONICORP</p><h2 id="bh-paths-title">Choose the role<br />that <em>fits your ambition.</em></h2><p>Start with one business, or build a portfolio by helping multiple businesses run on Iyonicorp infrastructure.</p></div>
+          <article className="bh-path bh-path-merchant"><div className="bh-path-icon"><Store size={21} /></div><span className="bh-path-number">01 / MERCHANT</span><h3>Running one business?</h3><p>Set up your own business workspace and choose a platform shaped around the way you sell or serve customers.</p><ul><li>Choose a business platform</li><li>Create your seller account</li><li>Build your business in its own workspace</li></ul><Link className="bh-path-cta" to="/themes">Explore business platforms <ArrowRight size={17} /></Link><span className="bh-path-footnote" style={{ color: '#727972' }}>Your seller role is selected when you choose a platform</span></article>
+          <article className="bh-path bh-path-manager"><div className="bh-path-icon"><Layers3 size={21} /></div><span className="bh-path-number">02 / MANAGER</span><h3>Managing more than one?</h3><p>Use a manager account to bring multiple businesses into a portfolio and help each one adopt the Iyonicorp platforms and infrastructure that fit its work.</p><div className="bh-recurring"><span className="bh-recurring-mark">↻</span><p><strong>Earn as managed businesses sell</strong><br />Link each business to your manager account and support its setup. Your account tracks the configured commission on eligible orders from your managed sellers, so revenue can continue as they sell over time. Earnings depend on qualifying sales and the commission terms in effect.</p></div><Link className="bh-path-cta" to={managerSignupHref}>Create a manager account <ArrowRight size={17} /></Link><span className="bh-path-footnote">Manager role selected during registration</span></article>
         </section>
 
-        <section className="bh-close"><div className="bh-close-index">YOUR NEXT MOVE <span>—</span> 03</div><div><p>Start with the business<br />you’re <em>building.</em></p><span>Choose your platform first. Your signup and business workspace will be ready for it.</span></div><Link to={signupHref(featured)}>Explore your options <ArrowRight size={17} /></Link><span className="bh-close-orbit" aria-hidden="true" /></section>
+        <section className="bh-proof" aria-label="Your path with BizHub"><div><b>01</b><span><strong>Choose your role</strong><small>Run one business or manage a portfolio</small></span></div><i /><div><b>02</b><span><strong>Find the right platform</strong><small>Explore themes built for different kinds of work</small></span></div><i /><div><b>03</b><span><strong>Build with Iyonicorp</strong><small>Connect each business to shared infrastructure</small></span></div><span className="bh-proof-aside">BUILT FOR BUSINESS</span></section>
+
+        <section className="bh-theme-handoff" aria-labelledby="bh-theme-title">
+          <div className="bh-theme-index">PLATFORM DIRECTORY <span>—</span> 02</div>
+          <div className="bh-theme-copy"><p className="bh-kicker">A PLATFORM FOR EVERY WAY OF WORKING</p><h2 id="bh-theme-title">Find your business<br />a <em>good place to grow.</em></h2><p>Explore the dedicated themes page to compare platforms for retail, services, food, creative work, and more. Choose the right fit for each business in your portfolio.</p><Link to="/themes" className="bh-theme-link">Explore all business platforms <ArrowRight size={17} /></Link></div>
+          <div className="bh-theme-stamp" aria-hidden="true"><span>ONE BUSINESS<br />OR MANY</span><i>↗</i></div>
+        </section>
+
+        <section className="bh-close"><div className="bh-close-index">READY WHEN YOU ARE <span>—</span> 03</div><div><p>Pick your starting point.<br /><em>We’ll build from there.</em></p><span>Choose the merchant or manager path that fits your business.</span></div><Link to="/bizhub#your-path">Choose your path <ArrowRight size={17} /></Link><span className="bh-close-orbit" aria-hidden="true" /></section>
       </main>
 
-      <HomepageFooter />
+      <HomepageFooter showAboutCta={false} />
     </div>
   );
 };

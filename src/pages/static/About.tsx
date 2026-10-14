@@ -29,7 +29,7 @@ const About: React.FC = () => {
                 {[
                   { icon: Layers, name: 'BizHub', description: 'Discover the platform built for your business and create its customer experience.' },
                   { icon: ShieldCheck, name: 'IyonicPay', description: 'Payment infrastructure and experiences within the Iyoni platform.' },
-                  { icon: Sparkles, name: 'IyonicBots', description: 'Iyoni’s AI and automation engine.' },
+                  { icon: Sparkles, name: 'Iyonic Intelligence', description: 'Iyoni’s AI and automation engine.' },
                 ].map(({ icon: Icon, name, description }) => (
                   <div key={name} className="grid gap-4 py-6 sm:grid-cols-[2.5rem_10rem_1fr] sm:items-start">
                     <Icon className="h-6 w-6 text-blue-700" aria-hidden="true" />

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowDown, ArrowRight, ArrowUpRight, Bot, CalendarDays, Check, CreditCard, Database, Mail, Scissors, ShoppingBag, Sparkles } from 'lucide-react';
 import SEO from '../components/SEO';
 import { HomepageFooter } from '../components/HomepageFooter';
@@ -9,9 +9,9 @@ import './Homepage.css';
 const tools = [
   { name: 'BizHub', role: 'Build your online business', copy: 'A flexible business platform for services and products.', href: '/bizhub', icon: ShoppingBag, color: 'mint' },
   { name: 'IyonicPay', role: 'Get paid', copy: 'Checkout and business payments.', href: '/iyonicpay', icon: CreditCard, color: 'blue' },
+  { name: 'Iyonic Intelligence', role: 'AI conversations & automation', copy: 'Intelligent customer conversations and business workflows.', href: '/iyonicintelligence', icon: Bot, color: 'mint' },
   { name: 'IyonicDB', role: 'Know your business', copy: 'Organized information for daily work.', href: '/iyonicdb', icon: Database, color: 'sand' },
   { name: 'IyonicMailer', role: 'Stay in touch', copy: 'Email updates and customer campaigns.', href: '/iyonic-mailer', icon: Mail, color: 'rose' },
-  { name: 'IyonicBots', role: 'AI conversations & automation', copy: 'AI customer conversations and business workflows.', href: '/iyonicbots', icon: Bot, color: 'mint' },
 ];
 
 const businesses = [
@@ -21,6 +21,8 @@ const businesses = [
 ];
 
 export const Homepage: React.FC = () => {
+  const location = useLocation();
+
   useEffect(() => {
     const sections = document.querySelectorAll<HTMLElement>('.home-reimagined .ir-reveal');
     if (!('IntersectionObserver' in window)) return;
@@ -35,10 +37,20 @@ export const Homepage: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (!location.hash) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.hash, location.key]);
+
   return (
   <div className="home-reimagined">
     <SEO title="IYONICORP — Start, run, and automate your business" description="IYONICORP connects the tools to build an online business, manage payments and customer relationships, organize business information, and automate everyday work." keywords="IYONICORP, business ecosystem, business platform, service business, business tools, payments, automation" canonical="https://iyonicorp.com/" />
-    <GlobalHeader />
+    <GlobalHeader signupHref="/#products" />
     <main>
       <section className="ir-hero">
         <div className="ir-hero-copy">
@@ -47,7 +59,7 @@ export const Homepage: React.FC = () => {
           <p className="ir-intro">IYONICORP brings business tools together in one ecosystem. Build your online presence, manage payments and customer relationships, organize information, and automate everyday work.</p>
           <p className="ir-inclusive">For service businesses, independent professionals, local businesses, product sellers, and growing teams.</p>
           <div className="ir-hero-actions">
-            <Link className="ir-button ir-button-dark" to="/register?role=seller">Build your business <ArrowRight size={17} /></Link>
+            <Link className="ir-button ir-button-dark" to="/bizhub#your-path">Build your business <ArrowRight size={17} /></Link>
             <a className="ir-link" href="#ecosystem">Explore the platform <ArrowDown size={15} /></a>
           </div>
           <div className="ir-hero-foot"><span>ONE PLACE TO BEGIN</span><i /><span>ROOM FOR WHAT’S NEXT</span></div>
@@ -78,7 +90,7 @@ export const Homepage: React.FC = () => {
       <section className="ir-businesses ir-reveal" id="businesses">
         <div className="ir-section-intro"><div><p className="ir-kicker"><span className="ir-kicker-dash" /> BUILT AROUND HOW YOU DO BUSINESS</p><h2>Every kind of<br /><em>business belongs.</em></h2></div><p>The IYONICORP ecosystem supports the way different businesses work: build an online presence, serve customers, get paid, stay organized, and keep routine work moving.</p></div>
         <div className="ir-business-list">{businesses.map(({ title, examples, icon: Icon, shade }, index) => <article className={`ir-business-row ${shade}`} key={title}><span className="ir-business-number">0{index + 1}</span><div className="ir-business-icon"><Icon size={21} strokeWidth={1.6} /></div><h3>{title}</h3><p>{examples}</p></article>)}</div>
-        <div className="ir-bizhub-line"><span className="ir-bizhub-word">A CONNECTED SYSTEM</span><p>From your online business presence to payments, customer communication, information, and automation—each part supports how you work.</p><Link to="#ecosystem">See how it connects <ArrowRight size={15} /></Link></div>
+        <div className="ir-bizhub-line"><span className="ir-bizhub-word">A CONNECTED SYSTEM</span><p>From your online business presence to payments, customer communication, information, and automation—each part supports how you work.</p><Link to="/#ecosystem">See how it connects <ArrowRight size={15} /></Link></div>
       </section>
 
       <section className="ir-ecosystem ir-reveal" id="ecosystem">
@@ -95,11 +107,11 @@ export const Homepage: React.FC = () => {
         <div className="ir-lifecycle-steps">
           <article><span className="ir-step-index">01 <i /></span><h3>Start</h3><p>Build an online business that fits what you do, from a service-led website to a place to present and sell products.</p><Link to="/bizhub">Build with BizHub <ArrowRight size={14} /></Link></article>
           <article><span className="ir-step-index">02 <i /></span><h3>Run</h3><p>Bring payments, customer communication, and business information together with IyonicPay, IyonicMailer, and IyonicDB.</p><Link to="/iyonicpay">Explore business tools <ArrowRight size={14} /></Link></article>
-          <article><span className="ir-step-index">03 <i /></span><h3>Automate</h3><p>Use IyonicBots to support repeat conversations and workflows, so there’s more room for the work that moves you forward.</p><Link to="/iyonicbots">Explore IyonicBots <ArrowRight size={14} /></Link></article>
+          <article><span className="ir-step-index">03 <i /></span><h3>Automate</h3><p>Use Iyonic Intelligence to support repeat conversations and workflows, so there’s more room for the work that moves you forward.</p><Link to="/iyonicintelligence">Explore Iyonic Intelligence <ArrowRight size={14} /></Link></article>
         </div>
       </section>
 
-      <section className="ir-final ir-reveal"><div className="ir-final-note"><span>YOUR NEXT MOVE</span><i /></div><div className="ir-final-content"><div><p className="ir-kicker"><span className="ir-kicker-dot" /> MADE FOR THE WORK YOU DO</p><h2>Make room<br />to <em>build.</em></h2></div><div className="ir-final-action"><p>Start with your business. Bring the right tools together as you go.</p><Link to="/register?role=seller" className="ir-button ir-button-light">Get started with IYONICORP <ArrowRight size={17} /></Link><Link className="ir-final-about" to="/about">Get to know IYONICORP <ArrowUpRight size={14} /></Link></div></div><div className="ir-final-bottom"><span>START · RUN · AUTOMATE</span><span>IYONICORP <b>I.</b></span></div><span className="ir-final-disc" aria-hidden="true" /></section>
+      <section className="ir-final ir-reveal"><div className="ir-final-note"><span>YOUR NEXT MOVE</span><i /></div><div className="ir-final-content"><div><p className="ir-kicker"><span className="ir-kicker-dot" /> MADE FOR THE WORK YOU DO</p><h2>Make room<br />to <em>build.</em></h2></div><div className="ir-final-action"><p>Start with your business. Bring the right tools together as you go.</p><Link to="/bizhub#your-path" className="ir-button ir-button-light">Get started with IYONICORP <ArrowRight size={17} /></Link><Link className="ir-final-about" to="/about">Get to know IYONICORP <ArrowUpRight size={14} /></Link></div></div><div className="ir-final-bottom"><span>START · RUN · AUTOMATE</span><span>IYONICORP <b>I.</b></span></div><span className="ir-final-disc" aria-hidden="true" /></section>
     </main>
     <HomepageFooter />
   </div>

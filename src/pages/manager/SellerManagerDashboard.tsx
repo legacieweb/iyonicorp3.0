@@ -187,7 +187,7 @@ export const SellerManagerDashboard: React.FC = () => {
         'Up to 20 Products', 
         'IyonicPay Integration Only',
         '7% Transaction Commission',
-        'Basic IyonicBots Access'
+        'Basic Iyonic Intelligence access'
       ] 
     },
     basic: { 

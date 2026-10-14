@@ -43,9 +43,9 @@ import {
 import { api, botsAPI } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HomepageFooter } from '../components/HomepageFooter';
-import IyoniPlatformBand from '../components/IyoniPlatformBand';
 import './Homepage.css';
 import './product-marketing.css';
+import './IyonicIntelligenceLanding.css';
 
 const IyonicBots: React.FC = () => {
   const { user, login, register, setAuthenticatedUser, logout } = useAuth();
@@ -485,7 +485,7 @@ const IyonicBots: React.FC = () => {
               <div className="w-10 h-10 flex items-center justify-center">
                 <img src="/logo.png" alt="Iyonicorp Logo" className="w-10 h-10 object-contain" />
               </div>
-              <span className="text-2xl font-black tracking-tighter text-gray-900">IyonicBots</span>
+              <span className="text-2xl font-black tracking-tighter text-gray-900">Iyonic Intelligence</span>
             </div>
           </div>
           
@@ -1457,248 +1457,98 @@ const IyonicBots: React.FC = () => {
   };
 
   return (
-    <div className="home-shell platform-shell product-marketing product-bots min-h-screen">
-      <IyoniPlatformBand />
+    <div className="ii-landing min-h-screen">
       <SEO 
-        title="IyonicBots — AI & Automation for Modern Business"
-        description="IyonicBots is Iyoni's AI and automation engine inside a modular Business Operating System — helping businesses turn repeat work into faster, clearer operations."
-        keywords="business automation, AI engine, automation, customer support, IyonicBots"
-        canonical="https://iyonicorp.com/iyonicbots"
+        title="Iyonic Intelligence — AI & Automation for Modern Business"
+        description="Iyonic Intelligence is Iyoni's AI and automation engine inside a modular Business Operating System — helping businesses turn repeat work into faster, clearer operations."
+        keywords="business automation, AI engine, automation, customer support, Iyonic Intelligence"
+        canonical="https://iyonicorp.com/iyonicintelligence"
       />
 
-      <header className="home-header" id="home-header">
-        <nav className="home-nav" aria-label="Main navigation">
-          <Link to="/" className="home-brand" aria-label="Iyoni home" onClick={handleNav}>
-            <img src="/logo.png" alt="" />
-            <span>Iyoni<span className="brand-period">.</span></span>
+      <header className="ii-header" id="home-header">
+        <nav className="ii-nav" aria-label="Main navigation">
+          <Link to="/iyonicintelligence" className="ii-brand" onClick={handleNav}>
+            <span className="ii-brand-mark"><Bot size={19} /></span>
+            <span>Iyonic <b>Intelligence</b></span>
           </Link>
-
-          <div className="nav-links">
-            <button type="button" onClick={() => scrollToSection('features')}>Features</button>
-            <button type="button" onClick={() => scrollToSection('templates')}>Templates</button>
+          <div className="ii-nav-links">
+            <button type="button" onClick={() => scrollToSection('features')}>Capabilities</button>
+            <button type="button" onClick={() => scrollToSection('workflow')}>How it works</button>
             <button type="button" onClick={() => scrollToSection('platform')}>Iyoni platform</button>
           </div>
-
-          <div className="nav-actions">
-            <button type="button" className="nav-login" onClick={() => setIsLoginPopupOpen(true)}>Log In</button>
-            <button
-              type="button"
-              className="nav-cta"
-              onClick={() => setIsRegisterPopupOpen(true)}
-            >
-              Build with Iyoni <ArrowUpRight size={15} />
-            </button>
+          <div className="ii-nav-actions">
+            <button type="button" className="ii-login" onClick={() => setIsLoginPopupOpen(true)}>Log in</button>
+            <button type="button" className="ii-button ii-button-bright" onClick={() => setIsRegisterPopupOpen(true)}>Get started <ArrowUpRight size={16} /></button>
           </div>
-
-          <button
-            type="button"
-            className="menu-toggle"
-            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            {menuOpen ? <X size={22} /> : <Menu size={22} />}
+          <button type="button" className="ii-menu-toggle" aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}>
+            {menuOpen ? <X size={21} /> : <Menu size={21} />}
           </button>
-
-          {menuOpen && (
-            <div className="mobile-nav">
-              <button type="button" onClick={() => scrollToSection('features')}>Features</button>
-              <button type="button" onClick={() => scrollToSection('templates')}>Templates</button>
-              <button type="button" onClick={() => scrollToSection('platform')}>Iyoni platform</button>
-              <button type="button" onClick={() => { setIsLoginPopupOpen(true); handleNav(); }}>Log In</button>
-              <button type="button" className="nav-cta" onClick={() => { setIsRegisterPopupOpen(true); handleNav(); }}>
-                Build with Iyoni <ArrowUpRight size={15} />
-              </button>
-            </div>
-          )}
+          {menuOpen && <div className="ii-mobile-nav">
+            <button type="button" onClick={() => scrollToSection('features')}>Capabilities</button>
+            <button type="button" onClick={() => scrollToSection('workflow')}>How it works</button>
+            <button type="button" onClick={() => scrollToSection('platform')}>Iyoni platform</button>
+            <button type="button" onClick={() => { setIsLoginPopupOpen(true); handleNav(); }}>Log in</button>
+            <button type="button" className="ii-button ii-button-bright" onClick={() => { setIsRegisterPopupOpen(true); handleNav(); }}>Get started <ArrowUpRight size={16} /></button>
+          </div>}
         </nav>
       </header>
 
-      <section className="platform-hero" aria-labelledby="bots-hero-title">
-        <div className="platform-hero-copy">
-          <p className="eyebrow"><span className="eyebrow-mark" /> AI & automation engine</p>
-          <h1 id="bots-hero-title">
-            Automate the work <br />
-            <em>that slows you down.</em>
-          </h1>
-          <p className="hero-lede">
-            IyonicBots is Iyoni's AI and automation engine inside a modular Business Operating System —
-            helping businesses move faster while keeping customer experience, knowledge, and workflows
-            connected.
-          </p>
-          <div className="hero-actions">
-            <button
-              type="button"
-              className="button button-dark"
-              onClick={() => setIsRegisterPopupOpen(true)}
-            >
-              Build your first bot <ArrowRight size={17} />
-            </button>
-            <button type="button" className="text-link" onClick={() => setIsContinuePopupOpen(true)}>
-              Explore Iyoni <ArrowDown size={15} />
-            </button>
-          </div>
-          <div className="hero-footnote">
-            <span className="footnote-rule" />
-            <span><strong>One platform.</strong> Automation connected to commerce and payments.</span>
-          </div>
-        </div>
-
-        <div className="platform-hero-visual" aria-hidden="true">
-          <div className="map-topline"><span>CONFIGURE</span><span>DEPLOY</span></div>
-          <div className="map-industry-row">
-            <span>Knowledge</span>
-            <span>Conversations</span>
-            <span>Automation</span>
-            <span>Integration</span>
-          </div>
-          <div className="map-connectors" aria-hidden="true">
-            <i /><i /><i /><i />
-          </div>
-          <div className="map-core">
-            <div className="core-symbol"><span /><span /><span /></div>
-            <div>
-              <span className="core-overline">IYONI</span>
-              <strong>Automation</strong>
+      <main>
+        <section className="ii-hero" aria-labelledby="bots-hero-title">
+          <div className="ii-hero-copy">
+            <p className="ii-kicker"><span /> CUSTOMER CONVERSATIONS, WITH CONTEXT</p>
+            <h1 id="bots-hero-title">Helpful conversations.<br /><em>Room to grow.</em></h1>
+            <p className="ii-lede">Iyonic Intelligence helps your team shape an AI assistant around your business knowledge, tune its replies, and review the conversations it has.</p>
+            <div className="ii-hero-actions">
+              <button type="button" className="ii-button ii-button-bright" onClick={() => setIsRegisterPopupOpen(true)}>Explore your workspace <ArrowRight size={17} /></button>
+              <button type="button" className="ii-secondary-link" onClick={() => scrollToSection('features')}>See what you can configure <ArrowDown size={15} /></button>
             </div>
-            <ArrowRight size={20} />
+            <div className="ii-hero-note"><span className="ii-note-line" /><span>Build on what your business already knows.</span></div>
           </div>
-          <div className="map-lower-label">CONNECTED SERVICES <span>↓</span></div>
-          <div className="map-capabilities">
-            <span>Commerce</span>
-            <span>Support</span>
-            <span>Operations</span>
-            <span>Growth</span>
-          </div>
-          <div className="map-caption">
-            <span className="caption-dot" />
-            Bots built to connect to the wider business platform.
-          </div>
-        </div>
-      </section>
-
-      <section className="section-wrap">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-center text-[10px] font-black uppercase tracking-[0.3em] text-[#65736a]">
-            A core Iyoni platform service
-          </p>
-          <p className="mx-auto mt-5 max-w-2xl text-center text-lg leading-8 text-[#65736a]">
-            IyonicBots is one of Iyoni's core services inside a broader Business Operating System.
-            The platform also includes dedicated commerce, payments, and growth services.
-          </p>
-          <div className="mt-6 flex justify-center">
-            <Link to="/themes" className="inline-flex items-center gap-2 font-bold text-[#315e4b] hover:text-[#193d30]">
-              Explore all platforms <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="section-wrap" id="features" aria-labelledby="bots-features-title">
-        <div className="section-intro">
-          <p className="eyebrow">AI TOOLS</p>
-          <h2 id="bots-features-title">Everything you need to <em>configure</em> confidently.</h2>
-          <p>
-            Bot configuration, knowledge management, and conversation tools built for your
-            business — linked by design to operations and commerce.
-          </p>
-        </div>
-
-        <div className="capability-grid">
-          <Link to="/themes" className="capability-card">
-            <span className="capability-index">01</span>
-            <Database size={21} strokeWidth={1.7} />
-            <strong>Business knowledge</strong>
-            <p>Add and manage business information for bots, including knowledge documents and FAQs.</p>
-            <ArrowUpRight className="capability-arrow" size={16} />
-          </Link>
-          <Link to="/themes" className="capability-card">
-            <span className="capability-index">02</span>
-            <ShieldCheck size={21} strokeWidth={1.7} />
-            <strong>Bot configuration</strong>
-            <p>Set response instructions, welcome messages, and the knowledge sources available to a bot.</p>
-            <ArrowUpRight className="capability-arrow" size={16} />
-          </Link>
-          <Link to="/themes" className="capability-card">
-            <span className="capability-index">03</span>
-            <Globe size={21} strokeWidth={1.7} />
-            <strong>Widget settings</strong>
-            <p>Review the available widget settings, including its greeting, color, and icon.</p>
-            <ArrowUpRight className="capability-arrow" size={16} />
-          </Link>
-          <Link to="/themes" className="capability-card">
-            <span className="capability-index">04</span>
-            <Smartphone size={21} strokeWidth={1.7} />
-            <strong>Response testing</strong>
-            <p>Use the test experience to review bot responses as you configure it.</p>
-            <ArrowUpRight className="capability-arrow" size={16} />
-          </Link>
-          <Link to="/themes" className="capability-card">
-            <span className="capability-index">05</span>
-            <Zap size={21} strokeWidth={1.7} />
-            <strong>Conversation review</strong>
-            <p>View conversations in the bot workspace when conversation data is available.</p>
-            <ArrowUpRight className="capability-arrow" size={16} />
-          </Link>
-          <Link to="/themes" className="capability-card">
-            <span className="capability-index">06</span>
-            <Terminal size={21} strokeWidth={1.7} />
-            <strong>Bot workspace</strong>
-            <p>Manage your bots and their settings within the IyonicBots experience.</p>
-            <ArrowUpRight className="capability-arrow" size={16} />
-          </Link>
-        </div>
-      </section>
-
-      <section className="architecture-section" id="templates" aria-labelledby="bots-architecture-title">
-        <div className="section-wrap architecture-inner">
-          <div className="architecture-stamp">
-            <span>CORE<br />SERVICE</span>
-            <Bot size={24} />
-          </div>
-          <div className="architecture-copy">
-            <p className="eyebrow">A MODULAR WAY TO BUILD</p>
-            <h2 id="bots-architecture-title">One foundation.<br /><em>Automation in the picture.</em></h2>
-            <p>
-              IyonicBots is one of Iyoni's core services. Explore the business platforms around it
-              and check your account for currently available automation tools.
-            </p>
-            <div className="architecture-steps">
-              <span><b>01</b> Find your platform</span>
-              <i />
-              <span><b>02</b> Explore available tools</span>
-              <i />
-              <span><b>03</b> Build from there</span>
+          <div className="ii-product-stage" aria-label="Illustration of an assistant answering a customer using business knowledge">
+            <div className="ii-stage-top"><span><i /> WORKSPACE PREVIEW</span><span>01 / 04</span></div>
+            <div className="ii-chat-window">
+              <div className="ii-chat-title"><span className="ii-avatar"><Bot size={18} /></span><div><strong>Store assistant</strong><small>Response preview</small></div><span className="ii-live">READY</span></div>
+              <div className="ii-chat-body">
+                <div className="ii-message ii-customer"><small>CUSTOMER · 10:42 AM</small><p>How long do I have to return an order?</p></div>
+                <div className="ii-message ii-answer"><small><Sparkles size={12} /> IYONIC INTELLIGENCE</small><p>You can return an order within 30 days of delivery. Keep the item in its original condition and contact our team to get started.</p><span><CheckCircle2 size={13} /> Based on your returns FAQ</span></div>
+              </div>
+              <div className="ii-chat-input">Ask a question… <span><ArrowUpRight size={15} /></span></div>
             </div>
+            <div className="ii-source-chip"><Database size={14} /><span><b>Knowledge source</b><small>Returns & exchanges · FAQ</small></span><CheckCircle2 size={15} /></div>
+            <div className="ii-stage-index">KNOWLEDGE <span>→</span> RESPONSE <span>→</span> REVIEW</div>
           </div>
-        </div>
-      </section>
+          <div className="ii-hero-grid" aria-hidden="true" />
+        </section>
 
-      <section className="closing-cta">
-        <div className="closing-orbit" aria-hidden="true"><span /><span /><span /></div>
-        <div className="closing-copy">
-          <p className="eyebrow">ONE FOUNDATION. YOUR BUSINESS.</p>
-          <h2>Deploy your AI <br />workforce <em>today.</em></h2>
-          <p>Find the platform that fits, then take your next step.</p>
-          <div className="hero-actions">
-            <Link className="button button-light" to="/themes">
-              Explore platforms <ArrowRight size={17} />
-            </Link>
-            <button
-              className="closing-login"
-              type="button"
-              onClick={() => setIsRegisterPopupOpen(true)}
-            >
-              Get started <ArrowUpRight size={16} />
-            </button>
+        <section className="ii-signal-strip" aria-label="Workspace areas">
+          <span>ONE WORKSPACE</span><b><Database size={16} /> Business knowledge</b><b><MessageSquare size={16} /> Conversations</b><b><Settings size={16} /> Widget settings</b><b><Play size={16} /> Response testing</b>
+        </section>
+
+        <section className="ii-capabilities" id="features" aria-labelledby="bots-features-title">
+          <div className="ii-section-heading"><div><p className="ii-kicker"><span /> MAKE IT YOURS</p><h2 id="bots-features-title">The useful details<br /><em>stay in your hands.</em></h2></div><p>Start with the information customers ask for. Shape the assistant, test its answers, and learn from the conversations in your workspace.</p></div>
+          <div className="ii-feature-list">
+            <article className="ii-feature" id="knowledge"><span className="ii-feature-number">01</span><div className="ii-feature-icon"><Database size={21} /></div><div><h3>Bring your business knowledge</h3><p>Add business information, documents, and FAQs for your bots to reference.</p></div><ArrowUpRight size={18} /></article>
+            <article className="ii-feature"><span className="ii-feature-number">02</span><div className="ii-feature-icon"><Settings size={21} /></div><div><h3>Set the tone and behavior</h3><p>Adjust instructions, response length, language, welcome messages, and allowed knowledge.</p></div><ArrowUpRight size={18} /></article>
+            <article className="ii-feature"><span className="ii-feature-number">03</span><div className="ii-feature-icon"><Globe size={21} /></div><div><h3>Shape the chat widget</h3><p>Configure its greeting, color, and icon to suit your customer experience.</p></div><ArrowUpRight size={18} /></article>
+            <article className="ii-feature"><span className="ii-feature-number">04</span><div className="ii-feature-icon"><MessageCircle size={21} /></div><div><h3>Test and review</h3><p>Try questions in the test experience, then review conversations when data is available.</p></div><ArrowUpRight size={18} /></article>
           </div>
-        </div>
-        <div className="closing-foot">
-          IYONI CORP <span>—</span> RUN. SELL. GET PAID. AUTOMATE. GROW.
-        </div>
-      </section>
+          <button type="button" className="ii-text-cta" onClick={() => setIsRegisterPopupOpen(true)}>Open the Iyonic Intelligence workspace <ArrowRight size={16} /></button>
+        </section>
 
-      <HomepageFooter />
+        <section className="ii-workflow" id="workflow" aria-labelledby="ii-workflow-title">
+          <div className="ii-workflow-heading"><p className="ii-kicker"><span /> A CLEAR PLACE TO BEGIN</p><h2 id="ii-workflow-title">Knowledge in.<br /><em>Better context out.</em></h2><p>Build the foundation in a few deliberate steps. Your team stays in control of the information and settings.</p></div>
+          <div className="ii-workflow-steps"><article><b>01</b><Database size={20} /><h3>Add knowledge</h3><p>Collect FAQs and business details your assistant can use.</p></article><span className="ii-step-connector" /><article><b>02</b><Settings size={20} /><h3>Configure</h3><p>Choose instructions, tone, language, and widget settings.</p></article><span className="ii-step-connector" /><article><b>03</b><MessageSquare size={20} /><h3>Test & review</h3><p>Try responses and review conversations in your workspace.</p></article></div>
+        </section>
+
+        <section className="ii-platform" id="platform" aria-labelledby="ii-platform-title">
+          <div className="ii-platform-mark" aria-hidden="true"><span /><span /><span /></div><div><p className="ii-kicker"><span /> PART OF THE IYONI ECOSYSTEM</p><h2 id="ii-platform-title">One connected place<br />to build a business.</h2><p>Iyonic Intelligence is one service in the wider Iyoni platform collection, alongside tools for commerce, payments, and business growth.</p><Link to="/bizhub" className="ii-text-cta">Explore BizHub <ArrowUpRight size={16} /></Link></div><div className="ii-platform-aside"><span>01 <i /> INTELLIGENCE</span><span>02 <i /> COMMERCE</span><span>03 <i /> PAYMENTS</span><span>04 <i /> GROWTH</span></div>
+        </section>
+
+        <section className="ii-final-cta" aria-labelledby="ii-final-title"><p className="ii-kicker"><span /> YOUR NEXT STEP</p><h2 id="ii-final-title">Give your knowledge<br /><em>a voice.</em></h2><p>Explore the workspace and see how its tools fit your team.</p><div><button type="button" className="ii-button ii-button-bright" onClick={() => setIsRegisterPopupOpen(true)}>Create your workspace <ArrowRight size={17} /></button><button type="button" className="ii-final-login" onClick={() => setIsLoginPopupOpen(true)}>Already have an account? Log in</button></div></section>
+      </main>
+
+      <HomepageFooter showAboutCta={false} />
 
       {/* Modals */}
       {/* Full Page Auth Overlays */}
@@ -1718,7 +1568,7 @@ const IyonicBots: React.FC = () => {
                   <div className="w-10 h-10 flex items-center justify-center">
                     <img src="/logo.png" alt="Iyonicorp Logo" className="w-10 h-10 object-contain" />
                   </div>
-                  <span className="text-2xl font-black tracking-tighter text-white uppercase">IyonicBots</span>
+                  <span className="text-2xl font-black tracking-tighter text-white uppercase">Iyonic Intelligence</span>
                 </div>
                 <h2 className="text-6xl font-black text-white leading-[1.1] mb-8">
                   The <span className="text-blue-500 italic font-serif font-light">next</span> generation of AI agents.
@@ -1754,7 +1604,7 @@ const IyonicBots: React.FC = () => {
               <div className="max-w-md w-full mx-auto my-auto">
                 <div className="mb-12">
                   <h3 className="text-4xl font-black text-gray-900 mb-4 tracking-tighter">Welcome Back</h3>
-                  <p className="text-gray-500 font-medium">New to IyonicBots? <button onClick={() => { setIsLoginPopupOpen(false); setIsRegisterPopupOpen(true); }} className="text-blue-600 font-black hover:underline transition-colors">Create account</button></p>
+                  <p className="text-gray-500 font-medium">New to Iyonic Intelligence? <button onClick={() => { setIsLoginPopupOpen(false); setIsRegisterPopupOpen(true); }} className="text-blue-600 font-black hover:underline transition-colors">Create account</button></p>
                 </div>
 
                 <form onSubmit={onLogin} className="space-y-6">
@@ -1825,13 +1675,13 @@ const IyonicBots: React.FC = () => {
                   <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center">
                     <Bot className="w-6 h-6 text-blue-600" />
                   </div>
-                  <span className="text-2xl font-black tracking-tighter text-white uppercase">IyonicBots</span>
+                  <span className="text-2xl font-black tracking-tighter text-white uppercase">Iyonic Intelligence</span>
                 </div>
                 <h2 className="text-6xl font-black text-white leading-[1.1] mb-8">
                   Build <span className="text-blue-200 italic font-serif font-light">better</span> together.
                 </h2>
                 <p className="text-blue-100 text-xl max-w-md font-medium">
-                  Create an account to explore the IyonicBots workspace and its available configuration tools.
+                  Create an account to explore the Iyonic Intelligence workspace and its available configuration tools.
                 </p>
               </div>
               
@@ -1964,7 +1814,7 @@ const IyonicBots: React.FC = () => {
       <Popup isOpen={isContinuePopupOpen} onClose={() => setIsContinuePopupOpen(false)} title="Integrate Iyonicorp Account" size="md">
         {!confirmAccount ? (
           <div className="space-y-6">
-            <p className="text-sm text-gray-500 font-medium">Use your existing Iyonicorp credentials to quickly set up your IyonicBots engine.</p>
+            <p className="text-sm text-gray-500 font-medium">Use your existing Iyonicorp credentials to quickly set up your Iyonic Intelligence engine.</p>
             <Input label="Iyonicorp Email" type="email" value={iyonicorpEmail} onChange={(e) => setIyonicorpEmail(e.target.value)} placeholder="email@example.com" />
             {error && <p className="text-red-500 text-xs font-bold">{error}</p>}
             <Button className="w-full bg-gray-900 py-4 rounded-xl font-bold" onClick={handleIyonicorpContinue} isLoading={loading}>Continue</Button>

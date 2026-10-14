@@ -9,9 +9,9 @@ import { formatPrice } from '../utils/currency';
 import { getApiBaseUrl } from '../utils/apiUrl';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HomepageFooter } from '../components/HomepageFooter';
-import IyoniPlatformBand from '../components/IyoniPlatformBand';
 import './Homepage.css';
 import './product-marketing.css';
+import './iyonic-pay-landing.css';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
@@ -98,7 +98,7 @@ const DEFAULT_ADDONS: Record<string, any> = {
   customDomain: { name: 'Custom Domain', price: 3, category: 'Brand', description: 'Connect your own domain to your store.' },
   advancedAnalytics: { name: 'Advanced Analytics', price: 7, category: 'Growth', description: 'Track sales, conversion and customer trends.' },
   premiumSupport: { name: 'Priority Support', price: 9, category: 'Support', description: 'Faster support response for your business.' },
-  apiAccess: { name: 'API Access', price: 8, category: 'Automation', description: 'Connect your tools to BizHub and IyonicBots.' },
+  apiAccess: { name: 'API Access', price: 8, category: 'Automation', description: 'Connect your tools to BizHub and Iyonic Intelligence.' },
   whiteLabel: { name: 'White Label', price: 12, category: 'Brand', description: 'Remove Iyonicorp branding from your storefront.' }
 };
 
@@ -513,7 +513,7 @@ const ActiveSubscriptionsSection: React.FC<ActiveSubscriptionsSectionProps> = ({
     },
     {
       id: 'bots',
-      title: 'IyonicBots Plan',
+      title: 'Iyonic Intelligence Plan',
       plan: botPlan,
       planName: botPlans[botPlan]?.name || botPlan,
       price: botPlans[botPlan]?.price || botBilling?.plan?.price || 0,
@@ -627,7 +627,7 @@ const IyonicBotsBillSection: React.FC<BillSectionProps> = ({ billing, onPayWithW
             <Users className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h4 className="text-3xl font-black">IyonicBots</h4>
+            <h4 className="text-3xl font-black">Iyonic Intelligence</h4>
             <p className="text-indigo-200 font-medium">AI chatbot plans for your store</p>
           </div>
         </div>
@@ -3151,7 +3151,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                                 <p className="text-2xl font-black text-gray-900">
                                   ${computeTotalSubscriptionFee(unifiedBilling, botBilling, sellerBilling).toFixed(2)} / mo
                                 </p>
-                                <p className="text-xs text-gray-500 mt-1">BizHub + IyonicBots</p>
+                                <p className="text-xs text-gray-500 mt-1">BizHub + Iyonic Intelligence</p>
                               </div>
                             </div>
                           </Card>
@@ -3188,7 +3188,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                          {user?.role === 'seller' && botBilling && (
                            <BillPlatformCard
                              icon={<Users className="w-8 h-8" />}
-                             title="IyonicBots"
+                             title="Iyonic Intelligence"
                              description="AI chatbot subscriptions"
                              gradient="from-indigo-600 to-purple-600"
                              currentPlan={botBilling.plan?.id ? `${botBilling.plan.name} ($${botBilling.plan.price.toFixed(2)})` : 'No active bot plan'}
@@ -3199,7 +3199,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                                try {
                                  await sellersAPI.updateAutoRenew('iyonicbots', enabled);
                                  await fetchBillsData();
-                                 showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for IyonicBots`, 'success');
+                                 showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for Iyonic Intelligence`, 'success');
                                } catch (err: any) {
                                  showToast(err.response?.data?.message || 'Could not update auto-renew', 'error');
                                }
@@ -3251,7 +3251,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                              try {
                                await sellersAPI.updateAutoRenew(platform, enabled, planId);
                                await fetchBillsData();
-                               showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for ${platform === 'iyonicbots' ? 'IyonicBots' : 'BizHub'}`, 'success');
+                               showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for ${platform === 'iyonicbots' ? 'Iyonic Intelligence' : 'BizHub'}`, 'success');
                              } catch (err: any) {
                                showToast(err.response?.data?.message || 'Could not update auto-renew', 'error');
                              }
@@ -3261,7 +3261,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                        )}
 
                        {/* Discount bundles + addons - at bottom */}
-                       <p className="text-gray-500 max-w-2xl">Want to save? Bundle BizHub and IyonicBots together with discount bundles and add-ons.</p>
+                       <p className="text-gray-500 max-w-2xl">Want to save? Bundle BizHub and Iyonic Intelligence together with discount bundles and add-ons.</p>
 
                        {(unifiedBilling || true) && (
                          <DiscountBundlesSection
@@ -3301,7 +3301,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                           <ArrowLeft className="w-5 h-5" />
                         </button>
                         <h3 className={`text-2xl font-black ${selectedBillPlatform === 'iyonicbots' ? 'text-indigo-600' : 'text-amber-600'}`}>
-                          {selectedBillPlatform === 'iyonicbots' ? 'IyonicBots' : 'BizHub'} Billing
+                          {selectedBillPlatform === 'iyonicbots' ? 'Iyonic Intelligence' : 'BizHub'} Billing
                         </h3>
                       </div>
 
@@ -3327,7 +3327,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                             try {
                               await sellersAPI.updateAutoRenew('iyonicbots', enabled, planId);
                               await fetchBillsData();
-                              showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for IyonicBots`, 'success');
+                              showToast(`Auto-renew ${enabled ? 'enabled' : 'disabled'} for Iyonic Intelligence`, 'success');
                             } catch (err: any) {
                               showToast(err.response?.data?.message || 'Could not update auto-renew', 'error');
                             }
@@ -4086,9 +4086,22 @@ const handleWithdraw = async (e: React.FormEvent) => {
     );
   }
 
+  const openPayArea = (tab: 'dashboard' | 'transactions', signInFirst = false) => {
+    if (!user) {
+      if (signInFirst) setIsLoginModalOpen(true);
+      else setIsRegisterModalOpen(true);
+      return;
+    }
+    if (!user.iyonicpayOptIn) {
+      handleOptIn();
+      return;
+    }
+    selectTab(tab);
+    setView('dashboard');
+  };
+
   return (
     <div className="home-shell platform-shell product-marketing product-pay">
-      <IyoniPlatformBand />
       <SEO
         title="IyonicPay — Payment Infrastructure for Modern Businesses"
         description="IyonicPay is the payment infrastructure inside Iyoni's modular Business Operating System — built to help businesses collect, move, and manage money across connected operations."
@@ -4103,9 +4116,9 @@ const handleWithdraw = async (e: React.FormEvent) => {
             <span>Iyoni<span className="brand-period">.</span></span>
           </Link>
           <div className="nav-links">
-            <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Platforms</button>
-            <Link to="/bizhub" onClick={() => setMenuOpen(false)}>Shop</Link>
-            <Link to="/iyonicbots" onClick={() => setMenuOpen(false)}>Bots</Link>
+            <Link to="/bizhub" onClick={() => setMenuOpen(false)}>BizHub</Link>
+            <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
+            <Link to="/themes" onClick={() => setMenuOpen(false)}>All platforms</Link>
           </div>
           <div className="nav-actions">
             <button type="button" className="nav-login" onClick={() => setIsLoginModalOpen(true)}>Log In</button>
@@ -4115,7 +4128,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
               onClick={() => (user && !user.iyonicpayOptIn ? handleOptIn() : setIsRegisterModalOpen(true))}
               disabled={isOptingIn}
             >
-              {user && !user.iyonicpayOptIn ? 'Opt-in to IyonicPay' : 'Build with Iyoni'} <ArrowUpRight size={15} />
+              {user && !user.iyonicpayOptIn ? 'Opt-in to IyonicPay' : 'Get started'} <ArrowUpRight size={15} />
             </button>
           </div>
           <button
@@ -4129,9 +4142,9 @@ const handleWithdraw = async (e: React.FormEvent) => {
           </button>
           {menuOpen && (
             <div className="mobile-nav">
-              <button type="button" onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }); setMenuOpen(false); }}>Platforms</button>
-              <Link to="/bizhub" onClick={() => setMenuOpen(false)}>Shop</Link>
-              <Link to="/iyonicbots" onClick={() => setMenuOpen(false)}>Bots</Link>
+              <Link to="/bizhub" onClick={() => setMenuOpen(false)}>BizHub</Link>
+              <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
+              <Link to="/themes" onClick={() => setMenuOpen(false)}>All platforms</Link>
               <button type="button" onClick={() => { setIsLoginModalOpen(true); setMenuOpen(false); }}>Log In</button>
               <button
                 type="button"
@@ -4139,7 +4152,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                 onClick={() => { (user && !user.iyonicpayOptIn ? handleOptIn() : setIsRegisterModalOpen(true)); setMenuOpen(false); }}
                 disabled={isOptingIn}
               >
-                {user && !user.iyonicpayOptIn ? 'Opt-in to IyonicPay' : 'Build with Iyoni'} <ArrowUpRight size={15} />
+                {user && !user.iyonicpayOptIn ? 'Opt-in to IyonicPay' : 'Get started'} <ArrowUpRight size={15} />
               </button>
             </div>
           )}
@@ -4150,13 +4163,11 @@ const handleWithdraw = async (e: React.FormEvent) => {
         <div className="platform-hero-copy">
           <p className="eyebrow"><span className="eyebrow-mark" /> Payment infrastructure</p>
           <h1 id="pay-hero-title">
-            Get paid.<br />
-            <em>Keep the business moving.</em>
+            Payments, in sync<br />
+            <em>with your business.</em>
           </h1>
           <p className="hero-lede">
-            IyonicPay is the payment infrastructure inside Iyoni's modular Business Operating System —
-            helping businesses collect payments, manage funds, and connect transactions to the wider
-            platform.
+            Bring checkout, wallet activity and payment tools into the same workspace as your Iyoni business operations. Available actions depend on your account and location.
           </p>
           <div className="hero-actions">
             <button
@@ -4169,7 +4180,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
                 ? 'Opting in...'
                 : user && !user.iyonicpayOptIn
                   ? 'Opt-in to IyonicPay'
-                  : 'Find your platform'} <ArrowRight size={17} />
+                  : 'Open your workspace'} <ArrowRight size={17} />
             </button>
             <button type="button" className="text-link" onClick={() => setIsContinueModalOpen(true)}>
               Explore Iyoni <ArrowDown size={15} />
@@ -4177,17 +4188,17 @@ const handleWithdraw = async (e: React.FormEvent) => {
           </div>
           <div className="hero-footnote">
             <span className="footnote-rule" />
-            <span><strong>One platform.</strong> Payments connected to commerce and automation.</span>
+            <span><strong>One connected workspace.</strong> Payment activity alongside your business tools.</span>
           </div>
         </div>
 
         <div className="platform-hero-visual" aria-hidden="true">
           <div className="map-topline"><span>RECEIVE</span><span>SEND</span></div>
           <div className="map-industry-row">
-            <span>Payments</span>
-            <span>Transfers</span>
-            <span>Cards</span>
-            <span>Wallet</span>
+          <span>Checkout</span>
+          <span>Wallet</span>
+          <span>Activity</span>
+          <span>Transfers</span>
           </div>
           <div className="map-connectors" aria-hidden="true">
             <i /><i /><i /><i />
@@ -4195,8 +4206,8 @@ const handleWithdraw = async (e: React.FormEvent) => {
           <div className="map-core">
             <div className="core-symbol"><span /><span /><span /></div>
             <div>
-              <span className="core-overline">IYONI</span>
-              <strong>Payments</strong>
+            <span className="core-overline">CONNECTED SERVICE</span>
+              <strong>IyonicPay</strong>
             </div>
             <ArrowRight size={20} />
           </div>
@@ -4209,26 +4220,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
           </div>
           <div className="map-caption">
             <span className="caption-dot" />
-            Payments flow through the same platform as commerce and automation.
-          </div>
-        </div>
-      </section>
-
-      <section className="section-wrap">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-center text-[10px] font-black uppercase tracking-[0.3em] text-[#65736a]">
-            A core Iyoni platform service
-          </p>
-          <p className="mx-auto mt-5 max-w-2xl text-center text-lg leading-8 text-[#65736a]">
-            IyonicPay fits inside the same platform as commerce and automation — helping businesses
-            collect payments while the rest of the operation stays connected and visible.
-          </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-6 text-sm font-semibold text-[#315e4b]">
-            <Link to="/themes" className="inline-flex items-center gap-2 hover:text-[#193d30]">
-              Explore all platforms <ArrowUpRight className="h-4 w-4" />
-            </Link>
-            <Link to="/bizhub" className="hover:text-[#193d30]">BizHub</Link>
-            <Link to="/iyonicbots" className="hover:text-[#193d30]">IyonicBots</Link>
+            Payment tools sit alongside commerce and account activity.
           </div>
         </div>
       </section>
@@ -4236,33 +4228,35 @@ const handleWithdraw = async (e: React.FormEvent) => {
       <section className="section-wrap" id="features" aria-labelledby="pay-features-title">
         <div className="section-intro">
           <p className="eyebrow">PAYMENT TOOLS</p>
-          <h2 id="pay-features-title">Everything you need to <em>scale</em> globally.</h2>
+          <h2 id="pay-features-title">Payment activity, in the context of your business.</h2>
           <p>
-            A complete payment infrastructure designed for the modern internet — built for speed,
-            security, and global growth.
+            Payment tools designed to connect with the wider Iyoni workspace. Available options depend on your account and location.
           </p>
         </div>
 
         <div className="capability-grid">
-          <Link to="/themes" className="capability-card">
+          <button type="button" className="capability-card" onClick={() => openPayArea('dashboard')}>
             <span className="capability-index">01</span>
             <Zap size={21} strokeWidth={1.7} />
-            <strong>Payment tools</strong>
-            <p>Explore the payment and transfer options available to your account.</p>
+            <strong>Collect and pay</strong>
+            <p>Open your IyonicPay workspace to access the payment tools available to your account.</p>
+            <span className="capability-link-label">Open IyonicPay <ArrowRight size={14} /></span>
             <ArrowUpRight className="capability-arrow" size={16} />
-          </Link>
-          <Link to="/themes" className="capability-card">
+          </button>
+          <button type="button" className="capability-card" onClick={() => openPayArea('transactions', true)}>
             <span className="capability-index">02</span>
             <CreditCard size={21} strokeWidth={1.7} />
-            <strong>Account controls</strong>
-            <p>Review the account and transaction controls in your IyonicPay workspace.</p>
+            <strong>Wallet and activity</strong>
+            <p>Review your wallet, transfers and transaction history in your IyonicPay workspace.</p>
+            <span className="capability-link-label">View payment activity <ArrowRight size={14} /></span>
             <ArrowUpRight className="capability-arrow" size={16} />
-          </Link>
-          <Link to="/themes" className="capability-card">
+          </button>
+          <Link to="/bizhub" className="capability-card">
             <span className="capability-index">03</span>
             <Wallet size={21} strokeWidth={1.7} />
-            <strong>Wallet experience</strong>
-            <p>Access wallet and payment activity through the IyonicPay experience.</p>
+            <strong>Connected operations</strong>
+            <p>See how payments work alongside the other tools that help run your business.</p>
+            <span className="capability-link-label">Explore BizHub <ArrowRight size={14} /></span>
             <ArrowUpRight className="capability-arrow" size={16} />
           </Link>
         </div>
@@ -4278,8 +4272,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
             <p className="eyebrow">A MODULAR WAY TO BUILD</p>
             <h2 id="pay-architecture-title">One foundation.<br /><em>Payments in the picture.</em></h2>
             <p>
-              IyonicPay is one of Iyoni's core services. Explore the business platforms around it
-              and check your account for currently available payment options.
+              IyonicPay connects payment activity with the services you use to run your business. Available payment methods and actions are shown in your account.
             </p>
             <div className="architecture-steps">
               <span><b>01</b> Find your platform</span>
@@ -4296,20 +4289,13 @@ const handleWithdraw = async (e: React.FormEvent) => {
         <div className="closing-orbit" aria-hidden="true"><span /><span /><span /></div>
         <div className="closing-copy">
           <p className="eyebrow">ONE FOUNDATION. YOUR BUSINESS.</p>
-          <h2>Build your payments<br />with <em>Iyoni.</em></h2>
-          <p>Find the platform that fits, then take your next step.</p>
+          <h2>Keep business moving<br />with <em>IyonicPay.</em></h2>
+          <p>Open your payment workspace or sign in to return to your account.</p>
           <div className="hero-actions">
-            <Link className="button button-light" to="/themes">
-              Explore platforms <ArrowRight size={17} />
-            </Link>
-            <button
-              className="closing-login"
-              type="button"
-              onClick={() => (user && !user.iyonicpayOptIn ? handleOptIn() : setIsRegisterModalOpen(true))}
-              disabled={isOptingIn}
-            >
-              {user && !user.iyonicpayOptIn ? (isOptingIn ? 'Opting in...' : 'Opt-in to IyonicPay') : 'Get started'} <ArrowUpRight size={16} />
+            <button className="button button-light" type="button" onClick={() => openPayArea('dashboard')} disabled={isOptingIn}>
+              {isOptingIn ? 'Opening workspace…' : user && !user.iyonicpayOptIn ? 'Opt in to IyonicPay' : 'Open Pay workspace'} <ArrowRight size={17} />
             </button>
+            <button className="closing-login" type="button" onClick={() => setIsLoginModalOpen(true)}>Sign in <ArrowUpRight size={16} /></button>
           </div>
         </div>
         <div className="closing-foot">
@@ -4317,7 +4303,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
         </div>
       </section>
 
-      <HomepageFooter />
+      <HomepageFooter showAboutCta={false} />
 
 
       {/* Modals */}

@@ -383,7 +383,7 @@ const HomeworkerWorker: React.FC = () => {
             <button onClick={() => openInNewTab('/homeworker')}><span className="homeworker-nav-item-label"><BookOpenText size={16} /> Homeworker landing</span><ExternalLink size={14} /></button>
             <button onClick={() => openInNewTab(`/shop/${encodeURIComponent(seller.subdomain)}`)}><span className="homeworker-nav-item-label"><Globe2 size={16} /> My website</span><ExternalLink size={14} /></button>
             <button onClick={() => navigate('/iyonicpay')}><span className="homeworker-nav-item-label"><WalletCards size={16} /> IyonicPay</span></button>
-            <button onClick={() => navigate('/iyonicbots')}><span className="homeworker-nav-item-label"><Bot size={16} /> IyonicBots</span></button>
+            <button onClick={() => navigate('/iyonicintelligence')}><span className="homeworker-nav-item-label"><Bot size={16} /> Iyonic Intelligence</span></button>
           </div>
         </nav>
         <div className="homeworker-worker-side-bottom">

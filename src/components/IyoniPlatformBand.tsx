@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 const serviceLinks = [
   { label: 'BizHub', to: '/bizhub' },
   { label: 'IyonicPay', to: '/iyonicpay' },
-  { label: 'IyonicBots', to: '/iyonicbots' },
+  { label: 'Iyonic Intelligence', to: '/iyonicintelligence' },
 ];
 
 const IyoniPlatformBand: React.FC = () => (

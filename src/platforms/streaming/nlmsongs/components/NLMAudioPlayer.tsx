@@ -81,7 +81,10 @@ export const NLMAudioPlayer = ({
     try {
       const analyser = isPlaying ? (lease = acquireNlmAudioGraph(audio)).graph.analyser : null;
       const samples = new Uint8Array(analyser?.frequencyBinCount || 128);
-      const sampleCount = Math.min(36, samples.length);
+      const sampleRate = lease?.graph.context.sampleRate ?? 48000;
+      const nyquist = sampleRate / 2;
+      const minFrequency = 35;
+      const maxFrequency = Math.min(16000, nyquist * .94);
       let reducedMotion = motionPreference.matches;
       let smoothBass = 0;
       let smoothMid = 0;
@@ -116,9 +119,10 @@ export const NLMAudioPlayer = ({
           for (let index = 0; index < pointCount; index += 1) {
             const progress = index / (pointCount - 1);
             const distance = progress * perimeter;
-            const binPosition = progress * Math.max(0, sampleCount - 1);
+            const frequency = minFrequency * ((maxFrequency / minFrequency) ** progress);
+            const binPosition = Math.min(samples.length - 1, Math.max(0, frequency / nyquist * samples.length));
             const lowerBin = Math.floor(binPosition);
-            const upperBin = Math.min(sampleCount - 1, lowerBin + 1);
+            const upperBin = Math.min(samples.length - 1, lowerBin + 1);
             const mix = binPosition - lowerBin;
             const lowerLevel = Math.max(0, (samples[lowerBin] / 255 - .035) / .965);
             const upperLevel = Math.max(0, (samples[upperBin] / 255 - .035) / .965);
@@ -192,20 +196,22 @@ export const NLMAudioPlayer = ({
       const update = () => {
         const playingAudio = Boolean(isPlaying && analyser && !audio.paused && !audio.ended);
         if (playingAudio && analyser && !document.hidden && !reducedMotion) {
-          analyser.getByteFrequencyData(samples);
-          const last = sampleCount;
+          const activeAnalyser = analyser;
+          activeAnalyser.getByteFrequencyData(samples);
+          const bassEnd = Math.max(1, Math.floor(250 / nyquist * samples.length));
+          const midEnd = Math.max(bassEnd + 1, Math.floor(4000 / nyquist * samples.length));
           let bass = 0;
           let mid = 0;
           let high = 0;
-          for (let index = 0; index < last; index += 1) {
+          for (let index = 0; index < samples.length; index += 1) {
             const value = Math.max(0, (samples[index] / 255 - .06) / .94);
-            if (index < last * .2) bass += value;
-            else if (index < last * .62) mid += value;
+            if (index < bassEnd) bass += value;
+            else if (index < midEnd) mid += value;
             else high += value;
           }
-          bass /= Math.max(1, last * .2);
-          mid /= Math.max(1, last * .42);
-          high /= Math.max(1, last * .38);
+          bass /= bassEnd;
+          mid /= Math.max(1, midEnd - bassEnd);
+          high /= Math.max(1, samples.length - midEnd);
           const blend = (current: number, next: number) => current + (next - current) * (next > current ? .24 : .1);
           const bassTransient = Math.max(0, bass - smoothBass - .025);
           smoothBeat = Math.max(smoothBeat * .82, Math.min(1, bassTransient * 8));

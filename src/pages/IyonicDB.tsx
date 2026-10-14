@@ -244,11 +244,11 @@ export const IyonicDB: React.FC = () => {
           <div className="idb-closing-top"><span>IONICDB / LIVE DATABASE SERVICE</span><span>GOOD DATA STARTS WITH A GOOD MODEL</span></div>
           <h2>Make room for<br /><em>what comes next.</em></h2>
           <p>Provision a project, connect your app, and manage real SQL and document data.</p>
-          <Link to="/iyonicdb/console" className="idb-button idb-button-light">Open the database console <ArrowRight size={16} /></Link>
+          <Link to="/iyonicdb/console" className="idb-button idb-button-light">Open IyonicDB console <ArrowRight size={16} /></Link>
           <span className="idb-closing-seal"><Layers3 size={20} /><b>ONE<br />WORKSPACE</b></span>
         </section>
       </main>
-      <HomepageFooter />
+      <HomepageFooter showAboutCta={false} />
     </div>
   );
 };

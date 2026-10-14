@@ -116,7 +116,7 @@ const getUserRedirectPath = (user: any, shopSubdomain?: string | null, themeId?:
         return getThemeClientDashboardRoute(themeId || user.selectedThemeId);
       }
       if (user.email.toLowerCase().includes('bot')) {
-        return '/iyonicbots';
+        return '/iyonicintelligence';
       }
       return '/customer/dashboard';
     default: return '/login';
@@ -173,6 +173,11 @@ const LicensedPlatformRoute: React.FC<{ children: React.ReactNode; themeId: stri
   return <>{children}</>;
 };
 
+const IyonicBotsRouteRedirect: React.FC = () => {
+  const location = useLocation();
+  const suffix = location.pathname.replace(/^\/iyonicbots(?=\/|$)/, '');
+  return <Navigate to={{ pathname: `/iyonicintelligence${suffix}`, search: location.search, hash: location.hash }} replace />;
+};
 const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isAuthenticated, isInitializing } = useAuth();
   const location = useLocation();
@@ -186,7 +191,7 @@ const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   
   if (isAuthenticated && user) {
     // If user is already on IyonicPay, don't redirect them away
-    if (location.pathname.startsWith('/iyonicpay') || location.pathname.startsWith('/iyonicbots')) {
+    if (location.pathname.startsWith('/iyonicpay') || location.pathname.startsWith('/iyonicintelligence')) {
       return <>{children}</>;
     }
 
@@ -561,7 +566,8 @@ const AppContent: React.FC = () => {
       <Route path="/iyonicpay/invoice/:token" element={<InvoicePage />} />
       <Route path="/iyonicpay/*" element={<IyonicPay />} />
       <Route path="/refunds" element={<Refunds />} />
-      <Route path="/iyonicbots/*" element={<IyonicBots />} />
+      <Route path="/iyonicbots/*" element={<IyonicBotsRouteRedirect />} />
+      <Route path="/iyonicintelligence/*" element={<IyonicBots />} />
       <Route path="/iyonicdb/console" element={<IyonicDBConsole />} />
       <Route path="/iyonicdb" element={<IyonicDB />} />
       <Route path="/bizhub" element={
