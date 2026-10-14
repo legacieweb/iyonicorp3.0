@@ -230,6 +230,13 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
   const routeTrackId = extractRouteTrackId(location.pathname);
   const isDetailRoute = routeTrackId !== null && view !== 'Settings';
   const selectedTrack = tracks.find((track) => track.id === selectedId) ?? null;
+  useEffect(() => {
+    if (selectedTrack) {
+      window.dispatchEvent(new CustomEvent('nlm:playback-selected', { detail: { trackId: selectedTrack.id } }));
+    } else {
+      window.dispatchEvent(new Event('nlm:playback-cleared'));
+    }
+  }, [selectedTrack?.id]);
   const detailTrack = routeTrackId
     ? tracks.find((track) => track.id === routeTrackId) ?? null
     : null;
@@ -562,6 +569,8 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
       pendingAutoplayRef.current = true;
       setSelectedId(nextTrack.id);
       if (isDetailRoute) navigate(`/nlmsongs/track/${encodeURIComponent(nextTrack.id)}`);
+    } else {
+      setSelectedId(null);
     }
   }, [selectedTrack, tracks, selectedId, queue.queue, queue.clearQueue, queue.removeFromQueue, queue.shuffleMode, queue.repeatMode, isDetailRoute, navigate, authorizeTrack, isOnline]);
 
@@ -637,7 +646,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
 
   useEffect(() => {
     const handlePlaylistPlay = (event: Event) => {
-      const detail = (event as CustomEvent<{ trackIds?: string[] }>).detail;
+      const detail = (event as CustomEvent<{ trackIds?: string[]; navigate?: boolean }>).detail;
       const ids = Array.isArray(detail?.trackIds) ? [...new Set(detail.trackIds)] : [];
       if (!ids.length) return;
       const start = async () => {
@@ -656,11 +665,12 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
         ordered.slice(1).forEach(queue.addToQueue);
         const alreadySelected = selectedId === ordered[0].id;
         pendingAutoplayRef.current = !alreadySelected;
-        setView('Listen');
         setSelectedId(ordered[0].id);
-        navigate(`/nlmsongs/track/${encodeURIComponent(ordered[0].id)}`);
+        if (detail.navigate !== false) {
+          setView('Listen');
+          navigate(`/nlmsongs/track/${encodeURIComponent(ordered[0].id)}`);
+        }
         if (alreadySelected && audioRef.current) {
-          audioRef.current.currentTime = 0;
           void audioPlayer.play();
         }
       };
@@ -721,11 +731,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
         ? 'Offline listening · showing songs saved on this browser.'
         : 'You’re offline and have no songs saved on this browser yet.');
       setCatalogError(savedTracks.length ? '' : 'No songs are saved for offline listening.');
-      if (savedTracks.length) {
-        const nextId = savedTracks.some((track) => track.id === selectedId) ? selectedId! : savedTracks[0].id;
-        if (nextId !== selectedId) pendingAutoplayRef.current = true;
-        setSelectedId(nextId);
-      } else {
+      if (!savedTracks.some((track) => track.id === selectedId)) {
         audioRef.current?.pause();
         setSelectedId(null);
       }
@@ -752,11 +758,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
       setOfflineNotice('');
       if (!isAdminMode) void storeOfflineCatalog(mapped).catch(() => {});
 
-      if (!selectedId && availableTracks.length) {
-        setSelectedId(
-          availableTracks.find((track) => track.id === routeTrackId)?.id ?? availableTracks[0].id,
-        );
-      }
+      if (selectedId && !availableTracks.some((track) => track.id === selectedId)) setSelectedId(null);
     } catch {
       const savedAudio = await readAllOfflineAudio().catch(() => []);
       const savedTracks = savedAudio.map((record) => trackFromOfflineRecord(record, getOfflineArtworkUrl(record)));
@@ -767,11 +769,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
       setOfflineNotice(hasOfflineMusic
         ? 'The catalogue can’t be reached. Your saved offline songs are ready to play.'
         : 'The catalogue can’t be reached. Connect to the internet once to save songs for offline listening.');
-      if (savedTracks.length) {
-        const nextId = savedTracks.some((track) => track.id === selectedId) ? selectedId! : savedTracks[0].id;
-        if (nextId !== selectedId) pendingAutoplayRef.current = true;
-        setSelectedId(nextId);
-      } else {
+      if (!savedTracks.some((track) => track.id === selectedId)) {
         audioRef.current?.pause();
         setSelectedId(null);
       }
@@ -996,7 +994,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
     });
   };
 
-  const playerElement = (selectedTrack || isDetailRoute) ? <NLMAudioPlayer
+  const playerElement = selectedTrack ? <NLMAudioPlayer
     track={selectedTrack}
     audioRef={audioRef}
     isPlaying={audioPlayer.isPlaying}

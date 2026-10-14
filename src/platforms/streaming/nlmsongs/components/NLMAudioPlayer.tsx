@@ -191,7 +191,7 @@ export const NLMAudioPlayer = ({
       };
       const update = () => {
         const playingAudio = Boolean(isPlaying && analyser && !audio.paused && !audio.ended);
-        if (playingAudio && !document.hidden && !reducedMotion) {
+        if (playingAudio && analyser && !document.hidden && !reducedMotion) {
           analyser.getByteFrequencyData(samples);
           const last = sampleCount;
           let bass = 0;

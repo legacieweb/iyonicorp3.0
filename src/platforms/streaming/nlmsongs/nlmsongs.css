@@ -4797,11 +4797,15 @@
 .nlm-player-portal .nlm-player-action { min-height: 32px; padding-inline: 7px; font-size: 9px; }
 .nlm-player-portal .nlm-player .nlm-volume { display: flex; justify-self: end; }
 .nlm-player-portal .nlm-player .nlm-volume input { width: 64px; }
+.nlm-app.nlm-player-visible { padding-bottom: calc(118px + env(safe-area-inset-bottom, 0px)); }
+.nlm-site-app.nlm-player-visible .nlm-workspace { padding-bottom: calc(138px + env(safe-area-inset-bottom, 0px)); }
 @media (max-width: 1080px) {
   .nlm-player-portal .nlm-player.nlm-player-floating { grid-template-columns: minmax(125px, .75fr) minmax(195px, 1fr) auto; }
   .nlm-player-portal .nlm-player .nlm-volume { display: none; }
 }
 @media (max-width: 768px) {
+  .nlm-app.nlm-player-visible { padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)); }
+  .nlm-site-app.nlm-player-visible .nlm-workspace { padding-bottom: calc(158px + env(safe-area-inset-bottom, 0px)); }
   .nlm-player-portal .nlm-player.nlm-player-floating {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 5px 10px;
