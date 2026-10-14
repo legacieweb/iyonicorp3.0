@@ -4563,19 +4563,26 @@ app.get('/api/nlmsongs/history', authenticateToken, requireNlmUser, async (req, 
 app.post('/api/nlmsongs/history', authenticateToken, requireNlmUser, async (req, res) => {
   try {
     const { trackId, playedSeconds, duration } = req.body;
+    const sessionId = typeof req.body.sessionId === 'string' && req.body.sessionId.length <= 128 ? req.body.sessionId : null;
     if (!trackId) return res.status(400).json({ message: 'trackId is required.' });
     const trackCheck = await db.query('SELECT seller_id FROM nlm_songs WHERE id = $1', [trackId]);
     const sellerId = trackCheck.rows[0]?.seller_id || req.user.sellerId || null;
     const policy = await readNlmPolicy(req.user.id, sellerId);
     if (policy.tier === 'restricted') return res.status(403).json({ message: 'Listening access is restricted for this account.', code: 'NLM_ACCESS_RESTRICTED' });
     const monthlyLimit = Number(policy.limits?.monthlyPlays);
-    if (Number.isFinite(monthlyLimit) && monthlyLimit >= 0) {
+    const existingSession = sessionId ? await db.query('SELECT id FROM nlm_listening_history WHERE user_id = $1 AND session_id = $2', [req.user.id, sessionId]) : { rows: [] };
+    if (!existingSession.rows.length && Number.isFinite(monthlyLimit) && monthlyLimit >= 0) {
       const count = await db.query(`SELECT COUNT(*)::int AS count FROM nlm_listening_history
         WHERE user_id=$1 AND created_at >= date_trunc('month', CURRENT_TIMESTAMP)`, [req.user.id]);
       if (Number(count.rows[0]?.count || 0) >= monthlyLimit) return res.status(403).json({ message: `You have reached this month’s listening limit of ${monthlyLimit} plays.`, code: 'NLM_LIMIT_REACHED', limit: 'monthlyPlays' });
     }
-    await db.query(`INSERT INTO nlm_listening_history (user_id, seller_id, track_id, played_seconds, duration)
-      VALUES ($1, $2, $3, $4, $5)`, [req.user.id, sellerId, trackId, playedSeconds || 0, duration || 0]);
+    const recorded = await db.query(`INSERT INTO nlm_listening_history (user_id, seller_id, track_id, played_seconds, duration, session_id)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      ON CONFLICT (user_id, session_id) WHERE session_id IS NOT NULL DO UPDATE SET
+        played_seconds = GREATEST(nlm_listening_history.played_seconds, EXCLUDED.played_seconds),
+        duration = GREATEST(nlm_listening_history.duration, EXCLUDED.duration)
+      RETURNING (xmax = 0) AS is_new`, [req.user.id, sellerId, trackId, Math.max(0, Number(playedSeconds) || 0), Math.max(0, Number(duration) || 0), sessionId]);
+    if (!recorded.rows[0]?.is_new) return res.status(200).json({ message: 'Listening progress updated.' });
 
     const today = new Date().toISOString().split('T')[0];
     const existing = await db.query('SELECT id FROM nlm_play_counts WHERE user_id = $1 AND track_id = $2 AND play_date = $3', [req.user.id, trackId, today]);

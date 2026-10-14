@@ -3868,6 +3868,30 @@
 @media (max-width: 640px) { .nlm-admin-overview-head { align-items: start; flex-direction: column; } .nlm-admin-quick-actions { width: 100%; flex-wrap: wrap; } .nlm-admin-metrics { gap: 8px; } .nlm-admin-metrics article { padding: 13px; } .nlm-admin-metrics article strong { font-size: 22px; } .nlm-admin-insight-card { padding: 14px; } .nlm-admin-chart-column { height: 115px; } }
 .nlm-app.nlm-route-hidden, .nlm-member-app[hidden] { display: none !important; }
 
+/* Home genre shelves use the catalogue's own artwork as their point of entry. */
+.nlm-site-app .nlm-home-genre-grid { grid-template-columns: repeat(auto-fill, minmax(174px, 1fr)); gap: 12px; }
+.nlm-site-app .nlm-home-genre-card { position: relative; display: flex; min-height: 0; flex-direction: column; align-items: stretch; gap: 0; overflow: hidden; padding: 0; border-color: rgba(220, 210, 180, .12); border-radius: 11px; background: linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,.012)); }
+.nlm-site-app .nlm-home-genre-card:hover,
+.nlm-site-app .nlm-home-genre-card.is-active { border-color: rgba(215,193,129,.5); background: rgba(215,193,129,.07); }
+.nlm-site-app .nlm-home-genre-card:focus-visible { outline: 2px solid rgba(215,193,129,.85); outline-offset: 3px; }
+.nlm-site-app .nlm-home-genre-card .nlm-genre-card-art { width: 100%; aspect-ratio: 1.55 / 1; border-radius: 0; background: linear-gradient(140deg, rgba(157,186,172,.2), rgba(187,157,111,.1)); color: #d7c181; }
+.nlm-site-app .nlm-home-genre-card .nlm-genre-card-art::after { position: absolute; inset: 35% 0 0; background: linear-gradient(transparent, rgba(11,15,18,.56)); content: ''; pointer-events: none; }
+.nlm-site-app .nlm-home-genre-card .nlm-genre-card-art img { transition: transform .35s ease; }
+.nlm-site-app .nlm-home-genre-card:hover .nlm-genre-card-art img { transform: scale(1.045); }
+.nlm-site-app .nlm-home-genre-card .nlm-genre-card-art small { z-index: 1; right: 8px; bottom: 7px; font-size: 9px; }
+.nlm-site-app .nlm-home-genre-card .nlm-genre-card-copy { gap: 4px; padding: 11px 12px 12px; }
+.nlm-site-app .nlm-home-genre-card .nlm-genre-card-copy strong { font-size: 14px; }
+.nlm-site-app .nlm-home-genre-card .nlm-genre-card-copy small { font-size: 10px; }
+.nlm-site-app .nlm-home-genre-card .nlm-genre-card-copy em { font-size: 9px; }
+.nlm-site-app .nlm-home-genre-card .nlm-genre-card-arrow { position: absolute; top: 9px; right: 9px; z-index: 1; width: 23px; height: 23px; padding: 4px; border: 1px solid rgba(255,255,255,.2); border-radius: 50%; background: rgba(13,17,19,.54); color: #f2ead0; }
+@media (max-width: 560px) {
+  .nlm-site-app .nlm-home-genre-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+  .nlm-site-app .nlm-home-genre-card .nlm-genre-card-copy { padding: 9px; }
+  .nlm-site-app .nlm-home-genre-card .nlm-genre-card-copy strong { font-size: 12px; }
+}
+@media (max-width: 360px) { .nlm-site-app .nlm-home-genre-grid { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .nlm-site-app .nlm-home-genre-card .nlm-genre-card-art img { transition: none; } }
+
 /* Genre discovery page */
 .nlm-genres-intro { position: relative; overflow: hidden; margin: 14px 0 22px; padding: clamp(26px, 4vw, 42px); border: 1px solid rgba(190, 215, 205, .14); border-radius: 20px; background: radial-gradient(ellipse at 88% 16%, rgba(104, 151, 141, .17), transparent 40%), linear-gradient(130deg, rgba(28, 38, 39, .96), rgba(19, 23, 29, .96)); }
 .nlm-genres-intro::after { position: absolute; content: ''; width: 220px; height: 220px; right: -82px; bottom: -142px; border: 1px solid rgba(196, 213, 200, .14); border-radius: 50%; box-shadow: 0 0 0 22px rgba(196, 213, 200, .025), 0 0 0 44px rgba(196, 213, 200, .02); pointer-events: none; }
@@ -4544,3 +4568,373 @@
   .nlm-auth-form-wrap { width: min(100%, 440px); }
 }
 @media (max-width: 380px) { .nlm-auth-name-fields { grid-template-columns: 1fr; } .nlm-auth-form { gap: 12px; } }
+
+/* Admin workspace refinements: a wider writing surface, scan-friendly catalogue,
+   and a compact header that keeps every action reachable on phones. */
+.nlm-admin-app .nlm-admin-topbar { min-width: 0; }
+.nlm-admin-app .nlm-admin-workspace { min-width: 0; }
+.nlm-admin-app .nlm-upload-panel { width: min(100%, 1120px); margin: 0 auto; }
+.nlm-admin-app .nlm-upload-panel form { display: grid; gap: 15px; }
+.nlm-admin-app .nlm-upload-panel .nlm-form-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.nlm-admin-app .nlm-admin-lyrics-field { margin-top: 2px; }
+.nlm-admin-app .nlm-admin-lyrics-field textarea { min-height: 320px; resize: vertical; padding: 16px 18px; font-size: 12px; line-height: 1.8; }
+.nlm-admin-app .nlm-admin-lyrics-field .nlm-input-label { justify-content: space-between; gap: 12px; }
+.nlm-admin-app .nlm-admin-lyrics-field .nlm-input-label small { color: #8f9284; }
+.nlm-admin-catalogue-list { display: grid; gap: 8px; width: 100%; }
+.nlm-admin-catalogue-item { display: grid; grid-template-columns: 32px 54px minmax(0, 1fr) minmax(78px, auto) auto; align-items: center; gap: 14px; min-width: 0; padding: 10px 13px; border: 1px solid rgba(235,231,216,.085); border-radius: 10px; background: linear-gradient(100deg, rgba(255,255,255,.025), rgba(255,255,255,.008)); transition: border-color .16s ease, background .16s ease, transform .16s ease; }
+.nlm-admin-catalogue-item:hover { transform: translateY(-1px); border-color: rgba(213,178,102,.24); background: rgba(255,255,255,.035); }
+.nlm-admin-catalogue-index { color: #747e7d; font: 10px 'DM Mono', monospace; text-align: center; }
+.nlm-admin-catalogue-art { display: grid; width: 54px; aspect-ratio: 1; place-items: center; overflow: hidden; border: 1px solid rgba(235,231,216,.09); border-radius: 7px; color: #d7c17f; background: rgba(213,178,102,.075); }
+.nlm-admin-catalogue-art img { width: 100%; height: 100%; object-fit: cover; }
+.nlm-admin-catalogue-copy { display: grid; gap: 4px; min-width: 0; }
+.nlm-admin-catalogue-copy strong, .nlm-admin-catalogue-copy > span, .nlm-admin-catalogue-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nlm-admin-catalogue-copy strong { color: #efeee8; font-size: 12px; font-weight: 600; }
+.nlm-admin-catalogue-copy > span { display: flex; align-items: center; gap: 7px; color: #9ba4a0; font-size: 10px; }
+.nlm-admin-catalogue-copy > span i { color: #d7c17f; font-style: normal; }
+.nlm-admin-catalogue-copy small { color: #747e7c; font-size: 9px; }
+.nlm-admin-catalogue-status { display: inline-flex; align-items: center; gap: 7px; color: #a9c6b4; font: 9px 'DM Mono', monospace; white-space: nowrap; }
+.nlm-admin-catalogue-status i { width: 6px; height: 6px; border-radius: 50%; background: #8fb79a; box-shadow: 0 0 9px rgba(143,183,154,.3); }
+.nlm-admin-catalogue-status.is-inactive { color: #c39783; }
+.nlm-admin-catalogue-status.is-inactive i { background: #c39783; box-shadow: none; }
+.nlm-admin-catalogue-actions { display: flex; gap: 6px; }
+.nlm-admin-catalogue-actions .nlm-ghost-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 0 10px; border-radius: 7px; font-size: 10px; }
+.nlm-admin-catalogue-actions .nlm-ghost-button:last-child { color: #d7a89b; }
+.nlm-admin-catalogue-actions .nlm-ghost-button:focus-visible,
+.nlm-admin-app .nlm-admin-topbar button:focus-visible { outline: 2px solid rgba(122,217,199,.8); outline-offset: 2px; }
+@media (max-width: 920px) {
+  .nlm-admin-catalogue-item { grid-template-columns: 25px 46px minmax(0,1fr) auto; gap: 10px; }
+  .nlm-admin-catalogue-art { width: 46px; }
+  .nlm-admin-catalogue-status { grid-column: 3; grid-row: 2; }
+  .nlm-admin-catalogue-actions { grid-column: 4; grid-row: 1 / span 2; }
+}
+@media (max-width: 768px) {
+  .nlm-admin-app .nlm-admin-topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; min-height: 0; padding: 12px 14px 12px 58px; }
+  .nlm-admin-app .nlm-admin-topbar > .nlm-location { flex: 1 1 100%; min-width: 0; }
+  .nlm-admin-app .nlm-admin-topbar .nlm-account-actions { display: flex; align-items: center; justify-content: flex-start; flex-wrap: nowrap; gap: 7px; width: 100%; min-width: 0; }
+  .nlm-admin-app .nlm-admin-topbar .nlm-account-name { flex: 1 1 auto; min-width: 0; max-width: none; }
+  .nlm-admin-app .nlm-admin-topbar .nlm-account-button { flex: 0 0 auto; min-height: 36px; white-space: nowrap; }
+  .nlm-admin-app .nlm-admin-workspace { padding: 20px 16px 32px; }
+  .nlm-admin-app .nlm-upload-panel .nlm-form-fields { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .nlm-admin-app .nlm-admin-lyrics-field textarea { min-height: 280px; }
+}
+@media (max-width: 560px) {
+  .nlm-admin-app .nlm-admin-topbar { align-items: stretch; }
+  .nlm-admin-app .nlm-admin-topbar > .nlm-location { margin-bottom: 1px; font-size: 9px; }
+  .nlm-admin-app .nlm-admin-topbar .nlm-account-actions { display: grid; grid-template-columns: minmax(0,1fr) 38px 38px 38px; }
+  .nlm-admin-app .nlm-admin-topbar .nlm-account-name { font-size: 9px; }
+  .nlm-admin-app .nlm-admin-topbar .nlm-account-button { width: 38px; height: 36px; min-height: 36px; padding: 0; overflow: hidden; gap: 0; font-size: 0; }
+  .nlm-admin-app .nlm-admin-topbar .nlm-account-button svg { flex: none; width: 15px; height: 15px; }
+  .nlm-admin-app .nlm-admin-workspace { padding: 16px 12px 26px; }
+  .nlm-admin-app .nlm-upload-panel { padding: 17px 14px; }
+  .nlm-admin-app .nlm-upload-panel .nlm-form-fields { grid-template-columns: minmax(0,1fr); }
+  .nlm-admin-app .nlm-admin-lyrics-field textarea { min-height: 250px; padding: 13px; font-size: 11px; }
+  .nlm-admin-app .nlm-admin-lyrics-field .nlm-input-label { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .nlm-admin-catalogue-item { grid-template-columns: 36px minmax(0,1fr) auto; gap: 9px; padding: 9px; }
+  .nlm-admin-catalogue-index { display: none; }
+  .nlm-admin-catalogue-art { grid-column: 1; grid-row: 1 / span 2; width: 36px; border-radius: 5px; }
+  .nlm-admin-catalogue-copy { grid-column: 2; grid-row: 1; }
+  .nlm-admin-catalogue-copy strong { font-size: 11px; }
+  .nlm-admin-catalogue-copy > span { font-size: 9px; }
+  .nlm-admin-catalogue-copy small { font-size: 8px; }
+  .nlm-admin-catalogue-status { grid-column: 2; grid-row: 2; font-size: 8px; }
+  .nlm-admin-catalogue-actions { grid-column: 3; grid-row: 1 / span 2; flex-direction: column; gap: 4px; }
+  .nlm-admin-catalogue-actions .nlm-ghost-button { width: 34px; min-height: 32px; padding: 0; font-size: 0; }
+  .nlm-admin-catalogue-actions .nlm-ghost-button svg { width: 14px; height: 14px; }
+}
+
+/* Listen discovery, persisted view switch, and active floating player */
+.nlm-library-toolbar { grid-template-columns: auto auto minmax(180px, 1fr) auto; }
+.nlm-view-toggle { display: inline-flex; justify-self: end; align-items: center; gap: 3px; padding: 3px; border: 1px solid rgba(222, 214, 192, .11); border-radius: 8px; background: rgba(10, 13, 17, .5); }
+.nlm-view-toggle button { display: grid; width: 31px; height: 29px; place-items: center; border: 1px solid transparent; border-radius: 5px; color: #858c89; background: transparent; }
+.nlm-view-toggle button:hover { color: #e9e8e0; }
+.nlm-view-toggle button.is-active { color: #e4d8ae; border-color: rgba(214, 195, 137, .17); background: rgba(214, 195, 137, .1); }
+.nlm-view-toggle button:focus-visible { outline: 2px solid #9bd9cd; outline-offset: 2px; }
+.nlm-track-list.is-grid-view { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 9px; overflow: visible; }
+.nlm-track-list.is-grid-view .nlm-track-columns { display: none; }
+.nlm-track-list.is-grid-view .nlm-track-row { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; padding: 12px; border: 1px solid rgba(235, 231, 216, .08); border-radius: 10px; background: rgba(255,255,255,.018); }
+.nlm-track-list.is-grid-view .nlm-track-row:hover { border-color: rgba(196, 206, 186, .22); background: rgba(255,255,255,.04); }
+.nlm-track-list.is-grid-view .nlm-track-select { display: grid; grid-template-columns: 46px minmax(0,1fr); align-items: center; gap: 10px; width: 100%; }
+.nlm-track-list.is-grid-view .nlm-mini-cover { width: 46px; height: 46px; }
+.nlm-track-list.is-grid-view .nlm-track-number { display: none; }
+.nlm-track-list.is-grid-view .nlm-track-title { min-width: 0; }
+.nlm-track-list.is-grid-view .nlm-track-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nlm-track-list.is-grid-view .nlm-track-artist { display: block; padding-left: 56px; color: #959c98; font-size: 10px; }
+.nlm-track-list.is-grid-view .nlm-track-actions { justify-content: flex-end; }
+.nlm-track-list.is-list-view { display: grid; gap: 0; }
+.nlm-discovery-shelves { display: grid; gap: 12px; margin: 24px 0 30px; }
+.nlm-discovery-shelf { min-width: 0; padding: 16px 18px; border: 1px solid rgba(235,231,216,.08); border-radius: 11px; background: linear-gradient(110deg, rgba(255,255,255,.023), rgba(255,255,255,.008)); }
+.nlm-discovery-shelf-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+.nlm-discovery-shelf-heading h2 { margin: 4px 0 0; color: #edece4; font-size: 16px; letter-spacing: -.025em; }
+.nlm-discovery-shelf-heading > span { color: #89918d; font-size: 9px; }
+.nlm-discovery-shelf-note { margin: 4px 0 12px; color: #969e99; font-size: 10px; line-height: 1.6; }
+.nlm-discovery-shelf-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(285px, 1fr)); gap: 5px 12px; }
+.nlm-discovery-shelf-list .nlm-track-row { min-height: 60px; padding: 7px 9px; border-radius: 7px; }
+.nlm-app.nlm-audio-active { padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)); }
+.nlm-app.nlm-player-visible { padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)); }
+.nlm-app .nlm-player.nlm-player-floating { position: fixed; z-index: 75; left: calc(230px + (100vw - 230px) / 2); bottom: calc(14px + env(safe-area-inset-bottom, 0px)); width: min(1040px, calc(100vw - 270px)); min-height: 78px; padding: 10px 15px; border: 1px solid rgba(230,219,185,.18); border-radius: 12px; background: rgba(20, 24, 30, .96); box-shadow: 0 14px 48px rgba(0,0,0,.48), 0 1px 0 rgba(255,255,255,.035) inset; backdrop-filter: blur(16px); transform: translate(-50%, 0); animation: nlm-player-arrive .42s cubic-bezier(.18,.72,.25,1) both; }
+@keyframes nlm-player-arrive { from { opacity: 0; transform: translate(calc(-50% - 92px), 16px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (max-width: 768px) {
+  .nlm-library-toolbar { grid-template-columns: auto minmax(0,1fr) auto; }
+  .nlm-library-toolbar .nlm-search-panel { grid-column: 1 / -1; grid-row: 1; }
+  .nlm-library-toolbar .nlm-sort-control { grid-column: 2; grid-row: 2; }
+  .nlm-library-toolbar .nlm-view-toggle { grid-column: 3; grid-row: 2; }
+  .nlm-discovery-shelf-list { grid-template-columns: minmax(0,1fr); }
+  .nlm-app .nlm-player.nlm-player-floating { left: 50%; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: calc(100vw - 20px); min-height: 72px; }
+  .nlm-app.nlm-audio-active { padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px)); }
+  .nlm-app.nlm-player-visible { padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 560px) {
+  .nlm-library-toolbar { grid-template-columns: auto minmax(0,1fr) auto; }
+  .nlm-track-list.is-grid-view { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .nlm-track-list.is-grid-view .nlm-track-row { padding: 9px; }
+  .nlm-track-list.is-grid-view .nlm-track-artist { padding-left: 0; }
+  .nlm-track-list.is-grid-view .nlm-track-actions { gap: 2px; }
+  .nlm-discovery-shelf { padding: 13px 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nlm-app .nlm-player.nlm-player-floating { animation: none; }
+}
+.nlm-player-portal { position: fixed; z-index: 9990; inset: 0; pointer-events: none; }
+.nlm-player-portal .nlm-player.nlm-player-floating { position: absolute; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); width: min(1040px, calc(100vw - 36px)); min-height: 78px; padding: 10px 15px; border: 1px solid rgba(230,219,185,.18); border-radius: 12px; background: rgba(20, 24, 30, .96); box-shadow: 0 14px 48px rgba(0,0,0,.48), 0 1px 0 rgba(255,255,255,.035) inset; backdrop-filter: blur(16px); transform: translateX(-50%); pointer-events: auto; animation: nlm-player-arrive .42s cubic-bezier(.18,.72,.25,1) both; }
+@media (max-width: 768px) {
+  .nlm-player-portal .nlm-player.nlm-player-floating { bottom: calc(8px + env(safe-area-inset-bottom, 0px)); width: calc(100vw - 20px); min-height: 72px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nlm-player-portal .nlm-player.nlm-player-floating { animation: none; }
+}
+
+/* Library-led discovery and playback polish */
+.nlm-track-section { scroll-margin-top: 28px; }
+.nlm-app.nlm-detail-player-visible { padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)); }
+.nlm-hero-panel { grid-template-columns: minmax(0, 1fr) minmax(150px, 205px); gap: clamp(18px, 4vw, 52px); padding: clamp(24px, 4vw, 42px); min-height: 228px; }
+.nlm-hero-panel::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, rgba(13,17,22,.06) 35%, rgba(13,17,22,.52)); }
+.nlm-hero-panel .nlm-hero-copy { z-index: 1; }
+.nlm-hero-copy h2 { max-width: 680px; margin: 12px 0 8px; font-size: clamp(30px, 4.2vw, 54px); line-height: .98; letter-spacing: -.055em; }
+.nlm-hero-copy p { color: #c2c8c3; font-size: 13px; }
+.nlm-hero-art { position: relative; z-index: 1; width: 100%; height: 168px; border-radius: 10px; overflow: hidden; box-shadow: 0 16px 40px rgba(0,0,0,.28); }
+.nlm-hero-art img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.nlm-hero-art-caption { position: absolute; inset: auto 0 0; display: grid; gap: 4px; padding: 24px 12px 10px; background: linear-gradient(transparent, rgba(8,11,14,.84)); }
+.nlm-hero-art-caption span { color: #e5c879; font: 9px/1.2 'DM Mono', monospace; letter-spacing: .1em; }
+.nlm-hero-art-caption strong { color: #f1eee3; font-size: 11px; }
+.nlm-hero-browse { display: inline-flex; align-items: center; gap: 7px; padding: 8px 2px; border: 0; color: #bdc6c2; background: transparent; font: inherit; font-size: 11px; cursor: pointer; }
+.nlm-hero-browse:hover { color: #e6c877; }
+.nlm-hero-browse:focus-visible { outline: 2px solid #dfbd69; outline-offset: 3px; border-radius: 4px; }
+.nlm-discovery-shelves { margin: 2px 0 26px; gap: 10px; }
+.nlm-discovery-shelf { padding: 14px 0 16px; border: 0; border-top: 1px solid rgba(235,231,216,.1); border-radius: 0; background: transparent; }
+.nlm-discovery-shelf-heading { margin-bottom: 11px; }
+.nlm-discovery-shelf-heading h3 { margin: 5px 0 0; color: #edece4; font-size: 17px; font-weight: 560; letter-spacing: -.025em; }
+.nlm-discovery-shelf-heading > span { color: #89918d; font-size: 10px; }
+.nlm-discovery-shelf-note { margin: 0 0 9px; color: #929b97; font-size: 11px; }
+.nlm-discovery-shelf-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 265px), 1fr)); gap: 8px; }
+.nlm-discovery-tile { display: flex; align-items: center; min-width: 0; gap: 6px; padding: 7px; border: 1px solid rgba(235,231,216,.07); border-radius: 8px; background: rgba(255,255,255,.018); transition: background .18s ease, border-color .18s ease, transform .18s ease; }
+.nlm-discovery-tile:hover, .nlm-discovery-tile:focus-within { border-color: rgba(222,190,113,.25); background: rgba(255,255,255,.045); transform: translateY(-1px); }
+.nlm-discovery-tile.is-selected { border-color: rgba(222,190,113,.3); }
+.nlm-discovery-tile-play { display: flex; align-items: center; gap: 11px; flex: 1; min-width: 0; padding: 0; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; }
+.nlm-discovery-tile-art { display: grid; place-items: center; flex: 0 0 48px; width: 48px; height: 48px; overflow: hidden; border-radius: 5px; color: #cbb674; background: #222932; }
+.nlm-discovery-tile-art img { width: 100%; height: 100%; object-fit: cover; }
+.nlm-discovery-tile-copy { display: grid; min-width: 0; gap: 3px; }
+.nlm-discovery-tile-copy small { color: #8d9893; font: 9px/1.3 'DM Mono', monospace; text-transform: uppercase; letter-spacing: .04em; }
+.nlm-discovery-tile-copy strong, .nlm-discovery-tile-copy > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nlm-discovery-tile-copy strong { color: #e7e8e0; font-size: 12px; font-weight: 560; }
+.nlm-discovery-tile-copy > span { color: #9aa39f; font-size: 10px; }
+.nlm-discovery-tile-action { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%; color: #e2c16d; background: rgba(221,190,112,.1); }
+.nlm-discovery-favorite { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border: 0; border-radius: 50%; color: #939b97; background: transparent; cursor: pointer; }
+.nlm-discovery-favorite:hover, .nlm-discovery-favorite.is-fav { color: #e5bd66; }
+.nlm-discovery-favorite:focus-visible, .nlm-discovery-tile-play:focus-visible { outline: 2px solid #dfbd69; outline-offset: 2px; border-radius: 5px; }
+.nlm-app .nlm-player.nlm-player-floating,
+.nlm-player-portal .nlm-player.nlm-player-floating { isolation: isolate; overflow: visible; border-radius: 999px; }
+.nlm-player-portal .nlm-player-wave-border { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; visibility: visible; opacity: 1; animation: nlm-visualizer-open .48s ease both; }
+.nlm-player-portal .nlm-player-wave-border path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.nlm-player-portal .nlm-player-wave-primary { stroke: var(--nlm-player-wave-color, var(--nlm-accent)); stroke-width: 1.8px; opacity: .76; filter: drop-shadow(0 0 5px var(--nlm-player-wave-color, var(--nlm-accent))); transition: opacity .45s ease, stroke .7s ease; }
+.nlm-player-portal .nlm-player-wave-secondary { stroke: var(--nlm-cyan); stroke-width: 1.2px; opacity: 0; filter: drop-shadow(0 0 4px var(--nlm-cyan)); transition: opacity .45s ease; }
+.nlm-player-portal .nlm-player-wave-tertiary { stroke: var(--nlm-coral); stroke-width: 1.1px; opacity: 0; filter: drop-shadow(0 0 4px var(--nlm-coral)); transition: opacity .45s ease; }
+.nlm-player-portal .nlm-player.is-audio-playing .nlm-player-wave-secondary,
+.nlm-player-portal .nlm-player.is-audio-playing .nlm-player-wave-tertiary { opacity: .82; }
+.nlm-player-portal .nlm-player.is-audio-playing .nlm-player-wave-primary { opacity: 1; }
+.nlm-player-portal .nlm-player.has-visualizer { border-color: transparent; }
+.nlm-player-portal .nlm-player.has-visualizer .nlm-player-wave-primary { animation: nlm-idle-wave-color 12s ease-in-out infinite alternate; }
+.nlm-player-portal .nlm-player.is-audio-playing .nlm-player-wave-primary { animation: none; }
+.nlm-player-portal .nlm-player .nlm-seek-row,
+.nlm-player-portal .nlm-player .nlm-seek-row > span { color: var(--nlm-accent); }
+.nlm-player-portal .nlm-player .nlm-volume button { color: var(--nlm-accent); }
+.nlm-player-portal .nlm-player .nlm-volume button:hover { color: var(--nlm-accent-glow); }
+.nlm-player-portal .nlm-player .nlm-volume input[type='range'] { accent-color: var(--nlm-accent); }
+.nlm-player.nlm-player-floating > :not(.nlm-player-wave-border) { position: relative; z-index: 1; }
+@keyframes nlm-visualizer-open { from { opacity: 0; } to { opacity: 1; } }
+@keyframes nlm-idle-wave-color { 0% { stroke: var(--nlm-accent); } 52% { stroke: var(--nlm-cyan); } 100% { stroke: var(--nlm-coral); } }
+@media (max-width: 768px) {
+  .nlm-app.nlm-detail-player-visible { padding-bottom: calc(130px + env(safe-area-inset-bottom, 0px)); }
+  .nlm-hero-panel { grid-template-columns: minmax(0, 1fr) 120px; min-height: 190px; padding: 20px; }
+  .nlm-hero-art { height: 130px; }
+}
+@media (max-width: 560px) {
+  .nlm-hero-panel { grid-template-columns: minmax(0, 1fr); padding: 19px; }
+  .nlm-hero-panel::after { background: linear-gradient(100deg, rgba(13,17,22,.05), rgba(13,17,22,.38)); }
+  .nlm-hero-art { position: absolute; inset: 0 0 0 auto; z-index: 0; width: 46%; height: 100%; border-radius: 0; opacity: .38; box-shadow: none; }
+  .nlm-hero-art-caption { display: none; }
+  .nlm-hero-panel .nlm-hero-copy { z-index: 1; }
+  .nlm-discovery-shelf { padding: 12px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nlm-discovery-tile { transition: none; }
+  .nlm-player.nlm-player-floating { transition: none; }
+  .nlm-player-portal .nlm-player-wave-border path { filter: none; }
+  .nlm-player-portal .nlm-player-wave-border,
+  .nlm-player-portal .nlm-player-wave-primary { animation: none; }
+  .nlm-player.nlm-player-floating.is-audio-playing { animation: none; }
+}
+
+/* Keep the portal player layout consistent while it remains mounted across routes. */
+.nlm-player-portal .nlm-player.nlm-player-floating {
+  display: grid;
+  grid-template-columns: minmax(145px, .78fr) minmax(205px, 1.12fr) auto minmax(76px, .34fr);
+  align-items: center;
+  gap: clamp(8px, 1.2vw, 18px);
+  min-height: 84px;
+  padding: 10px 16px;
+}
+.nlm-player-portal .nlm-player-actions { display: flex; align-items: center; justify-content: center; gap: 2px; min-width: 0; }
+.nlm-player-portal .nlm-player-action { min-height: 32px; padding-inline: 7px; font-size: 9px; }
+.nlm-player-portal .nlm-player .nlm-volume { display: flex; justify-self: end; }
+.nlm-player-portal .nlm-player .nlm-volume input { width: 64px; }
+@media (max-width: 1080px) {
+  .nlm-player-portal .nlm-player.nlm-player-floating { grid-template-columns: minmax(125px, .75fr) minmax(195px, 1fr) auto; }
+  .nlm-player-portal .nlm-player .nlm-volume { display: none; }
+}
+@media (max-width: 768px) {
+  .nlm-player-portal .nlm-player.nlm-player-floating {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 5px 10px;
+    min-height: 106px;
+    padding: 8px 12px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    width: calc(100vw - 24px);
+  }
+  .nlm-player-portal .nlm-player .nlm-now-playing { grid-column: 1; grid-row: 1; }
+  .nlm-player-portal .nlm-player .nlm-player-actions { grid-column: 2; grid-row: 1; }
+  .nlm-player-portal .nlm-player .nlm-player-action { min-height: 30px; padding-inline: 5px; }
+  .nlm-player-portal .nlm-player .nlm-playback { grid-column: 1 / -1; grid-row: 2; gap: 5px; }
+}
+@media (max-width: 560px) {
+  .nlm-player-portal .nlm-player.nlm-player-floating {
+    min-height: 98px;
+    padding: 7px 10px;
+    bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+    width: calc(100vw - 16px);
+  }
+  .nlm-player-portal .nlm-player .nlm-player-action { width: 30px; min-height: 30px; padding: 0; }
+  .nlm-player-portal .nlm-player .nlm-player-action span { display: none; }
+  .nlm-player-portal .nlm-player-info strong { max-width: 42vw; }
+  .nlm-player-portal .nlm-player .nlm-transport { gap: 8px; }
+  .nlm-player-portal .nlm-player .nlm-transport button { width: 30px; height: 30px; }
+}
+.nlm-player-portal .nlm-player-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: #a9ada8;
+  background: transparent;
+  white-space: nowrap;
+  transition: color .16s ease, background .16s ease, border-color .16s ease;
+}
+.nlm-player-portal .nlm-player-action:hover:not(:disabled) { color: #f0eee7; background: rgba(255,255,255,.055); }
+.nlm-player-portal .nlm-player-action:focus-visible { outline: 2px solid #c4ceba; outline-offset: 2px; }
+.nlm-player-portal .nlm-player-action:disabled { opacity: .42; cursor: not-allowed; }
+.nlm-player-portal .nlm-player-action.is-fav { color: #d59a8b; }
+.nlm-player-portal .nlm-player-action-download { color: #e6e0cc; border-color: rgba(217,211,189,.15); background: rgba(217,211,189,.07); }
+.nlm-player-portal .nlm-player-action-download.is-fav { color: #d7c68f; }
+.nlm-player-portal .nlm-player-action-download.has-error { color: #e09a89; }
+.nlm-player-portal .nlm-player-action-download:hover:not(:disabled) { color: #171a1d; border-color: #d9d3bd; background: #d9d3bd; }
+.nlm-player-portal .nlm-player-action svg { flex: none; }
+
+@media (max-width: 420px) {
+  .nlm-player-portal .nlm-player.nlm-player-floating {
+    width: calc(100vw - 12px);
+    min-height: 94px;
+    padding: 7px 8px;
+    gap: 4px 6px;
+  }
+  .nlm-player-portal .nlm-player .nlm-player-cover { width: 34px; height: 34px; flex-basis: 34px; }
+  .nlm-player-portal .nlm-player .nlm-player-info strong { max-width: 34vw; font-size: 11px; }
+  .nlm-player-portal .nlm-player .nlm-player-info small { max-width: 34vw; font-size: 9px; }
+  .nlm-player-portal .nlm-player .nlm-player-action { width: 27px; min-height: 28px; }
+  .nlm-player-portal .nlm-player-actions { gap: 0; }
+  .nlm-player-portal .nlm-player .nlm-transport { gap: 6px; }
+  .nlm-player-portal .nlm-player .nlm-transport button { width: 27px; height: 27px; }
+  .nlm-player-portal .nlm-player .nlm-play-button { width: 35px; height: 35px; }
+}
+/* Compact, touch-friendly layout for the persistent player on phones. */
+@media (max-width: 560px) {
+  .nlm-player-portal .nlm-player.nlm-player-floating {
+    box-sizing: border-box;
+    width: calc(100vw - 24px);
+    min-height: 100px;
+    padding: 9px 12px 8px;
+    gap: 6px 8px;
+    border-radius: 22px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nlm-player-portal .nlm-player .nlm-now-playing {
+    min-width: 0;
+    gap: 9px;
+  }
+  .nlm-player-portal .nlm-player .nlm-player-cover {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    border-radius: 8px;
+  }
+  .nlm-player-portal .nlm-player .nlm-player-info strong,
+  .nlm-player-portal .nlm-player .nlm-player-info small {
+    max-width: 100%;
+  }
+  .nlm-player-portal .nlm-player .nlm-player-info strong { font-size: 11px; }
+  .nlm-player-portal .nlm-player .nlm-player-info small { font-size: 9px; }
+
+  .nlm-player-portal .nlm-player .nlm-player-actions {
+    justify-content: flex-end;
+    gap: 2px;
+  }
+  .nlm-player-portal .nlm-player .nlm-player-action {
+    display: grid;
+    width: 30px;
+    min-width: 30px;
+    height: 32px;
+    min-height: 32px;
+    padding: 0;
+    place-items: center;
+    border-radius: 8px;
+  }
+  .nlm-player-portal .nlm-player .nlm-player-action span { display: none; }
+  .nlm-player-portal .nlm-player .nlm-playback {
+    min-width: 0;
+    gap: 3px;
+  }
+  .nlm-player-portal .nlm-player .nlm-transport { gap: 10px; }
+  .nlm-player-portal .nlm-player .nlm-transport button { width: 30px; height: 30px; }
+  .nlm-player-portal .nlm-player .nlm-play-button { width: 36px; height: 36px; }
+  .nlm-player-portal .nlm-player .nlm-seek-row { gap: 8px; }
+  .nlm-player-portal .nlm-player .nlm-seek-row > span { min-width: 27px; font-size: 8px; }
+}
+
+@media (max-width: 360px) {
+  .nlm-player-portal .nlm-player.nlm-player-floating {
+    width: calc(100vw - 16px);
+    min-height: 96px;
+    padding: 8px 9px 7px;
+    gap: 5px 5px;
+  }
+  .nlm-player-portal .nlm-player .nlm-player-cover { width: 34px; height: 34px; flex-basis: 34px; }
+  .nlm-player-portal .nlm-player .nlm-now-playing { gap: 7px; }
+  .nlm-player-portal .nlm-player .nlm-player-info strong { font-size: 10px; }
+  .nlm-player-portal .nlm-player .nlm-player-info small { font-size: 8px; }
+  .nlm-player-portal .nlm-player .nlm-player-action { width: 27px; min-width: 27px; }
+  .nlm-player-portal .nlm-player .nlm-transport { gap: 7px; }
+  .nlm-player-portal .nlm-player .nlm-transport button { width: 28px; height: 28px; }
+  .nlm-player-portal .nlm-player .nlm-play-button { width: 34px; height: 34px; }
+  .nlm-player-portal .nlm-player .nlm-seek-row { gap: 5px; }
+}

@@ -27,6 +27,13 @@ const metricNumber = (value: unknown): number | null => {
 };
 
 const formatMetric = (value: unknown) => metricNumber(value)?.toLocaleString() ?? '—';
+const formatListeningTime = (value: number | null) => {
+  if (value === null || value <= 0) return value === null ? '—' : '0m';
+  const seconds = Math.floor(value);
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return hours ? `${hours}h ${minutes}m` : `${minutes}m ${seconds % 60}s`;
+};
 
 const NLMSongsAdmin = () => {
   const { user, logout, updateProfile } = useAuth();
@@ -320,9 +327,9 @@ const NLMSongsAdmin = () => {
           <div className="nlm-location"><span>ADMIN</span><span className="nlm-location-slash">/</span><span>{tab.toUpperCase()}</span></div>
           <div className="nlm-account-actions">
             <span className="nlm-account-name">{user?.name || user?.email}</span>
-            <button className="nlm-account-button" onClick={() => void loadTracks()} disabled={isLoading}><RefreshCw size={14} className={isLoading ? 'nlm-spin' : ''} /> Refresh</button>
-            <button className="nlm-account-button" onClick={openAccount}><LayoutDashboard size={14} /> Dashboard</button>
-            <button className="nlm-account-button" onClick={signOut}><LogOut size={14} /> Sign out</button>
+            <button className="nlm-account-button" onClick={() => void loadTracks()} disabled={isLoading} aria-label="Refresh catalogue"><RefreshCw size={14} className={isLoading ? 'nlm-spin' : ''} /> Refresh</button>
+            <button className="nlm-account-button" onClick={openAccount} aria-label="Open dashboard"><LayoutDashboard size={14} /> Dashboard</button>
+            <button className="nlm-account-button" onClick={signOut} aria-label="Sign out"><LogOut size={14} /> Sign out</button>
           </div>
         </header>
 
@@ -356,7 +363,7 @@ const NLMSongsAdmin = () => {
                 <article><span>Catalogue</span><strong>{tracks.length}</strong><small>{activeTracks.length} active tracks</small></article>
                 <article><span>Genres</span><strong>{genreCount}</strong><small>Across your catalogue</small></article>
                 <article><span>Plays · 30 days</span><strong>{formatMetric(totalPlays30d)}</strong><small>{listeners30d === null ? 'Listener count unavailable' : `${listeners30d.toLocaleString()} listeners`}</small></article>
-                <article><span>Listening time</span><strong>{listeningSeconds === null ? '—' : `${Math.floor(listeningSeconds / 3600)}h`}</strong><small>{listeningSeconds === null ? 'No listening time recorded' : 'Recorded across all plays'}</small></article>
+                <article><span>Listening time</span><strong>{formatListeningTime(listeningSeconds)}</strong><small>{listeningSeconds === null ? 'No listening time recorded' : 'Recorded across all plays'}</small></article>
               </div>
               {analyticsUnavailable && <p className="nlm-analytics-note" role="status">Listener metrics could not be loaded. Catalogue figures remain available.</p>}
               <div className="nlm-admin-insights-grid">
@@ -390,24 +397,24 @@ const NLMSongsAdmin = () => {
               {isLoading ? (
                 <div className="nlm-empty-library" role="status"><span className="nlm-empty-icon"><FileAudio2 size={21} /></span><div><h3>Loading catalogue…</h3></div></div>
               ) : filtered.length ? (
-                <table className="nlm-admin-table">
-                  <thead>
-                    <tr><th>TRACK</th><th>ARTIST</th><th>GENRE</th><th>ACTIONS</th></tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((track) => (
-                      <tr key={track.id}>
-                        <td><strong>{track.title}</strong><small>{track.tags?.slice(0, 2).join(', ') || ''}</small></td>
-                        <td>{track.artist || 'NLM Studio'}</td>
-                        <td>{normalizeGenreName(track.genre) || '—'}</td>
-                        <td>
-                          <button className="nlm-ghost-button" onClick={() => startEdit(track)} aria-label={`Edit ${track.title}`}><Disc3 size={14} /> Edit</button>
-                          <button className="nlm-ghost-button" onClick={() => handleDelete(track.id)} aria-label={`Delete ${track.title}`}><Trash2 size={14} /> Delete</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="nlm-admin-catalogue-list" aria-label="Published tracks">
+                  {filtered.map((track, index) => (
+                    <article className="nlm-admin-catalogue-item" key={track.id}>
+                      <span className="nlm-admin-catalogue-index">{String(index + 1).padStart(2, '0')}</span>
+                      <span className="nlm-admin-catalogue-art">{track.thumbnailUrl ? <img src={resolveAssetUrl(track.thumbnailUrl)} alt="" loading="lazy" /> : <Music2 size={18} />}</span>
+                      <div className="nlm-admin-catalogue-copy">
+                        <strong>{track.title || 'Untitled track'}</strong>
+                        <span>{track.artist || 'NLM Studio'}<i>·</i>{normalizeGenreName(track.genre) || 'Uncategorized'}</span>
+                        {Array.isArray(track.tags) && track.tags.length > 0 && <small>{track.tags.slice(0, 3).join(' · ')}</small>}
+                      </div>
+                      <span className={`nlm-admin-catalogue-status ${track.isActive === false ? 'is-inactive' : ''}`}><i />{track.isActive === false ? 'Hidden' : 'Published'}</span>
+                      <div className="nlm-admin-catalogue-actions">
+                        <button className="nlm-ghost-button" onClick={() => startEdit(track)} aria-label={`Edit ${track.title}`}><Disc3 size={14} /><span>Edit</span></button>
+                        <button className="nlm-ghost-button" onClick={() => handleDelete(track.id)} aria-label={`Delete ${track.title}`}><Trash2 size={14} /><span>Delete</span></button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
               ) : (
                 <div className="nlm-empty-library"><span className="nlm-empty-icon"><FileAudio2 size={23} /></span>
                   <div><h3>No tracks published yet.</h3><p>Upload your first song from the Uploads tab.</p></div>
@@ -441,7 +448,7 @@ const NLMSongsAdmin = () => {
                     <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)} />
                   </label>
                 </div>
-                <label className="nlm-lyrics-field">Lyrics <span>OPTIONAL</span><textarea value={lyrics} onChange={(e) => setLyrics(e.target.value)} placeholder="[00:12] The city wakes in gold&#10;[00:18] A new day unfolds" rows={4} /></label>
+                <label className="nlm-lyrics-field nlm-admin-lyrics-field"><span className="nlm-input-label">Lyrics <small>OPTIONAL · TIMESTAMPS SUPPORTED</small></span><textarea value={lyrics} onChange={(e) => setLyrics(e.target.value)} placeholder="[00:12] The city wakes in gold&#10;[00:18] A new day unfolds" rows={12} /></label>
                 {formError && <p className="nlm-form-error" role="alert">{formError}</p>}
                 <div className="nlm-form-actions"><button type="submit" className="nlm-submit-button" disabled={isSubmitting}>{isSubmitting ? 'Saving…' : editingId ? 'Update track' : 'Add to library'}</button></div>
               </form>

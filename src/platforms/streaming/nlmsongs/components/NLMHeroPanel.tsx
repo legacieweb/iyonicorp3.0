@@ -1,62 +1,40 @@
-import { Play } from 'lucide-react';
+import { ArrowDown, Pause, Play } from 'lucide-react';
 import type { Track } from '../types';
 import { resolveAssetUrl } from '../utils';
 
 interface Props {
   featuredTrack: Track | null;
+  isPlaying: boolean;
   isAdminMode: boolean;
   onPlay: (track: Track) => void;
   onUpload: () => void;
 }
 
-export const NLMHeroPanel = ({ featuredTrack, isAdminMode, onPlay, onUpload }: Props) => {
-  if (!featuredTrack) {
-    return (
-      <div className="nlm-hero-panel">
-        <div className="nlm-hero-copy">
-          <span className="nlm-eyebrow">NOW PLAYING</span>
-          <h2>Build your catalog</h2>
-          <p>Publish songs, curate playlists, and shape a premium listening experience.</p>
-          <div className="nlm-hero-actions">
-            <button className="nlm-submit-button" onClick={onUpload}>
-              Explore catalog
-            </button>
-          </div>
-        </div>
-        <div className="nlm-hero-art" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="nlm-hero-panel">
-      <div className="nlm-hero-copy">
-        <span className="nlm-eyebrow">NOW PLAYING</span>
-        <h2>{featuredTrack.title}</h2>
-        <p>{`${featuredTrack.artist} · ${featuredTrack.genre || 'Featured release'}`}</p>
-        <div className="nlm-hero-actions">
-          <button
-            className="nlm-submit-button"
-            onClick={() => onPlay(featuredTrack)}
-          >
-            <Play size={14} fill="currentColor" /> Play track
+export const NLMHeroPanel = ({ featuredTrack, isPlaying, isAdminMode, onPlay, onUpload }: Props) => (
+  <section className="nlm-hero-panel" aria-label="Featured listening">
+    <div className="nlm-hero-copy">
+      <span className="nlm-eyebrow">{featuredTrack && isPlaying ? 'NOW PLAYING' : 'A LISTENING ROOM'}</span>
+      <h2>{featuredTrack ? featuredTrack.title : 'Find your next listen.'}</h2>
+      <p>{featuredTrack
+        ? `${featuredTrack.artist}${featuredTrack.genre ? ` · ${featuredTrack.genre}` : ''}`
+        : 'The catalogue is quiet for now. Check back when new music is published.'}</p>
+      <div className="nlm-hero-actions">
+        {featuredTrack ? (
+          <button className="nlm-submit-button" onClick={() => onPlay(featuredTrack)}>
+            {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
+            {isPlaying ? 'Pause this track' : 'Listen now'}
           </button>
-          {isAdminMode && (
-            <button className="nlm-ghost-button" onClick={onUpload}>
-              Upload new song
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="nlm-hero-art">
-        {featuredTrack.coverUrl ? (
-          <img src={resolveAssetUrl(featuredTrack.coverUrl)} alt={featuredTrack.title} />
-        ) : (
-          <div className="nlm-hero-art-fallback" />
-        )}
+        ) : isAdminMode ? (
+          <button className="nlm-submit-button" onClick={onUpload}><Play size={14} /> Add the first track</button>
+        ) : null}
+        <button className="nlm-hero-browse" type="button" onClick={() => document.getElementById('nlm-library')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}><span>Explore the library</span><ArrowDown size={14} /></button>
       </div>
     </div>
-  );
-};
+    <div className="nlm-hero-art" aria-hidden="true">
+      {featuredTrack?.coverUrl ? <img src={resolveAssetUrl(featuredTrack.coverUrl)} alt="" /> : <div className="nlm-hero-art-fallback" />}
+      {featuredTrack && <div className="nlm-hero-art-caption"><span>{isPlaying ? 'ON AIR' : 'FEATURED TRACK'}</span><strong>{featuredTrack.artist}</strong></div>}
+    </div>
+  </section>
+);
 
 export default NLMHeroPanel;

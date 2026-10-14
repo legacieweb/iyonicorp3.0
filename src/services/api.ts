@@ -916,8 +916,8 @@ export const historyAPI = {
     return response.data;
   },
 
-  async recordPlay(trackId: string, playedSeconds: number, duration: number): Promise<void> {
-    await api.post('/nlmsongs/history', { trackId, playedSeconds, duration });
+  async recordPlay(trackId: string, playedSeconds: number, duration: number, sessionId?: string): Promise<void> {
+    await api.post('/nlmsongs/history', { trackId, playedSeconds, duration, sessionId });
   },
 
   async clearHistory(): Promise<void> {

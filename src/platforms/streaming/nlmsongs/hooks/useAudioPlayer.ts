@@ -7,6 +7,8 @@ export interface UseAudioPlayerProps {
   selectedTrack: Track | null;
   pendingAutoplayRef: React.MutableRefObject<boolean>;
   onEnded: () => void;
+  onPlaybackStart?: () => void;
+  onPlaybackProgress?: (currentTime: number, duration: number, final?: boolean) => void;
 }
 
 export const useAudioPlayer = ({
@@ -14,6 +16,8 @@ export const useAudioPlayer = ({
   selectedTrack,
   pendingAutoplayRef,
   onEnded,
+  onPlaybackStart,
+  onPlaybackProgress,
 }: UseAudioPlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -44,8 +48,10 @@ export const useAudioPlayer = ({
   }, [selectedTrack?.id, audioRef]);
 
   const handlers = {
-    onTimeUpdate: (event: React.SyntheticEvent<HTMLAudioElement>) =>
-      setCurrentTime(event.currentTarget.currentTime),
+    onTimeUpdate: (event: React.SyntheticEvent<HTMLAudioElement>) => {
+      setCurrentTime(event.currentTarget.currentTime);
+      onPlaybackProgress?.(event.currentTarget.currentTime, event.currentTarget.duration);
+    },
     onLoadedMetadata: (event: React.SyntheticEvent<HTMLAudioElement>) =>
       setDuration(event.currentTarget.duration),
     onCanPlay: () => {
@@ -59,9 +65,14 @@ export const useAudioPlayer = ({
     onPlay: () => {
       setPlayerError('');
       setIsPlaying(true);
+      onPlaybackStart?.();
     },
-    onPause: () => setIsPlaying(false),
-    onEnded: () => {
+    onPause: (event: React.SyntheticEvent<HTMLAudioElement>) => {
+      setIsPlaying(false);
+      onPlaybackProgress?.(event.currentTarget.currentTime, event.currentTarget.duration, true);
+    },
+    onEnded: (event: React.SyntheticEvent<HTMLAudioElement>) => {
+      onPlaybackProgress?.(event.currentTarget.currentTime, event.currentTarget.duration, true);
       setIsPlaying(false);
       onEnded();
     },

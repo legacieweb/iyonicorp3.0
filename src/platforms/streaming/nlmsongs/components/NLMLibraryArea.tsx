@@ -1,6 +1,7 @@
-import { FileAudio2, Heart, Loader2, Plus } from 'lucide-react';
+import { FileAudio2, Grid2X2, Heart, List, Loader2, Plus } from 'lucide-react';
 import { NLMSearchBar, NLMSectionHead, NLMTrackRow } from './index';
 import type { Track } from '../types';
+import type { ReactNode } from 'react';
 
 interface Props {
   tracks: Track[];
@@ -28,6 +29,9 @@ interface Props {
   onBrowse: () => void;
   sectionEyebrow: string;
   sectionTitle: string;
+  displayMode: 'grid' | 'list';
+  onDisplayModeChange: (mode: 'grid' | 'list') => void;
+  discoveryContent?: ReactNode;
 }
 
 export const NLMLibraryArea = ({
@@ -56,13 +60,18 @@ export const NLMLibraryArea = ({
   onBrowse,
   sectionEyebrow,
   sectionTitle,
+  displayMode,
+  onDisplayModeChange,
+  discoveryContent,
 }: Props) => (
-  <section className={`nlm-track-section ${isPersonalLibrary ? 'is-personal-library' : ''}`} aria-label={isPersonalLibrary ? 'Your saved NLM Songs' : 'NLM Songs catalogue'}>
+  <section id="nlm-library" className={`nlm-track-section ${isPersonalLibrary ? 'is-personal-library' : ''}`} aria-label={isPersonalLibrary ? 'Your saved NLM Songs' : 'NLM Songs catalogue'}>
     <NLMSectionHead
       eyebrow={sectionEyebrow}
       title={sectionTitle}
       count={tracks.length}
     />
+
+    {discoveryContent}
 
     <div className="nlm-library-toolbar">
       {!isPersonalLibrary && hasUser && (
@@ -92,6 +101,10 @@ export const NLMLibraryArea = ({
         placeholder={isPersonalLibrary ? 'Search your saved tracks' : 'Search tracks, artists, genres, or moods'}
         ariaLabel={isPersonalLibrary ? 'Search your saved tracks' : 'Search the NLM Songs catalogue'}
       />
+      {!isLoading && !error && tracks.length > 0 && <div className="nlm-view-toggle" role="group" aria-label="Track layout">
+        <button type="button" className={displayMode === 'grid' ? 'is-active' : ''} onClick={() => onDisplayModeChange('grid')} aria-pressed={displayMode === 'grid'} aria-label="Grid view" title="Grid view"><Grid2X2 size={15}/></button>
+        <button type="button" className={displayMode === 'list' ? 'is-active' : ''} onClick={() => onDisplayModeChange('list')} aria-pressed={displayMode === 'list'} aria-label="List view" title="List view"><List size={16}/></button>
+      </div>}
     </div>
 
     {isLoading ? (
@@ -99,7 +112,7 @@ export const NLMLibraryArea = ({
     ) : error ? (
       <ErrorState message={error} onRetry={onRetry} />
     ) : tracks.length ? (
-      <div className="nlm-track-list">
+      <div className={`nlm-track-list ${displayMode === 'grid' ? 'is-grid-view' : 'is-list-view'}`}>
         <div className="nlm-track-columns">
           <span>TRACK</span>
           <span>ARTIST</span>

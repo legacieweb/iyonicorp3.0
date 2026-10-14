@@ -92,6 +92,8 @@ export const initDb = async () => {
           duration NUMERIC(10,2) DEFAULT 0,
           created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         );
+        ALTER TABLE nlm_listening_history ADD COLUMN IF NOT EXISTS session_id VARCHAR(128);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_nlm_history_user_session ON nlm_listening_history(user_id, session_id) WHERE session_id IS NOT NULL;
         CREATE INDEX IF NOT EXISTS idx_nlm_history_user_created ON nlm_listening_history(user_id, created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_nlm_history_track ON nlm_listening_history(track_id);
 

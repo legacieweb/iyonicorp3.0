@@ -1,5 +1,6 @@
 import { Download, FileAudio2, Loader2, Music2, Play, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useTenant } from '../../../context/TenantContext';
@@ -44,6 +45,7 @@ import {
   NLMGenreChips,
   NLMAudioPlayer,
 } from './components';
+import NLMDiscoveryShelf from './components/NLMDiscoveryShelf';
 import type { Track } from './types';
 import NLMEqualizerControl from './components/NLMEqualizerControl';
 import NLMMobileNavControls from './components/NLMMobileNavControls';
@@ -52,7 +54,6 @@ import {
   deleteOfflineAudio,
   readAllOfflineAudio,
   readOfflineAudio,
-  readOfflineCatalog,
   storeOfflineAudio,
   storeOfflineCatalog,
   supportsOfflineAudio,
@@ -85,7 +86,7 @@ const trackFromOfflineRecord = (record: OfflineAudioRecord, coverUrl?: string): 
   isActive: true,
 });
 
-const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'admin'; isVisible?: boolean }) => {
+const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true }: { mode?: 'client' | 'admin'; isVisible?: boolean; showFloatingPlayer?: boolean }) => {
   const { user, logout, updateProfile } = useAuth();
   const { tenant } = useTenant();
   const sellerScopeId = tenant?.shopType === 'streaming' ? tenant.id : undefined;
@@ -94,15 +95,19 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const pendingAutoplayRef = useRef(false);
+  const playbackSessionRef = useRef<{ trackId: string; sessionId: string; playedSeconds: number; lastMediaTime: number; lastSent: number } | null>(null);
 
   const [view, setView] = useState<View>(() => viewForPath(location.pathname));
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [genreFilter, setGenreFilter] = useState(() => normalizeGenreName(localStorage.getItem('nlm-genre-filter') || ''));
   const [sortOrder, setSortOrder] = useState<'recent' | 'title' | 'artist'>('recent');
+  const [trackDisplayMode, setTrackDisplayMode] = useState<'grid' | 'list'>(() => localStorage.getItem('nlm-track-display-mode') === 'list' ? 'list' : 'grid');
+  const [playHistoryCounts, setPlayHistoryCounts] = useState<Record<string, number> | null>(null);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
@@ -177,8 +182,8 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
   useEffect(() => { void reloadOfflineDownloads(); }, [reloadOfflineDownloads]);
 
   useEffect(() => {
-    const markOffline = () => setOfflineNotice('You’re offline. Open Downloads to find songs saved on this browser.');
-    const markOnline = () => setOfflineNotice('');
+    const markOffline = () => { setIsOnline(false); setOfflineNotice('You’re offline. Only songs saved on this browser are available.'); };
+    const markOnline = () => { setIsOnline(true); setOfflineNotice(''); };
     if (typeof navigator !== 'undefined' && !navigator.onLine) markOffline();
     window.addEventListener('offline', markOffline);
     window.addEventListener('online', markOnline);
@@ -238,6 +243,10 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
       setAccessNotice('');
       return true;
     } catch (error: any) {
+      if (offlineDownloads.some((record) => record.id === track.id)) {
+        setAccessNotice('Playing your saved offline copy.');
+        return true;
+      }
       setAccessNotice(error?.response?.data?.message || 'Could not confirm plan access. Reconnect and try again.');
       return false;
     }
@@ -264,7 +273,8 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
       // Never replace the media source underneath a playing track. It will be
       // picked up the next time this track is selected or the app is reopened.
       const audio = audioRef.current;
-      if (!pendingAutoplayRef.current && audio && (!audio.paused || audio.currentTime > 0)) return;
+      if (isOnline && !pendingAutoplayRef.current && audio && (!audio.paused || audio.currentTime > 0)) return;
+      if (!isOnline) pendingAutoplayRef.current = true;
       activateOfflineBlob(selectedTrack.id, saved.blob);
     }).catch(() => {
       if (!cancelled) setOfflineMessage('Offline storage could not be checked.');
@@ -277,7 +287,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
         offlineObjectUrlRef.current = null;
       }
     };
-  }, [selectedTrack?.id, activateOfflineBlob]);
+  }, [selectedTrack?.id, activateOfflineBlob, isOnline]);
 
   useEffect(() => () => {
     if (offlineObjectUrlRef.current) URL.revokeObjectURL(offlineObjectUrlRef.current.url);
@@ -471,11 +481,46 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
     return result;
   }, [search, tracks, showFavoritesOnly, favorites.favorites, user, genreFilter, sortOrder, view, isAdminMode]);
 
-  const featuredTrack = filteredTracks[0] ?? tracks[0] ?? null;
+  useEffect(() => {
+    localStorage.setItem('nlm-track-display-mode', trackDisplayMode);
+  }, [trackDisplayMode]);
 
+  useEffect(() => {
+    let active = true;
+    if (!user || view !== 'Listen' || !isOnline) {
+      setPlayHistoryCounts(null);
+      return () => { active = false; };
+    }
+    historyAPI.getHistory(100).then((history) => {
+      if (!active) return;
+      const counts: Record<string, number> = {};
+      history.forEach((item) => { if (item.trackId) counts[item.trackId] = (counts[item.trackId] || 0) + 1; });
+      setPlayHistoryCounts(counts);
+    }).catch(() => { if (active) setPlayHistoryCounts(null); });
+    return () => { active = false; };
+  }, [user?.id, view, isOnline]);
+
+  const activeCatalogue = useMemo(() => tracks.filter((track) => track.isActive && Boolean(track.audioUrl)), [tracks]);
+  const featuredTrack = selectedTrack ?? filteredTracks[0] ?? tracks.find((track) => track.isActive && track.audioUrl) ?? null;
+  const newestTracks = useMemo(() => [...activeCatalogue].sort((a, b) => (Date.parse(b.createdAt || b.updatedAt || '') || 0) - (Date.parse(a.createdAt || a.updatedAt || '') || 0)).slice(0, 5), [activeCatalogue]);
+  const mostPlayedTracks = useMemo(() => playHistoryCounts
+    ? [...activeCatalogue].filter((track) => playHistoryCounts[track.id]).sort((a, b) => (playHistoryCounts[b.id] || 0) - (playHistoryCounts[a.id] || 0)).slice(0, 5)
+    : [], [activeCatalogue, playHistoryCounts]);
+  const relatedTracks = useMemo(() => {
+    const anchor = selectedTrack || featuredTrack;
+    if (!anchor) return [];
+    const alreadyRecommended = new Set([...mostPlayedTracks, ...newestTracks].map((track) => track.id));
+    const genre = anchor.genre?.toLowerCase();
+    const artist = anchor.artist?.toLowerCase();
+    return activeCatalogue.filter((track) => track.id !== anchor.id && (
+      (genre && track.genre?.toLowerCase() === genre)
+      || (artist && track.artist?.toLowerCase() === artist)
+    ) && !alreadyRecommended.has(track.id)).slice(0, 5);
+  }, [activeCatalogue, selectedTrack, featuredTrack, mostPlayedTracks, newestTracks]);
   const playNext = useCallback(async () => {
     if (!selectedTrack || !tracks.length) return;
-    if (queue.queue.length) {
+    if (!isOnline && queue.queue.length) queue.clearQueue();
+    if (isOnline && queue.queue.length) {
       const nextTrack = queue.queue[0];
       if (!await authorizeTrack(nextTrack)) return;
       queue.removeFromQueue(0);
@@ -518,7 +563,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
       setSelectedId(nextTrack.id);
       if (isDetailRoute) navigate(`/nlmsongs/track/${encodeURIComponent(nextTrack.id)}`);
     }
-  }, [selectedTrack, tracks, selectedId, queue.queue, queue.removeFromQueue, queue.shuffleMode, queue.repeatMode, isDetailRoute, navigate, authorizeTrack]);
+  }, [selectedTrack, tracks, selectedId, queue.queue, queue.clearQueue, queue.removeFromQueue, queue.shuffleMode, queue.repeatMode, isDetailRoute, navigate, authorizeTrack, isOnline]);
 
   const playPrevious = useCallback(async () => {
     if (!selectedTrack || !tracks.length) return;
@@ -538,11 +583,37 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
     if (isDetailRoute) navigate(`/nlmsongs/track/${encodeURIComponent(previousTrack.id)}`);
   }, [selectedTrack, tracks, selectedId, isDetailRoute, navigate, authorizeTrack]);
 
+  const startPlaybackSession = useCallback(() => {
+    if (!user || !selectedTrack || !isOnline) return;
+    const current = playbackSessionRef.current;
+    if (current?.trackId === selectedTrack.id) return;
+    const sessionId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const currentTime = audioRef.current?.currentTime || 0;
+    playbackSessionRef.current = { trackId: selectedTrack.id, sessionId, playedSeconds: 0, lastMediaTime: currentTime, lastSent: 0 };
+    void historyAPI.recordPlay(selectedTrack.id, 0, audioRef.current?.duration || 0, sessionId).catch(() => {});
+  }, [user, selectedTrack, isOnline]);
+
+  const recordPlaybackProgress = useCallback((currentTime: number, duration: number, final = false) => {
+    if (!user || !selectedTrack || !isOnline || !Number.isFinite(currentTime)) return;
+    const session = playbackSessionRef.current;
+    if (!session || session.trackId !== selectedTrack.id) return;
+    const mediaDelta = currentTime - session.lastMediaTime;
+    if (mediaDelta > 0 && mediaDelta <= 15) session.playedSeconds += mediaDelta;
+    session.lastMediaTime = currentTime;
+    if (!final && session.playedSeconds - session.lastSent < 10) return;
+    session.lastSent = session.playedSeconds;
+    void historyAPI.recordPlay(selectedTrack.id, session.playedSeconds, Number.isFinite(duration) ? duration : 0, session.sessionId).catch(() => {});
+  }, [user, selectedTrack, isOnline]);
+
   const audioPlayer = useAudioPlayer({
     audioRef,
     selectedTrack,
     pendingAutoplayRef,
     onEnded: playNext,
+    onPlaybackStart: startPlaybackSession,
+    onPlaybackProgress: recordPlaybackProgress,
   });
 
   const togglePlaybackWithAccess = useCallback(async () => {
@@ -641,6 +712,27 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
     setIsLoading(true);
     setCatalogError('');
 
+    if (!isAdminMode && !isOnline) {
+      const savedAudio = await readAllOfflineAudio().catch(() => []);
+      const savedTracks = savedAudio.map((record) => trackFromOfflineRecord(record, getOfflineArtworkUrl(record)));
+      setOfflineDownloads(savedAudio);
+      setTracks(savedTracks);
+      setOfflineNotice(savedTracks.length
+        ? 'Offline listening · showing songs saved on this browser.'
+        : 'You’re offline and have no songs saved on this browser yet.');
+      setCatalogError(savedTracks.length ? '' : 'No songs are saved for offline listening.');
+      if (savedTracks.length) {
+        const nextId = savedTracks.some((track) => track.id === selectedId) ? selectedId! : savedTracks[0].id;
+        if (nextId !== selectedId) pendingAutoplayRef.current = true;
+        setSelectedId(nextId);
+      } else {
+        audioRef.current?.pause();
+        setSelectedId(null);
+      }
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const songs: NLMSong[] = isAdminMode
         ? await nlmsongsAPI.listAdmin()
@@ -666,30 +758,34 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
         );
       }
     } catch {
-      const [cachedCatalog, savedAudio] = await Promise.all([
-        readOfflineCatalog().catch(() => []),
-        readAllOfflineAudio().catch(() => []),
-      ]);
-      const cachedTracks = new Map(cachedCatalog.map((track) => [track.id, track]));
-      savedAudio.forEach((record) => cachedTracks.set(record.id, trackFromOfflineRecord(record, getOfflineArtworkUrl(record))));
+      const savedAudio = await readAllOfflineAudio().catch(() => []);
+      const savedTracks = savedAudio.map((record) => trackFromOfflineRecord(record, getOfflineArtworkUrl(record)));
       setOfflineDownloads(savedAudio);
-      setTracks([...cachedTracks.values()]);
-      const hasOfflineMusic = cachedTracks.size > 0 || savedAudio.length > 0;
-      setCatalogError(hasOfflineMusic ? '' : 'The song catalogue is unavailable offline.');
+      setTracks(savedTracks);
+      const hasOfflineMusic = savedTracks.length > 0;
+      setCatalogError(hasOfflineMusic ? '' : 'The song catalogue is unavailable. No songs are saved for offline listening.');
       setOfflineNotice(hasOfflineMusic
-        ? 'The catalogue can’t be reached right now. Listen to your saved songs in Downloads.'
+        ? 'The catalogue can’t be reached. Your saved offline songs are ready to play.'
         : 'The catalogue can’t be reached. Connect to the internet once to save songs for offline listening.');
+      if (savedTracks.length) {
+        const nextId = savedTracks.some((track) => track.id === selectedId) ? selectedId! : savedTracks[0].id;
+        if (nextId !== selectedId) pendingAutoplayRef.current = true;
+        setSelectedId(nextId);
+      } else {
+        audioRef.current?.pause();
+        setSelectedId(null);
+      }
       if (isAdminMode) {
         console.error('Could not load NLMSongs catalogue');
       }
     } finally {
       setIsLoading(false);
     }
-  }, [getOfflineArtworkUrl, isAdminMode, routeTrackId, selectedId, sellerScopeId]);
+  }, [getOfflineArtworkUrl, isAdminMode, isOnline, routeTrackId, selectedId, sellerScopeId]);
 
   useEffect(() => {
     void loadTracks();
-  }, [isAdminMode, sellerScopeId]);
+  }, [isAdminMode, sellerScopeId, isOnline]);
 
   useEffect(() => {
     if (!routeTrackId || !tracks.some((track) => track.id === routeTrackId)) return;
@@ -706,9 +802,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
     const recentIds = withoutDup.slice(0, 50);
     localStorage.setItem('nlm-recent-play', JSON.stringify(recentIds));
 
-    if (user) {
-      void historyAPI.recordPlay(selectedTrack.id, 0, 0).catch(() => {});
-    }
+    playbackSessionRef.current = null;
   }, [selectedId, user]);
 
   useEffect(() => {
@@ -745,6 +839,27 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
     setView('Listen');
     setShowLyrics(true);
   };
+
+  const discoveryContent = view === 'Listen' ? <div className="nlm-discovery-shelves">
+    <NLMDiscoveryShelf
+      eyebrow="FROM YOUR LISTENING HISTORY" title="Most played" tracks={mostPlayedTracks}
+      note={!mostPlayedTracks.length ? (user ? 'Your most played tracks will appear here as your listening history grows.' : 'Sign in and listen to tracks to build a personal Most played list.') : undefined}
+      selectedId={selectedId} isPlaying={audioPlayer.isPlaying} hasUser={Boolean(user)} favorites={favorites.favorites}
+      onSelect={selectTrack} onFavorite={(track) => favorites.toggleFavorite(track.id)}
+    />
+    <NLMDiscoveryShelf
+      eyebrow="RECENTLY PUBLISHED" title="New songs" tracks={newestTracks.filter((track) => !mostPlayedTracks.some((played) => played.id === track.id))}
+      note={!newestTracks.length ? 'New releases will appear here when tracks are published.' : undefined}
+      selectedId={selectedId} isPlaying={audioPlayer.isPlaying} hasUser={Boolean(user)} favorites={favorites.favorites}
+      onSelect={selectTrack} onFavorite={(track) => favorites.toggleFavorite(track.id)}
+    />
+    <NLMDiscoveryShelf
+      eyebrow={featuredTrack?.genre || featuredTrack?.artist || 'FROM THE CATALOGUE'} title="Related listening" tracks={relatedTracks}
+      note={featuredTrack && !relatedTracks.length ? 'There are no other active catalogue tracks with a matching artist or genre yet.' : undefined}
+      selectedId={selectedId} isPlaying={audioPlayer.isPlaying} hasUser={Boolean(user)} favorites={favorites.favorites}
+      onSelect={selectTrack} onFavorite={(track) => favorites.toggleFavorite(track.id)}
+    />
+  </div> : undefined;
 
   const openUpload = () => {
     if (!isAdminMode) {
@@ -881,8 +996,37 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
     });
   };
 
+  const playerElement = (selectedTrack || isDetailRoute) ? <NLMAudioPlayer
+    track={selectedTrack}
+    audioRef={audioRef}
+    isPlaying={audioPlayer.isPlaying}
+    currentTime={audioPlayer.currentTime}
+    duration={audioPlayer.duration}
+    volume={audioPlayer.volume}
+    shuffleMode={queue.shuffleMode}
+    repeatMode={queue.repeatMode}
+    isAdminMode={isAdminMode}
+    isFavorite={selectedTrack ? favorites.isFavorite(selectedTrack.id) : false}
+    copied={copied}
+    offlineState={offlineState}
+    offlineProgress={offlineProgress}
+    offlineMessage={offlineMessage}
+    onSaveOffline={saveTrackOffline}
+    onNowPlayingClick={() => selectedTrack && navigate(`/nlmsongs/track/${encodeURIComponent(selectedTrack.id)}`)}
+    onTogglePlayback={togglePlaybackWithAccess}
+    onPreviousTrack={playPrevious}
+    onNextTrack={playNext}
+    onToggleShuffle={queue.toggleShuffle}
+    onCycleRepeat={queue.cycleRepeat}
+    onSeek={audioPlayer.seek}
+    onSetVolume={audioPlayer.setVolume}
+    onToggleFavorite={() => selectedTrack && favorites.toggleFavorite(selectedTrack.id)}
+    onShare={shareTrack}
+    onOpenPlaylist={() => setShowPlaylistModal(true)}
+  /> : null;
+
   return (
-    <div className={`nlm-app ${mobileNavOpen ? 'nlm-mobile-nav-open' : ''} ${isVisible ? '' : 'nlm-route-hidden'}`}>
+    <div className={`nlm-app ${mobileNavOpen ? 'nlm-mobile-nav-open' : ''} ${audioPlayer.isPlaying ? 'nlm-audio-active' : ''} ${selectedTrack ? 'nlm-player-visible' : ''} ${isDetailRoute ? 'nlm-detail-player-visible' : ''} ${isVisible ? '' : 'nlm-route-hidden'}`}>
       <NLMMobileNavControls isOpen={mobileNavOpen} onToggle={() => setMobileNavOpen((open) => !open)} onClose={closeMobileNav} />
       <audio
         ref={audioRef}
@@ -933,11 +1077,13 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
                 title={view === 'Downloads' ? 'Your downloads.' : view === 'Your Library' ? 'Your library.' : 'Find your next listen.'}
                 copy={view === 'Downloads' ? 'Songs saved in this browser, ready to play whenever you are.' : view === 'Your Library' ? 'Every track you’ve favourited, gathered in one place.' : isAdminMode ? 'Explore new releases, tune into a genre, or browse the full catalogue.' : 'Start with a fresh release, explore a sound, or search the catalogue.'}
                 index={view === 'Listen' ? '01' : view === 'Your Library' ? '02' : '03'}
+                showIndex={view !== 'Listen'}
               />
 
               {view === 'Listen' && (
                 <NLMHeroPanel
                   featuredTrack={featuredTrack}
+                  isPlaying={audioPlayer.isPlaying}
                   isAdminMode={isAdminMode}
                   onPlay={selectTrack}
                   onUpload={openUpload}
@@ -992,7 +1138,10 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
                 onUpload={openUpload}
                 onBrowse={() => navigateToView('Listen')}
                 sectionEyebrow={isAdminMode ? 'CATALOGUE' : 'LIBRARY'}
-                sectionTitle={view === 'Your Library' ? 'Your favourites' : 'Recently added'}
+                sectionTitle={view === 'Your Library' ? 'Your favourites' : view === 'Listen' ? 'All songs' : 'Recently added'}
+                displayMode={trackDisplayMode}
+                onDisplayModeChange={setTrackDisplayMode}
+                discoveryContent={discoveryContent}
               />}
             </section>
           )}
@@ -1162,33 +1311,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true }: { mode?: 'client' | 'ad
           </div>
         )}
       </main>
-      <NLMAudioPlayer
-        track={selectedTrack}
-        isPlaying={audioPlayer.isPlaying}
-        currentTime={audioPlayer.currentTime}
-        duration={audioPlayer.duration}
-        volume={audioPlayer.volume}
-        shuffleMode={queue.shuffleMode}
-        repeatMode={queue.repeatMode}
-        isAdminMode={isAdminMode}
-        isFavorite={selectedTrack ? favorites.isFavorite(selectedTrack.id) : false}
-        copied={copied}
-        offlineState={offlineState}
-        offlineProgress={offlineProgress}
-        offlineMessage={offlineMessage}
-        onSaveOffline={saveTrackOffline}
-        onNowPlayingClick={() => selectedTrack && navigate(`/nlmsongs/track/${encodeURIComponent(selectedTrack.id)}`)}
-        onTogglePlayback={togglePlaybackWithAccess}
-        onPreviousTrack={playPrevious}
-        onNextTrack={playNext}
-        onToggleShuffle={queue.toggleShuffle}
-        onCycleRepeat={queue.cycleRepeat}
-        onSeek={audioPlayer.seek}
-        onSetVolume={audioPlayer.setVolume}
-        onToggleFavorite={() => selectedTrack && favorites.toggleFavorite(selectedTrack.id)}
-        onShare={shareTrack}
-        onOpenPlaylist={() => setShowPlaylistModal(true)}
-      />
+      {showFloatingPlayer && playerElement ? createPortal(<div className="nlm-player-portal">{playerElement}</div>, document.body) : null}
     </div>
   );
 };
