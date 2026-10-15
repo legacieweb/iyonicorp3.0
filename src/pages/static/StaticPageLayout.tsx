@@ -46,7 +46,7 @@ export const StaticPageLayout: React.FC<StaticPageLayoutProps> = ({ title, eyebr
         <p>One foundation. Many business experiences.</p>
       </div>
     </main>
-    <HomepageFooter showAboutCta={false} />
+    <HomepageFooter />
   </div>
 );
 

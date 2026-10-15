@@ -60,7 +60,7 @@ export const Homepage: React.FC = () => {
           <p className="ir-inclusive">For service businesses, independent professionals, local businesses, product sellers, and growing teams.</p>
           <div className="ir-hero-actions">
             <Link className="ir-button ir-button-dark" to="/bizhub#your-path">Build your business <ArrowRight size={17} /></Link>
-            <a className="ir-link" href="#ecosystem">Explore the platform <ArrowDown size={15} /></a>
+            <a className="ir-link" href="#ecosystem" onClick={(event) => { event.preventDefault(); window.history.replaceState(null, '', '#ecosystem'); document.getElementById('ecosystem')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>Explore the platform <ArrowDown size={15} /></a>
           </div>
           <div className="ir-hero-foot"><span>ONE PLACE TO BEGIN</span><i /><span>ROOM FOR WHAT’S NEXT</span></div>
         </div>
@@ -89,8 +89,7 @@ export const Homepage: React.FC = () => {
 
       <section className="ir-businesses ir-reveal" id="businesses">
         <div className="ir-section-intro"><div><p className="ir-kicker"><span className="ir-kicker-dash" /> BUILT AROUND HOW YOU DO BUSINESS</p><h2>Every kind of<br /><em>business belongs.</em></h2></div><p>The IYONICORP ecosystem supports the way different businesses work: build an online presence, serve customers, get paid, stay organized, and keep routine work moving.</p></div>
-        <div className="ir-business-list">{businesses.map(({ title, examples, icon: Icon, shade }, index) => <article className={`ir-business-row ${shade}`} key={title}><span className="ir-business-number">0{index + 1}</span><div className="ir-business-icon"><Icon size={21} strokeWidth={1.6} /></div><h3>{title}</h3><p>{examples}</p></article>)}</div>
-        <div className="ir-bizhub-line"><span className="ir-bizhub-word">A CONNECTED SYSTEM</span><p>From your online business presence to payments, customer communication, information, and automation—each part supports how you work.</p><Link to="/#ecosystem">See how it connects <ArrowRight size={15} /></Link></div>
+        <div className="ir-business-list">{businesses.map(({ title, examples, icon: Icon, shade }, index) => <article className={`ir-business-card ${shade}`} key={title}><div className="ir-business-card-top"><span className="ir-business-number">0{index + 1}</span><div className="ir-business-icon"><Icon size={21} strokeWidth={1.6} /></div></div><h3>{title}</h3><p>{examples}</p><span className="ir-business-card-rule" aria-hidden="true" /></article>)}</div>
       </section>
 
       <section className="ir-ecosystem ir-reveal" id="ecosystem">

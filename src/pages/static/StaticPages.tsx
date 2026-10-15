@@ -122,7 +122,7 @@ export const Documentation: React.FC = () => (
         ))}
       </ol>
     </section>
-    <section className="mt-16 grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <section className="mt-16">
       <div>
         <SectionHeading eyebrow="Guides" title="Find your next step" />
         <div className="divide-y divide-gray-200 border-y border-gray-200">
@@ -139,60 +139,7 @@ export const Documentation: React.FC = () => (
           ))}
         </div>
       </div>
-      <aside id="integration" className="h-fit border-l-4 border-blue-700 bg-blue-50/70 p-6 sm:p-8">
-        <p className="text-xs font-bold uppercase tracking-widest text-blue-800">For developers</p>
-        <h2 className="mt-3 text-2xl font-bold text-gray-950">Connect through the API</h2>
-        <p className="mt-3 leading-7 text-gray-600">Review request conventions, authentication, and the API endpoints currently used by the platform.</p>
-        <Link to="/api-reference" className="mt-6 inline-flex items-center gap-2 font-bold text-blue-800 hover:text-blue-950">Open API reference <ArrowRight className="h-4 w-4" /></Link>
-      </aside>
     </section>
-  </StaticPage>
-);
-
-export const APIReference: React.FC = () => (
-  <StaticPage title="API reference" description="A practical reference for the API conventions and account endpoints currently used by Iyonicorp." eyebrow="Resources / Developers" icon={Book}>
-    <div className="api-reference-layout grid gap-14 lg:grid-cols-[minmax(0,1fr)_17rem]">
-      <div className="api-reference-content max-w-4xl">
-        <section>
-          <SectionHeading eyebrow="Getting connected" title="Requests, authentication, and responses">
-            The web client sends JSON requests to the API base URL configured with <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">VITE_API_URL</code>. When unset, local development uses <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">https://api.iyonicorp.com/api</code> and production uses the current host's <code className="rounded bg-gray-100 px-1.5 py-0.5 text-sm">/api</code> endpoint.
-          </SectionHeading>
-          <div className="grid gap-6 border-y border-gray-200 py-6 sm:grid-cols-2">
-            <div><h2 className="font-bold text-gray-950">Content type</h2><p className="mt-2 text-sm leading-6 text-gray-600">Send JSON with <code>Content-Type: application/json</code> for standard requests.</p></div>
-            <div><h2 className="font-bold text-gray-950">Authentication</h2><p className="mt-2 text-sm leading-6 text-gray-600">Authenticated requests include the session token in the <code>x-auth-token</code> header.</p></div>
-          </div>
-        </section>
-        <section className="mt-14">
-          <SectionHeading eyebrow="Account endpoints" title="Start with authentication" />
-          <div className="api-reference-endpoints divide-y divide-gray-200 border-y border-gray-200">
-            {[
-              { method: 'POST', path: '/auth/register', purpose: 'Create a seller, manager, or customer account.' },
-              { method: 'POST', path: '/auth/login', purpose: 'Authenticate with an email address and password.' },
-              { method: 'GET', path: '/auth/me', purpose: 'Get the current authenticated account.' },
-              { method: 'PATCH', path: '/sellers/me', purpose: 'Update the current seller profile.' },
-            ].map((endpoint) => (
-              <div key={endpoint.path} className="grid gap-2 py-4 sm:grid-cols-[5rem_14rem_minmax(0,1fr)] sm:items-center sm:gap-4">
-                <span className="w-fit rounded bg-blue-50 px-2 py-1 font-mono text-xs font-bold text-blue-800">{endpoint.method}</span>
-                <code className="text-sm font-semibold text-gray-950">{endpoint.path}</code>
-                <p className="text-sm leading-6 text-gray-600">{endpoint.purpose}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-        <section className="mt-14">
-          <SectionHeading eyebrow="Example" title="Log in with JSON" />
-          <pre className="overflow-x-auto rounded-lg bg-gray-950 p-5 text-sm leading-6 text-gray-100"><code>{`curl -X POST "$API_BASE_URL/auth/login" \\
-  -H "Content-Type: application/json" \\
-  -d '{"email":"you@example.com","password":"your-password"}'`}</code></pre>
-          <p className="mt-4 text-sm leading-6 text-gray-600">A successful login returns an account and token. Keep credentials and tokens private; never include real secrets in client-side source code or public issue reports.</p>
-        </section>
-      </div>
-      <aside className="h-fit border-t-2 border-gray-950 pt-5">
-        <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500">Reference notes</h2>
-        <p className="mt-4 text-sm leading-6 text-gray-600">This page documents the endpoints currently called by the web client. It is not a complete schema or a guarantee that every backend route is a supported public API.</p>
-        <Link to="/documentation" className="mt-5 inline-flex items-center gap-2 font-semibold text-blue-800 hover:text-blue-950">Back to documentation <ArrowRight className="h-4 w-4" /></Link>
-      </aside>
-    </div>
   </StaticPage>
 );
 

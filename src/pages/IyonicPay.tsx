@@ -4303,7 +4303,7 @@ const handleWithdraw = async (e: React.FormEvent) => {
         </div>
       </section>
 
-      <HomepageFooter showAboutCta={false} />
+      <HomepageFooter />
 
 
       {/* Modals */}

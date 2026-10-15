@@ -63,13 +63,6 @@
 .iyoni-info-main .text-amber-900 { color: #77552c; }
 .iyoni-info-main > div:last-child { border-color: var(--info-line); color: #68746a; }
 .iyoni-info-main > div:last-child a { color: var(--info-ink); }
-.api-reference-layout, .api-reference-layout > *, .api-reference-content, .api-reference-content > *, .api-reference-endpoints, .api-reference-endpoints > * { min-width: 0; max-width: 100%; }
-.api-reference-content h1, .api-reference-content h2, .api-reference-content h3, .api-reference-content p { overflow-wrap: anywhere; }
-.api-reference-content code:not(pre code) { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
-.api-reference-content pre { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; }
-.api-reference-content pre code { display: block; min-width: max-content; white-space: pre; overflow-wrap: normal; }
-.api-reference-endpoints > div { min-width: 0; max-width: 100%; }
-.api-reference-endpoints > div > code { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
 @media (max-width: 760px) {
   .iyoni-info-header-inner { width: calc(100% - 40px); min-height: 68px; }
   .iyoni-info-hero-inner { width: calc(100% - 40px); min-height: 0; padding: 57px 0 61px; }
@@ -80,9 +73,6 @@
   .iyoni-info-main [class*='sm:grid-cols'] { min-width: 0; }
   .iyoni-info-main article > section { margin-bottom: 28px; }
   .iyoni-info-main pre { max-width: 100%; font-size: 12px; }
-  .api-reference-layout, .api-reference-content { width: 100%; min-width: 0; }
-  .api-reference-layout { overflow: clip; }
-  .api-reference-content pre { white-space: pre; }
 }
 @media (prefers-reduced-motion: reduce) {
   .iyoni-info-page *, .iyoni-info-page *::before, .iyoni-info-page *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }

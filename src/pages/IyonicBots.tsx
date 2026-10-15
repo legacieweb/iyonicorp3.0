@@ -1548,7 +1548,7 @@ const IyonicBots: React.FC = () => {
         <section className="ii-final-cta" aria-labelledby="ii-final-title"><p className="ii-kicker"><span /> YOUR NEXT STEP</p><h2 id="ii-final-title">Give your knowledge<br /><em>a voice.</em></h2><p>Explore the workspace and see how its tools fit your team.</p><div><button type="button" className="ii-button ii-button-bright" onClick={() => setIsRegisterPopupOpen(true)}>Create your workspace <ArrowRight size={17} /></button><button type="button" className="ii-final-login" onClick={() => setIsLoginPopupOpen(true)}>Already have an account? Log in</button></div></section>
       </main>
 
-      <HomepageFooter showAboutCta={false} />
+      <HomepageFooter />
 
       {/* Modals */}
       {/* Full Page Auth Overlays */}

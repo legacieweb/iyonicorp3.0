@@ -61,7 +61,7 @@ export const IyonicShop: React.FC<IyonicShopProps> = ({ onSignIn }) => {
         <section className="bh-close"><div className="bh-close-index">READY WHEN YOU ARE <span>—</span> 03</div><div><p>Pick your starting point.<br /><em>We’ll build from there.</em></p><span>Choose the merchant or manager path that fits your business.</span></div><Link to="/bizhub#your-path">Choose your path <ArrowRight size={17} /></Link><span className="bh-close-orbit" aria-hidden="true" /></section>
       </main>
 
-      <HomepageFooter showAboutCta={false} />
+      <HomepageFooter />
     </div>
   );
 };

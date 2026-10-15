@@ -31,7 +31,6 @@ const footerGroups = [
     title: 'Resources',
     links: [
       { name: 'Docs', href: '/documentation' },
-      { name: 'API', href: '/api-reference' },
       { name: 'Help', href: '/help-center' },
       { name: 'Status', href: '/status' },
       { name: 'Refunds', href: '/refunds' },

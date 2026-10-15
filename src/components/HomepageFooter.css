@@ -1,37 +1,66 @@
-/* A compact company footer, shared across the homepage and product pages. */
-.icorp-footer{position:relative;overflow:hidden;isolation:isolate;padding:0 max(24px,calc((100% - 1184px)/2)) 18px;background:#172d25;color:#f5f2e9;font-family:'DM Sans','Segoe UI',sans-serif}
-.icorp-footer::before{content:"";position:absolute;z-index:-1;inset:0 0 auto;height:245px;background:linear-gradient(105deg,#1d4434,#244e3d 70%,#1d4434)}
-.icorp-footer::after{content:"";position:absolute;z-index:-1;top:-170px;right:7%;width:430px;height:430px;border:1px solid #d5e7d21a;border-radius:50%;box-shadow:0 0 0 46px #d5e7d208,0 0 0 100px #d5e7d205;pointer-events:none}
-.icorp-footer-inner{position:relative;max-width:1440px;margin:auto}
-.icorp-footer-cta{display:flex;align-items:center;justify-content:space-between;gap:32px;min-height:220px;padding:35px 0;border-bottom:1px solid #c1d6c036}
-.icorp-footer-eyebrow{color:#bad0bc;font-size:9px;font-weight:700;letter-spacing:.15em}
-.icorp-footer-cta h2{max-width:600px;margin:12px 0 0;color:#f5f2e9;font:600 clamp(30px,4vw,48px)/1.03 'Manrope','DM Sans',sans-serif;letter-spacing:-.065em}
-.icorp-footer-button{display:inline-flex;align-items:center;justify-content:center;gap:19px;flex:0 0 auto;min-height:45px;padding:0 16px;background:#f5f2e9;color:#1c4233;font-size:11px;font-weight:700;text-decoration:none;transition:transform .18s ease,background .18s ease,color .18s ease}
-.icorp-footer-button:hover{transform:translateY(-2px);background:#a9c6ff;color:#172d25}
-.icorp-footer-main{display:grid;grid-template-columns:minmax(220px,.75fr) minmax(0,1.6fr);gap:clamp(42px,7vw,100px);padding:50px 0 43px}
-.icorp-footer-wordmark{display:inline-flex;align-items:center;gap:11px;color:#f5f2e9;font-size:clamp(23px,2.5vw,31px);font-weight:750;letter-spacing:-.06em;text-decoration:none}
-.icorp-footer-wordmark img{width:39px;height:39px;object-fit:contain}
-.icorp-footer-brand>p{max-width:275px;margin:17px 0 24px;color:#c5d5c7;font-size:12px;line-height:1.7}
-.icorp-footer-signature{display:inline-flex;align-items:center;gap:9px;color:#a9bdaa;font-size:8px;font-weight:700;letter-spacing:.14em}
-.icorp-footer-signature i{width:19px;height:1px;background:#a9c6ff}
-.icorp-footer-nav{display:grid;grid-template-columns:1.15fr 1fr 1.15fr .8fr;gap:clamp(14px,2.4vw,32px);padding-top:4px}
-.icorp-footer-nav h3{margin:0 0 17px;color:#a9bdaa;font-size:8px;letter-spacing:.16em;text-transform:uppercase}
-.icorp-footer-nav ul{display:grid;gap:11px;margin:0;padding:0;list-style:none}
-.icorp-footer-nav a{color:#f0f2e9;font-size:11px;text-decoration:none;transition:color .15s ease}
-.icorp-footer-nav a:hover{color:#a9c6ff}
-.icorp-footer a:focus-visible,.icorp-footer button:focus-visible{outline:2px solid #a9c6ff;outline-offset:4px;border-radius:2px}
-.icorp-footer-bottom{display:flex;align-items:center;gap:18px;min-height:52px;border-top:1px solid #c1d6c02e;color:#a9bdaa;font-size:8px;letter-spacing:.035em}
-.icorp-footer-signals{margin-left:auto;color:#c5d5c7}
-.icorp-footer-bottom button{display:grid;width:31px;height:31px;place-items:center;border:1px solid #829989;border-radius:50%;background:transparent;color:#f5f2e9;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
-.icorp-footer-bottom button:hover{border-color:#a9c6ff;background:#a9c6ff;color:#172d25}
-@media(max-width:900px){.icorp-footer-main{grid-template-columns:1fr;gap:38px;padding:43px 0 38px}.icorp-footer-nav{max-width:760px}}
-@media(max-width:600px){.icorp-footer{padding:0 20px 14px}.icorp-footer::before{height:250px}.icorp-footer::after{right:-42%;opacity:.6}.icorp-footer-cta{align-items:flex-start;flex-direction:column;justify-content:center;min-height:235px;padding:32px 0;gap:19px}.icorp-footer-cta h2{max-width:420px;font-size:clamp(32px,9vw,43px)}.icorp-footer-button{width:100%;justify-content:space-between}.icorp-footer-main{gap:34px;padding:38px 0 32px}.icorp-footer-nav{grid-template-columns:repeat(2,minmax(0,1fr));gap:28px 20px}.icorp-footer-bottom{flex-wrap:wrap;padding:12px 0}.icorp-footer-signals{width:calc(100% - 50px);order:2;margin:0}.icorp-footer-bottom button{margin-left:auto}}
-@media(prefers-reduced-motion:reduce){.icorp-footer *, .icorp-footer *::before, .icorp-footer *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}}
-/* The footer-wide link color must not override the CTA's dark foreground. */
-.icorp-footer a.icorp-footer-button{background:#f5f2e9;color:#1c4233}
-.icorp-footer a.icorp-footer-button:hover{background:#a9c6ff;color:#172d25}
-.icorp-footer a.icorp-footer-button:focus-visible{outline:3px solid #a9c6ff;outline-offset:4px}
-.icorp-footer--compact::before{height:100%;background:linear-gradient(130deg,#1d4434 0%,#172d25 55%,#1a382c 100%)}
-.icorp-footer--compact .icorp-footer-main{padding-top:54px}
-@media(max-width:900px){.icorp-footer--compact .icorp-footer-main{padding-top:46px}}
-@media(max-width:600px){.icorp-footer--compact .icorp-footer-main{padding-top:38px}}
+.icorp-footer {
+  position: relative;
+  overflow: hidden;
+  padding: 64px max(24px, calc((100% - 1184px) / 2)) 20px;
+  background: #142820;
+  color: #f4f6f0;
+  font-family: 'DM Sans', 'Segoe UI', sans-serif;
+}
+
+.icorp-footer::before {
+  position: absolute;
+  top: -210px;
+  right: -100px;
+  width: 440px;
+  height: 440px;
+  border: 1px solid #c9dfcf18;
+  border-radius: 50%;
+  box-shadow: 0 0 0 52px #c9dfcf0c, 0 0 0 106px #c9dfcf08;
+  content: '';
+  pointer-events: none;
+}
+
+.icorp-footer-inner { position: relative; max-width: 1184px; margin: 0 auto; }
+.icorp-footer-main { display: grid; grid-template-columns: minmax(210px, .85fr) 2fr; gap: clamp(48px, 8vw, 112px); padding: 0 0 48px; }
+.icorp-footer-wordmark { display: inline-flex; align-items: center; gap: 12px; color: #f4f6f0; font-size: 27px; font-weight: 720; letter-spacing: -.055em; text-decoration: none; }
+.icorp-footer-wordmark img { width: 38px; height: 38px; object-fit: contain; }
+.icorp-footer-brand > p { max-width: 270px; margin: 18px 0 24px; color: #b8c8bd; font-size: 14px; line-height: 1.7; }
+.icorp-footer-signature { display: inline-flex; align-items: center; gap: 9px; color: #a8b9ad; font-size: 9px; font-weight: 700; letter-spacing: .14em; }
+.icorp-footer-signature i { width: 20px; height: 1px; background: #b6d5ba; }
+.icorp-footer-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; padding-top: 6px; }
+.icorp-footer-nav h3 { margin: 0 0 18px; color: #9eafa3; font-size: 10px; letter-spacing: .13em; text-transform: uppercase; }
+.icorp-footer-nav ul { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.icorp-footer-nav a { color: #edf1eb; font-size: 13px; text-decoration: none; transition: color .18s ease; }
+.icorp-footer-nav a:hover { color: #b7d6b9; }
+.icorp-footer a:focus-visible, .icorp-footer button:focus-visible { outline: 2px solid #b7d6b9; outline-offset: 4px; border-radius: 3px; }
+.icorp-footer-bottom { display: flex; align-items: center; gap: 24px; min-height: 64px; border-top: 1px solid #d1dfd126; color: #aabbb0; font-size: 11px; }
+.icorp-footer-social ul { display: flex; flex-wrap: wrap; gap: 9px; margin: 0; padding: 0; list-style: none; }
+.icorp-footer-social a { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid #72877a; border-radius: 50%; color: #f4f6f0; transition: background .18s ease, border-color .18s ease, color .18s ease, transform .18s ease; }
+.icorp-footer-social a:hover { transform: translateY(-2px); border-color: #b7d6b9; background: #b7d6b9; color: #142820; }
+.icorp-footer-social svg { width: 16px; height: 16px; fill: currentColor; }
+.icorp-footer-signals { margin-left: auto; color: #b8c8bd; }
+.icorp-footer-bottom button { display: grid; flex: 0 0 auto; width: 36px; height: 36px; place-items: center; border: 1px solid #72877a; border-radius: 50%; background: transparent; color: #f4f6f0; cursor: pointer; transition: background .18s ease, border-color .18s ease, color .18s ease; }
+.icorp-footer-bottom button:hover { border-color: #b7d6b9; background: #b7d6b9; color: #142820; }
+
+@media (max-width: 900px) {
+  .icorp-footer { padding-top: 52px; }
+  .icorp-footer-main { grid-template-columns: 1fr; gap: 40px; padding-bottom: 42px; }
+  .icorp-footer-nav { max-width: 760px; }
+}
+
+@media (max-width: 600px) {
+  .icorp-footer { padding: 44px 20px 16px; }
+  .icorp-footer::before { right: -250px; opacity: .6; }
+  .icorp-footer-main { gap: 36px; padding-bottom: 34px; }
+  .icorp-footer-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 30px 22px; }
+  .icorp-footer-bottom { flex-wrap: wrap; gap: 14px; padding: 16px 0 4px; }
+  .icorp-footer-bottom > span:first-child { flex: 1 1 calc(100% - 52px); }
+  .icorp-footer-bottom button { margin-left: auto; }
+  .icorp-footer-social { flex: 1 1 100%; order: 3; }
+  .icorp-footer-social ul { gap: 8px; }
+  .icorp-footer-signals { flex: 1 1 auto; order: 4; margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icorp-footer *, .icorp-footer *::before, .icorp-footer *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+}

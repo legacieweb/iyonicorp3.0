@@ -80,7 +80,6 @@ const Careers = lazy(() => import('./pages/static').then(({ Careers }) => ({ def
 const Blog = lazy(() => import('./pages/static').then(({ Blog }) => ({ default: Blog })));
 const Press = lazy(() => import('./pages/static').then(({ Press }) => ({ default: Press })));
 const Documentation = lazy(() => import('./pages/static').then(({ Documentation }) => ({ default: Documentation })));
-const APIReference = lazy(() => import('./pages/static').then(({ APIReference }) => ({ default: APIReference })));
 const HelpCenter = lazy(() => import('./pages/static').then(({ HelpCenter }) => ({ default: HelpCenter })));
 const Status = lazy(() => import('./pages/static').then(({ Status }) => ({ default: Status })));
 const Privacy = lazy(() => import('./pages/static').then(({ Privacy }) => ({ default: Privacy })));
@@ -215,6 +214,16 @@ const AppContent: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  React.useLayoutEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      if (location.hash) {
+        document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.key, location.pathname, location.search, location.hash]);
   const directCrownStrokePath = !window.location.hash
     && /^\/pdp\/crown-stroke\/(?:store|studio\/[^/]+|product\/[^/]+)\/?$/.test(window.location.pathname);
 
@@ -587,7 +596,6 @@ const AppContent: React.FC = () => {
       <Route path="/blog" element={<Blog />} />
       <Route path="/press" element={<Press />} />
       <Route path="/documentation" element={<Documentation />} />
-      <Route path="/api-reference" element={<APIReference />} />
       <Route path="/iyonic-mailer" element={<IyonicMailer />} />
       <Route path="/iyonic-mailer/docs" element={<IyonicMailerDocs />} />
       <Route path="/iyonic-mailer/login" element={<IyonicMailerAuthWrapper mode="login" />} />

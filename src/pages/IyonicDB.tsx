@@ -248,7 +248,7 @@ export const IyonicDB: React.FC = () => {
           <span className="idb-closing-seal"><Layers3 size={20} /><b>ONE<br />WORKSPACE</b></span>
         </section>
       </main>
-      <HomepageFooter showAboutCta={false} />
+      <HomepageFooter />
     </div>
   );
 };
