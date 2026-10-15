@@ -85,7 +85,7 @@ export const Homepage: React.FC = () => {
         <span className="ir-hero-index" aria-hidden="true">01 / BUSINESS, IN MOTION</span>
       </section>
 
-      <section className="ir-manifesto" aria-label="IYONICORP business platform"><span>THE IYONICORP PLATFORM</span><strong>Start with your business.</strong><i>→</i><strong>Connect the work around it.</strong><span>START · RUN · AUTOMATE</span></section>
+      <section className="ir-manifesto" aria-label="IYONICORP business platform"><span className="ir-manifesto-label">THE IYONICORP PLATFORM</span><div className="ir-manifesto-statement"><strong>Start with your business.</strong><i aria-hidden="true">→</i><strong>Connect the work around it.</strong></div><span className="ir-manifesto-signoff">START · RUN · AUTOMATE</span></section>
 
       <section className="ir-businesses ir-reveal" id="businesses">
         <div className="ir-section-intro"><div><p className="ir-kicker"><span className="ir-kicker-dash" /> BUILT AROUND HOW YOU DO BUSINESS</p><h2>Every kind of<br /><em>business belongs.</em></h2></div><p>The IYONICORP ecosystem supports the way different businesses work: build an online presence, serve customers, get paid, stay organized, and keep routine work moving.</p></div>
@@ -93,12 +93,10 @@ export const Homepage: React.FC = () => {
       </section>
 
       <section className="ir-ecosystem ir-reveal" id="ecosystem">
-        <div className="ir-eco-heading" id="products"><div><p className="ir-kicker"><span className="ir-kicker-dash" /> ONE CONNECTED ECOSYSTEM</p><h2>One ecosystem.<br />Every part of <em>business.</em></h2></div><p>Each IYONICORP product has a clear role. Together, they help your business show up online, handle everyday operations, serve customers, and automate repeat work.</p></div>
-        <div className="ir-eco-layout">
-          <div className="ir-eco-core"><span className="ir-core-orbit ir-orbit-a" /><span className="ir-core-orbit ir-orbit-b" /><span className="ir-core-kicker">YOUR BUSINESS ECOSYSTEM</span><strong>IYONICORP</strong><p>Start. Run. Automate.</p><Link to="/about">How it works <ArrowUpRight size={14} /></Link><span className="ir-core-dot" /></div>
-          <div className="ir-tools">{tools.map(({ name, role, copy, href, icon: Icon, color }, index) => <Link to={href} className={`ir-tool ir-tool-${color}`} key={name}><span className="ir-tool-index">0{index + 1}</span><span className="ir-tool-icon"><Icon size={19} strokeWidth={1.7} /></span><span className="ir-tool-copy"><small>{role}</small><strong>{name}</strong><span>{copy}</span></span><ArrowUpRight className="ir-tool-arrow" size={17} /></Link>)}</div>
-        </div>
-        <div className="ir-eco-caption"><span>CONNECTED BY YOUR BUSINESS</span><i /><span>USE WHAT YOU NEED, WHEN YOU NEED IT</span></div>
+        <div className="ir-eco-heading" id="products"><div><p className="ir-kicker"><span className="ir-kicker-dash" /> ONE CONNECTED ECOSYSTEM</p><h2>One ecosystem.<br />Every part of <em>business.</em></h2></div><p>Five purpose-built tools, connected to help you build your presence, run daily operations, serve customers, and automate the repeat work.</p></div>
+        <div className="ir-eco-banner"><div className="ir-eco-brand"><span className="ir-core-kicker">YOUR BUSINESS, CONNECTED</span><strong>IYONICORP</strong></div><p>Start with what you need.<br /><b>Grow with everything connected.</b></p><span className="ir-eco-banner-mark" aria-hidden="true">I.</span></div>
+        <div className="ir-tools">{tools.map(({ name, role, copy, href, icon: Icon, color }, index) => <Link to={href} className={`ir-tool ir-tool-${color}`} key={name}><span className="ir-tool-index">0{index + 1}</span><span className="ir-tool-icon"><Icon size={19} strokeWidth={1.7} /></span><span className="ir-tool-copy"><small>{role}</small><strong>{name}</strong><span>{copy}</span></span><ArrowUpRight className="ir-tool-arrow" size={17} /></Link>)}</div>
+        <div className="ir-eco-caption"><span>ONE PLATFORM, FIVE CONNECTED TOOLS</span><i /><span>CHOOSE A PLACE TO START</span></div>
       </section>
 
       <section className="ir-lifecycle ir-reveal">

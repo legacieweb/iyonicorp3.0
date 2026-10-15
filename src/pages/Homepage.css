@@ -76,6 +76,7 @@
 .ir-hero-index { position:absolute; right:-32px; top:47%; color:#a0a89c; writing-mode:vertical-rl; font-size:8px; font-weight:700; letter-spacing:.15em; }
 .ir-manifesto { min-height:82px; padding:20px max(48px,calc((100% - 1320px)/2)); display:flex; align-items:center; justify-content:space-between; gap:16px; border-block:1px solid var(--line); background:#eeece2; color:#415244; }
 .ir-manifesto span { color:#7b867a; font-size:8px; font-weight:700; letter-spacing:.12em; }
+.ir-manifesto-statement { display:flex; align-items:center; justify-content:center; gap:17px; }
 .ir-manifesto strong { font:600 14px var(--display); letter-spacing:-.04em; }
 .ir-manifesto i { color:var(--blue); font-style:normal; }
 .ir-businesses { padding:112px max(48px,calc((100% - 1120px)/2)) 110px; scroll-margin-top:24px; }
@@ -98,7 +99,13 @@
 .ir-ecosystem { padding:107px max(48px,calc((100% - 1120px)/2)) 94px; background:#e8ece3; }
 .ir-eco-heading { margin-bottom:35px; }
 .ir-eco-heading h2 { font-size:clamp(47px,6vw,72px); }
-.ir-eco-layout { min-height:394px; display:grid; grid-template-columns:.85fr 1.15fr; align-items:center; gap:70px; }
+.ir-eco-banner { position:relative; min-height:112px; display:flex; align-items:center; justify-content:space-between; gap:24px; margin:0 0 13px; padding:22px 31px; overflow:hidden; color:#f7f7ef; background:#263d31; }
+.ir-eco-brand { display:flex; flex-direction:column; gap:4px; }
+.ir-eco-brand .ir-core-kicker { color:#b8c8b6; }
+.ir-eco-brand strong { font:700 30px/1 var(--display); letter-spacing:-.08em; }
+.ir-eco-banner>p { z-index:1; margin:0 auto 0 30px; color:#d5dfd2; font-size:13px; line-height:1.65; }
+.ir-eco-banner>p b { color:#fff; font-weight:650; }
+.ir-eco-banner-mark { position:absolute; right:24px; top:-45px; color:#ffffff0b; font:700 180px/.9 var(--display); letter-spacing:-.12em; pointer-events:none; }
 .ir-eco-core { position:relative; isolation:isolate; width:260px; height:260px; justify-self:center; display:flex; flex-direction:column; align-items:center; justify-content:center; border:1px solid #90a18d; border-radius:50%; background:radial-gradient(circle at 50% 41%,#fffdf8 0,#f8f6ed 57%,#e6ebde 100%); box-shadow:0 15px 36px #52634c13; text-align:center; }
 .ir-core-orbit { position:absolute; z-index:-1; border:1px solid #78927955; border-radius:50%; }
 .ir-orbit-a { inset:-24px; border-style:dashed; }
@@ -109,19 +116,19 @@
 .ir-eco-core>a { display:flex; align-items:center; gap:7px; padding:8px 12px; background:var(--green); color:white; font-size:10px; font-weight:700; transition:background .2s,transform .2s; }
 .ir-eco-core>a:hover { background:var(--blue); }
 .ir-core-dot { position:absolute; right:20px; top:53px; width:8px; height:8px; background:var(--blue); border:2px solid white; border-radius:50%; box-shadow:0 0 0 4px #4768ed1e; }
-.ir-tools { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
-.ir-tool { min-height:135px; position:relative; display:grid; grid-template-columns:25px 39px 1fr 16px; align-items:start; gap:10px; padding:15px 13px; border:1px solid #d0d8cc; background:#f8f7f0; transition:transform .22s,border-color .22s,box-shadow .22s; }
+.ir-tools { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
+.ir-tool { min-height:178px; position:relative; display:grid; grid-template-columns:20px 1fr 16px; grid-template-rows:auto auto 1fr; align-items:start; gap:11px 9px; padding:18px 15px; border:1px solid #d0d8cc; background:#f8f7f0; transition:transform .22s,border-color .22s,box-shadow .22s; }
 .ir-tool:hover { transform:translateY(-4px); border-color:#839580; box-shadow:0 12px 24px #3d513c12; }
 .ir-tool-index { padding-top:3px; color:#8b9589; font-size:8px; }
-.ir-tool-icon { width:36px; height:36px; display:grid; place-items:center; color:var(--blue); background:#e3e8fc; }
+.ir-tool-icon { grid-column:2; grid-row:1; width:38px; height:38px; display:grid; place-items:center; color:var(--blue); background:#e3e8fc; }
 .ir-tool-mint .ir-tool-icon { color:#39765a; background:#dce9d7; }
 .ir-tool-sand .ir-tool-icon { color:#806b49; background:#eee6d5; }
 .ir-tool-rose .ir-tool-icon { color:#9e6573; background:#f1e2e4; }
-.ir-tool-copy { min-width:0; display:flex; flex-direction:column; }
+.ir-tool-copy { grid-column:1/4; grid-row:2/4; min-width:0; display:flex; flex-direction:column; }
 .ir-tool-copy small { color:#566858; font-size:9px; }
 .ir-tool-copy strong { margin-top:2px; font:700 13px var(--display); letter-spacing:-.04em; }
 .ir-tool-copy>span { margin-top:7px; color:#5f6f61; font-size:9px; line-height:1.5; }
-.ir-tool-arrow { color:#65766a; }
+.ir-tool-arrow { grid-column:3; grid-row:1; color:#65766a; }
 .ir-eco-caption { display:flex; align-items:center; justify-content:center; gap:12px; margin-top:44px; color:#7a8779; font-size:8px; font-weight:700; letter-spacing:.12em; }
 .ir-eco-caption i { width:30px; height:1px; background:#9ba99a; }
 .ir-lifecycle { padding:110px max(48px,calc((100% - 1120px)/2)) 116px; }
@@ -170,8 +177,8 @@
   .ir-hero { grid-template-columns:.9fr 1.1fr; gap:40px; }
   .ir-hero h1 { font-size:clamp(68px,9vw,98px); }
   .ir-hero-index { right:-20px; }
-  .ir-eco-layout { gap:35px; }
-  .ir-tool { grid-template-columns:18px 31px 1fr 12px; gap:7px; padding:12px 9px; }
+  .ir-tools { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .ir-tool { min-height:155px; grid-template-columns:18px 1fr 12px; gap:8px; padding:14px 11px; }
   .ir-tool-icon { width:31px; height:31px; }
 }
 @media (max-width:760px) {
@@ -186,22 +193,35 @@
   .ir-salon { height:265px; width:72%; }
   .ir-goods { top:146px; width:55%; }
   .ir-hero-index { display:none; }
-  .ir-manifesto { padding:18px 20px; flex-wrap:wrap; justify-content:center; gap:10px 18px; text-align:center; }
-  .ir-manifesto span:first-child,.ir-manifesto span:last-child { flex-basis:100%; }
-  .ir-manifesto strong { font-size:12px; }
+  .ir-manifesto { min-height:unset; padding:21px 20px 19px; flex-wrap:wrap; justify-content:center; gap:10px; text-align:center; }
+  .ir-manifesto-label,.ir-manifesto-signoff { flex-basis:100%; }
+  .ir-manifesto-label { font-size:8px!important; }
+  .ir-manifesto-statement { width:100%; max-width:430px; justify-content:space-between; gap:10px; }
+  .ir-manifesto-statement strong { flex:1 1 0; min-width:0; font:650 clamp(14px,3.8vw,18px)/1.3 var(--display); letter-spacing:-.045em; text-align:left; }
+  .ir-manifesto-statement strong:last-child { text-align:right; }
+  .ir-manifesto-statement i { flex:0 0 auto; display:grid; width:30px; height:30px; place-items:center; border:1px solid #cbd3c7; border-radius:50%; font-size:15px; }
+  .ir-manifesto-signoff { font-size:8px!important; letter-spacing:.17em!important; }
   .ir-businesses,.ir-ecosystem,.ir-lifecycle { padding:78px 20px; }
   .ir-section-intro,.ir-eco-heading { display:block; margin-bottom:30px; }
+  .ir-eco-heading h2 { font-size:clamp(38px,10vw,56px); line-height:1.02; letter-spacing:-.075em; }
   .ir-section-intro>p,.ir-eco-heading>p { margin-top:18px; font-size:12px; }
   .ir-business-list { grid-template-columns:1fr; gap:11px; }
   .ir-business-card { min-height:176px; padding:18px 19px 20px; }
   .ir-business-card-top { margin-bottom:17px; }
   .ir-business-card h3 { font-size:21px; }
   .ir-business-card p { font-size:11px; }
-  .ir-eco-layout { grid-template-columns:1fr; gap:40px; }
-  .ir-eco-core { width:220px; height:220px; }
-  .ir-tools { width:100%; }
-  .ir-tool { min-height:120px; }
-  .ir-eco-caption { margin-top:30px; font-size:8px; }
+  .ir-eco-banner { min-height:unset; align-items:flex-start; flex-direction:column; gap:12px; padding:20px; }
+  .ir-eco-banner>p { margin:0; font-size:12px; }
+  .ir-eco-brand strong { font-size:26px; }
+  .ir-eco-banner-mark { right:9px; top:-23px; font-size:130px; }
+  .ir-tools { width:100%; grid-template-columns:1fr; gap:8px; }
+  .ir-tool { min-height:96px; grid-template-columns:24px 36px minmax(0,1fr) 16px; align-items:center; padding:14px; }
+  .ir-tool-copy { min-width:0; overflow-wrap:anywhere; }
+  .ir-tool-copy small { line-height:1.4; }
+  .ir-tool-copy strong { line-height:1.3; }
+  .ir-tool-copy>span { margin-top:4px; }
+  .ir-eco-caption { flex-direction:column; gap:7px; margin-top:25px; text-align:center; }
+  .ir-eco-caption i { width:20px; }
   .ir-lifecycle-title { display:block; padding-bottom:25px; }
   .ir-lifecycle-title h2 { font-size:clamp(41px,9vw,61px); }
   .ir-lifecycle-steps { grid-template-columns:1fr; }
@@ -238,10 +258,20 @@
   .ir-connect-label { font-size:8px; }
   .ir-businesses,.ir-ecosystem,.ir-lifecycle { padding:67px 18px; }
   .ir-tools { grid-template-columns:1fr; }
-  .ir-tool { min-height:92px; grid-template-columns:22px 36px 1fr 16px; align-items:center; }
-  .ir-tool-copy>span { margin-top:3px; font-size:10px; }
+  .ir-eco-core { min-height:112px; padding:17px; }
+  .ir-eco-core>strong { font-size:24px; }
+  .ir-eco-core>a { gap:5px; padding:8px; font-size:9px; }
+  .ir-tool { min-height:89px; grid-template-columns:20px 33px minmax(0,1fr) 14px; gap:8px; align-items:center; padding:12px 10px; }
+  .ir-tool-icon { width:32px; height:32px; }
+  .ir-tool-copy strong { font-size:12px; }
+  .ir-tool-copy>span { margin-top:3px; font-size:9px; }
   .ir-tool-copy small { font-size:9px; }
+  .ir-manifesto { padding-inline:16px; }
+  .ir-manifesto-statement { gap:6px; }
+  .ir-manifesto-statement strong { font-size:14px; }
+  .ir-manifesto-statement i { width:25px; height:25px; }
   .ir-eco-caption { gap:7px; letter-spacing:.06em; }
+  .ir-eco-caption span { max-width:100%; }
   .ir-eco-caption i { width:17px; }
 }
 @media (prefers-reduced-motion:reduce) {
