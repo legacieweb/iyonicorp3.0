@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Input } from '../../components/ui';
 import {
@@ -353,6 +353,9 @@ export const IyonicMailerAuth: React.FC<IyonicMailerAuthProps> = ({
                     {mode === 'login' ? 'Create Account' : 'Sign In'}
                   </button>
                 </p>
+                <Link to="/product-access/iyonic-mailer" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900">
+                  Already have an IYONICORP account? Opt in to IyonicMailer <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
             </form>
           </div>

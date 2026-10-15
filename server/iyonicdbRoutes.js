@@ -7,10 +7,10 @@ const PLANS = {
     name: 'Launch',
     price: 10,
     currency: 'USD',
-    projectLimit: 1,
-    storageBytes: 2 * 1024 ** 3,
-    requestsPerMonth: 1_000_000,
-    tableLimit: 10,
+    projectLimit: 3,
+    storageBytes: 10 * 1024 ** 3,
+    requestsPerMonth: 2_000_000,
+    tableLimit: 25,
   },
   growth: {
     id: 'growth',
@@ -34,6 +34,19 @@ const PLANS = {
   },
 };
 
+const FREE_PLAN = {
+  id: 'free',
+  name: 'Free',
+  price: 0,
+  currency: 'USD',
+  projectLimit: 1,
+  storageBytes: 5 * 1024 ** 3,
+  requestsPerMonth: 100_000,
+  tableLimit: 10,
+  status: 'active',
+  currentPeriodEnd: null,
+};
+
 const identifierPattern = /^[a-z][a-z0-9_]{0,62}$/;
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const quoteIdentifier = (value) => `"${String(value).replaceAll('"', '""')}"`;
@@ -55,10 +68,244 @@ const getCurrentSubscription = async (db, userId, client = db) => {
   );
   const row = result.rows[0];
   if (!row || row.status !== 'active' || new Date(row.current_period_end) <= new Date()) {
-    return null;
+    return { ...safePlan(FREE_PLAN) };
   }
   const plan = PLANS[row.plan_id];
-  return plan ? { ...safePlan(plan), status: row.status, currentPeriodEnd: row.current_period_end } : null;
+  return plan ? { ...safePlan(plan), status: row.status, currentPeriodEnd: row.current_period_end } : { ...safePlan(FREE_PLAN) };
+};
+
+const getProjectInventory = async (client, projectId) => {
+  const schema = schemaForProject(projectId);
+  const tables = await client.query(
+    `SELECT table_name FROM information_schema.tables
+     WHERE table_schema = $1 AND table_type = 'BASE TABLE' AND table_name <> 'iyonicdb_documents'
+     ORDER BY table_name`,
+    [schema]
+  );
+  const counts = await Promise.all(tables.rows.map(async ({ table_name }) => {
+    const result = await client.query(`SELECT count(*)::int AS count FROM ${quoteIdentifier(schema)}.${quoteIdentifier(table_name)}`);
+    return Number(result.rows[0]?.count || 0);
+  }));
+  const documents = await client.query(
+    `SELECT count(*)::int AS count FROM ${quoteIdentifier(schema)}.${quoteIdentifier('iyonicdb_documents')}`
+  );
+  return { tablesCount: tables.rowCount, recordsCount: counts.reduce((total, count) => total + count, Number(documents.rows[0]?.count || 0)) };
+};
+
+const PRODUCT_ACCOUNTS = {
+  bizhub: { name: 'BizHub', tables: ['sellers', 'products', 'categories', 'customers', 'orders', 'refund_requests', 'reviews', 'discounts', 'messages', 'social_media_accounts', 'social_media_posts', 'vip_theme_purchases', 'vip_theme_offers'], tablePrefixes: ['products', 'categories', 'customers', 'orders', 'refund_requests', 'reviews', 'discounts', 'messages', 'social_media_', 'vip_theme_'] },
+  iyonicpay: { name: 'IyonicPay', tables: ['wallets', 'transactions', 'invoices', 'withdrawals'] },
+  iyonicintelligence: { name: 'Iyonic Intelligence', tables: ['bots', 'bot_knowledge_documents', 'bot_faqs', 'bot_conversations', 'bot_messages', 'bot_knowledge_gaps'], tablePrefixes: ['bot_'] },
+  'iyonic-mailer': { name: 'IyonicMailer', tables: ['email_marketing_settings', 'email_campaigns', 'email_templates'], tablePrefixes: ['email_marketing_'] },
+  nlmsongs: { name: 'NLM', tables: ['nlm_songs', 'nlm_subscription_plans', 'nlm_access_features'], tablePrefixes: ['nlm_'] },
+  ixstream: { name: 'IxStream', tables: ['ixstream_content', 'ixstream_subscription_plans', 'ixstream_subscriptions'], tablePrefixes: ['ixstream_'] },
+  iyonicpos: { name: 'Apex POS', tables: ['pos_employees', 'pos_tables', 'pos_shifts', 'pos_inventory', 'pos_inventory_adjustments', 'pos_loyalty', 'pos_event_log', 'pos_loyalty_transactions'], tablePrefixes: ['pos_'] },
+};
+const sensitiveAccountField = /(password|secret|credential|access.?token|refresh.?token|authorization|api.?key|private.?key|pin_hash|bank.?details|smtp.?user)/i;
+const sanitizeAccountValue = (value) => {
+  if (Array.isArray(value)) return value.map(sanitizeAccountValue);
+  if (value && typeof value === 'object' && !(value instanceof Date) && !Buffer.isBuffer(value)) {
+    return Object.fromEntries(Object.entries(value)
+      .filter(([key]) => !sensitiveAccountField.test(key))
+      .map(([key, child]) => [key, sanitizeAccountValue(child)]));
+  }
+  return value;
+};
+
+const getAccountTable = async (db, tableName) => {
+  const result = await db.query(
+    `SELECT table_schema
+     FROM information_schema.tables
+     WHERE table_name = $1
+       AND table_type = 'BASE TABLE'
+       AND table_schema = ANY(current_schemas(false)::text[])
+     ORDER BY array_position(current_schemas(false)::text[], table_schema)
+     LIMIT 1`,
+    [tableName]
+  );
+  const schema = result.rows[0]?.table_schema;
+  return schema ? { schema, reference: `${quoteIdentifier(schema)}.${quoteIdentifier(tableName)}` } : null;
+};
+const getAccountRelation = async (db, tableName) => (await getAccountTable(db, tableName))?.reference || null;
+
+const getProductTables = async (db, productKey) => {
+  const product = PRODUCT_ACCOUNTS[productKey];
+  if (!product) return [];
+  const specialSellerScopedTables = productKey === 'bizhub' ? ['reviews'] : productKey === 'iyonicpos' ? ['pos_loyalty_transactions'] : [];
+  const result = await db.query(
+    `SELECT t.table_name
+     FROM information_schema.tables t
+     WHERE t.table_type = 'BASE TABLE'
+       AND t.table_schema = ANY(current_schemas(false)::text[])
+       AND (t.table_name = ANY($1::text[]) OR EXISTS (
+         SELECT 1 FROM unnest($2::text[]) AS prefix(value) WHERE starts_with(t.table_name, prefix.value)
+       ))
+       AND (EXISTS (
+         SELECT 1 FROM information_schema.columns c
+         WHERE c.table_schema = t.table_schema AND c.table_name = t.table_name AND c.column_name = 'seller_id'
+       ) OR t.table_name = ANY($3::text[]))
+     ORDER BY t.table_name`,
+    [product.tables, product.tablePrefixes || [], specialSellerScopedTables]
+  );
+  return [...new Set([...product.tables, ...result.rows.map((row) => row.table_name)])];
+};
+
+const getAccountMedia = async (db, productKey, accountId, userId, includeRecords = true) => {
+  const names = ['iyonic_media_assets', ...(productKey === 'bizhub' ? ['products', 'sellers', 'social_media_posts'] : []), ...(productKey === 'iyonicintelligence' ? ['bot_knowledge_documents'] : []), ...(productKey === 'iyonic-mailer' ? ['email_templates'] : []), ...(productKey === 'nlmsongs' ? ['nlm_songs'] : [])];
+  const relations = Object.fromEntries(await Promise.all(names.map(async (name) => [name, await getAccountRelation(db, name)])));
+  const relation = (name) => relations[name];
+  if (!relation('iyonic_media_assets')) return includeRecords ? [] : 0;
+  const uploadScope = productKey === 'iyonicpay' ? 'seller_id IS NULL AND user_id = $1' : 'seller_id = $2::uuid OR (seller_id IS NULL AND user_id = $1)';
+  const sources = [
+    `SELECT url, original_name AS "originalName", mime_type AS "mimeType", media_type AS "mediaType", size_bytes AS "sizeBytes", created_at AS "createdAt", 'uploads' AS source
+     FROM ${relation('iyonic_media_assets')} WHERE ${uploadScope}`,
+  ];
+  if (productKey === 'bizhub' && relation('products') && relation('sellers') && relation('social_media_posts')) sources.push(
+    `SELECT unnest(COALESCE(images, ARRAY[]::text[])) AS url, name AS "originalName", NULL::text AS "mimeType", 'image' AS "mediaType", 0::bigint AS "sizeBytes", created_at AS "createdAt", 'products' AS source FROM ${relation('products')} WHERE seller_id = $2::uuid`,
+    `SELECT unnest(COALESCE(videos, ARRAY[]::text[])) AS url, name AS "originalName", NULL::text AS "mimeType", 'video' AS "mediaType", 0::bigint AS "sizeBytes", created_at AS "createdAt", 'products' AS source FROM ${relation('products')} WHERE seller_id = $2::uuid`,
+    `SELECT logo AS url, store_name AS "originalName", NULL::text AS "mimeType", 'image' AS "mediaType", 0::bigint AS "sizeBytes", updated_at AS "createdAt", 'store branding' AS source FROM ${relation('sellers')} WHERE id = $2::uuid AND logo IS NOT NULL AND logo <> ''`,
+    `SELECT image_url AS url, left(content, 80) AS "originalName", NULL::text AS "mimeType", 'image' AS "mediaType", 0::bigint AS "sizeBytes", created_at AS "createdAt", 'social posts' AS source FROM ${relation('social_media_posts')} WHERE seller_id = $2::uuid AND image_url IS NOT NULL AND image_url <> ''`
+  );
+  if (productKey === 'iyonicintelligence' && relation('bot_knowledge_documents')) sources.push(
+    `SELECT source_url AS url, title AS "originalName", 'application/octet-stream' AS "mimeType", 'document' AS "mediaType", 0::bigint AS "sizeBytes", created_at AS "createdAt", 'knowledge documents' AS source FROM ${relation('bot_knowledge_documents')} WHERE seller_id = $2::uuid AND source_url IS NOT NULL AND source_url <> ''`
+  );
+  if (productKey === 'iyonic-mailer' && relation('email_templates')) sources.push(
+    `SELECT preview_image AS url, name AS "originalName", NULL::text AS "mimeType", 'image' AS "mediaType", 0::bigint AS "sizeBytes", created_at AS "createdAt", 'email templates' AS source FROM ${relation('email_templates')} WHERE seller_id = $2::uuid AND preview_image IS NOT NULL AND preview_image <> ''`
+  );
+  if (productKey === 'nlmsongs' && relation('nlm_songs')) sources.push(
+    `SELECT audio_url AS url, title AS "originalName", audio_mime_type AS "mimeType", 'audio' AS "mediaType", COALESCE(octet_length(audio_data), 0)::bigint AS "sizeBytes", created_at AS "createdAt", 'NLM audio' AS source FROM ${relation('nlm_songs')} WHERE (seller_id = $2::uuid OR (seller_id IS NULL AND created_by = $1::uuid)) AND audio_url IS NOT NULL AND audio_url <> ''`,
+    `SELECT thumbnail_url AS url, title AS "originalName", thumbnail_mime_type AS "mimeType", 'image' AS "mediaType", COALESCE(octet_length(thumbnail_data), 0)::bigint AS "sizeBytes", created_at AS "createdAt", 'NLM artwork' AS source FROM ${relation('nlm_songs')} WHERE (seller_id = $2::uuid OR (seller_id IS NULL AND created_by = $1::uuid)) AND thumbnail_url IS NOT NULL AND thumbnail_url <> ''`
+  );
+  const union = sources.map((source) => `(${source})`).join(' UNION ALL ');
+  const params = productKey === 'iyonicpay' ? [userId] : [userId, accountId];
+  if (!includeRecords) {
+    const count = await db.query(`SELECT count(DISTINCT url)::int AS count FROM (${union}) media WHERE url IS NOT NULL AND url <> ''`, params);
+    return Number(count.rows[0]?.count || 0);
+  }
+  const result = await db.query(
+    `SELECT DISTINCT ON (url) url, "originalName", "mimeType", "mediaType", COALESCE("sizeBytes", 0) AS "sizeBytes", "createdAt", source
+     FROM (${union}) media WHERE url IS NOT NULL AND url <> '' ORDER BY url, "createdAt" DESC NULLS LAST LIMIT 1000`,
+    params
+  );
+  return result.rows.map((row) => ({
+    ...row,
+    id: row.url,
+    originalName: row.originalName || String(row.url).split('/').pop() || 'Media file',
+    mediaType: row.mediaType || 'other',
+    mimeType: row.mimeType || '',
+    sizeBytes: Number(row.sizeBytes || 0),
+  }));
+};
+
+const getProductDataset = async (db, productKey, table, accountId, userId, isSellerWorkspace, includeRecords = true) => {
+  const product = PRODUCT_ACCOUNTS[productKey];
+  if (!product || (!product.tables.includes(table) && !(product.tablePrefixes || []).some((prefix) => table.startsWith(prefix)))) return { name: table, records: [], count: 0 };
+  const tableInfo = await getAccountTable(db, table);
+  const tableRelation = tableInfo?.reference;
+  if (!tableRelation) return { name: table, records: [], count: 0, error: 'This data set is not available in the connected database.' };
+  const columns = await db.query(
+    'SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2',
+    [tableInfo.schema, table]
+  );
+  const available = new Set(columns.rows.map((row) => row.column_name));
+  let from = tableRelation;
+  let where;
+  let params;
+  if (table === 'sellers') {
+    where = 'id = $1';
+    params = [accountId];
+  } else if (productKey === 'iyonicpay' && table === 'transactions') {
+    from = `${tableRelation} t`;
+    where = 't.sender_wallet_id IN (SELECT id FROM wallets WHERE user_id = $1) OR t.receiver_wallet_id IN (SELECT id FROM wallets WHERE user_id = $1)';
+    params = [userId];
+  } else if (productKey === 'bizhub' && table === 'reviews' && isSellerWorkspace) {
+    const productsRelation = await getAccountRelation(db, 'products');
+    if (!productsRelation) return { name: table, records: [], count: 0, error: 'Product review data is not available.' };
+    from = `${tableRelation} r JOIN ${productsRelation} p ON p.id = r.product_id`;
+    where = 'p.seller_id = $1';
+    params = [accountId];
+  } else if (productKey === 'nlmsongs' && table === 'nlm_songs' && isSellerWorkspace) {
+    where = 'seller_id = $1 OR (seller_id IS NULL AND created_by = $2)';
+    params = [accountId, userId];
+  } else if (productKey === 'iyonicpos' && table === 'pos_loyalty_transactions' && isSellerWorkspace) {
+    const loyaltyRelation = await getAccountRelation(db, 'pos_loyalty');
+    if (!loyaltyRelation) return { name: table, records: [], count: 0, error: 'POS loyalty data is not available.' };
+    from = `${tableRelation} t JOIN ${loyaltyRelation} l ON l.id = t.loyalty_id`;
+    where = 'l.seller_id = $1';
+    params = [accountId];
+  } else if (productKey === 'iyonicintelligence' && table === 'bot_messages' && isSellerWorkspace) {
+    const conversationsRelation = await getAccountRelation(db, 'bot_conversations');
+    if (!conversationsRelation) return { name: table, records: [], count: 0, error: 'Conversation data is not available.' };
+    from = `${tableRelation} m JOIN ${conversationsRelation} c ON c.id = m.conversation_id`;
+    where = 'c.seller_id = $1';
+    params = [accountId];
+  } else {
+    const ownerColumn = isSellerWorkspace && available.has('seller_id') ? 'seller_id'
+      : !isSellerWorkspace && available.has('user_id') ? 'user_id'
+        : !isSellerWorkspace && available.has('created_by') ? 'created_by' : null;
+    if (!ownerColumn) return { name: table, records: [], count: 0 };
+    where = `${quoteIdentifier(ownerColumn)} = $1`;
+    params = [accountId];
+  }
+  const countResult = await db.query(`SELECT count(*)::int AS count FROM ${from} WHERE ${where}`, params);
+  const count = Number(countResult.rows[0]?.count || 0);
+  if (!includeRecords) return { name: table, records: [], count };
+  const orderColumn = ['created_at', 'updated_at', 'id'].find((column) => available.has(column));
+  const orderAlias = table === 'transactions' || table === 'pos_loyalty_transactions' ? 't.' : table === 'bot_messages' ? 'm.' : table === 'reviews' ? 'r.' : '';
+  const orderBy = orderColumn ? `${orderAlias}${quoteIdentifier(orderColumn)} DESC` : '';
+  const select = table === 'bot_messages' ? 'm.*' : table === 'transactions' || table === 'pos_loyalty_transactions' ? 't.*' : table === 'reviews' ? 'r.*'
+    : table === 'nlm_songs' ? [...available].filter((column) => !['audio_data', 'thumbnail_data'].includes(column)).map(quoteIdentifier).join(', ') : '*';
+  const result = await db.query(`SELECT ${select} FROM ${from} WHERE ${where}${orderBy ? ` ORDER BY ${orderBy}` : ''} LIMIT 200`, params);
+  const records = result.rows.map(sanitizeAccountValue);
+  return { name: table, records, count };
+};
+
+const getConnectedProductProjects = async (db, userId, accountEmail) => {
+  const access = await db.query(
+    `SELECT a.product_key FROM user_product_access a
+     JOIN users u ON u.id = a.user_id
+     WHERE LOWER(u.email) = LOWER($1) AND a.product_key = ANY($2::text[])`,
+    [accountEmail, Object.keys(PRODUCT_ACCOUNTS)]
+  );
+  const optedProducts = new Set(access.rows.map((row) => row.product_key));
+  const sellers = await db.query(
+    `SELECT DISTINCT s.id, s.store_name, s.created_at, s.theme FROM sellers s
+     LEFT JOIN users owner ON owner.id = s.user_id
+     LEFT JOIN seller_managers sm ON sm.id = s.manager_id
+     LEFT JOIN users manager ON manager.id = sm.user_id
+     WHERE LOWER(owner.email) = LOWER($1) OR LOWER(manager.email) = LOWER($1)
+     ORDER BY s.created_at`,
+    [accountEmail]
+  );
+  const profile = await db.query('SELECT name FROM users WHERE id = $1', [userId]);
+  const workspaces = [];
+  for (const seller of sellers.rows) {
+    const isNlmStore = String(seller.theme?.selectedTheme || '').toLowerCase() === 'nlmsongs';
+    const selectedTheme = String(seller.theme?.selectedTheme || '').toLowerCase();
+    const themeProduct = isNlmStore ? 'nlmsongs' : selectedTheme === 'ixstream' ? 'ixstream' : 'bizhub';
+    const productKeys = [themeProduct, ...['bizhub', 'iyonicintelligence', 'iyonic-mailer', 'ixstream', 'iyonicpos', 'nlmsongs'].filter((key) => key !== themeProduct)];
+    for (const productKey of productKeys) {
+      const product = PRODUCT_ACCOUNTS[productKey];
+      const tables = await getProductTables(db, productKey);
+      const sets = await Promise.all(tables.map((table) => getProductDataset(db, productKey, table, seller.id, userId, true, false)));
+      const recordsCount = sets.reduce((total, set) => total + set.count, 0);
+      const mediaCount = await getAccountMedia(db, productKey, seller.id, userId, false);
+      if (productKey !== themeProduct && !optedProducts.has(productKey) && !recordsCount) continue;
+      workspaces.push({ id: `account:${productKey}:${seller.id}`, name: `${product.name} · ${seller.store_name}`, createdAt: null, tablesCount: sets.filter((set) => set.count > 0).length + (mediaCount ? 1 : 0), recordsCount, mediaCount, storageBytes: 0, isProductAccount: true, productKey, accountId: seller.id, accountName: seller.store_name });
+    }
+  }
+  const paySets = await Promise.all(PRODUCT_ACCOUNTS.iyonicpay.tables.map((table) => getProductDataset(db, 'iyonicpay', table, userId, userId, false, false)));
+  const payCount = paySets.reduce((total, set) => total + set.count, 0);
+  const payMediaCount = await getAccountMedia(db, 'iyonicpay', userId, userId, false);
+  if (optedProducts.has('iyonicpay') || payCount) workspaces.push({ id: `account:iyonicpay:${userId}`, name: `IyonicPay · ${profile.rows[0]?.name || 'Personal account'}`, createdAt: null, tablesCount: paySets.filter((set) => set.count > 0).length + (payMediaCount ? 1 : 0), recordsCount: payCount, mediaCount: payMediaCount, storageBytes: 0, isProductAccount: true, productKey: 'iyonicpay', accountId: userId, accountName: profile.rows[0]?.name || 'Personal account' });
+  if (optedProducts.has('bizhub') && !sellers.rows.length) workspaces.push({ id: `account:bizhub:${userId}`, name: 'BizHub · Personal workspace', createdAt: null, tablesCount: 0, recordsCount: 0, storageBytes: 0, isProductAccount: true, productKey: 'bizhub', accountId: userId, accountName: 'Personal workspace' });
+  for (const productKey of ['iyonicintelligence', 'iyonic-mailer']) {
+    if (optedProducts.has(productKey) && !sellers.rows.length) {
+      const product = PRODUCT_ACCOUNTS[productKey];
+      workspaces.push({ id: `account:${productKey}:${userId}`, name: `${product.name} · Personal workspace`, createdAt: null, tablesCount: 0, recordsCount: 0, storageBytes: 0, isProductAccount: true, productKey, accountId: userId, accountName: 'Personal workspace' });
+    }
+  }
+  return workspaces;
 };
 
 const getProject = async (db, userId, projectId, client = db) => {
@@ -417,30 +664,39 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     return next();
   });
 
-  app.get('/api/iyonicdb/plans', (req, res) => res.json(Object.values(PLANS).map(safePlan)));
+  app.get('/api/iyonicdb/plans', (req, res) => res.json([safePlan(FREE_PLAN), ...Object.values(PLANS).map(safePlan)]));
 
   app.get('/api/iyonicdb/overview', authenticateToken, async (req, res) => {
     try {
-      const [projects, subscription, usage] = await Promise.all([
+      const identity = await db.query('SELECT id, email FROM users WHERE id = $1', [req.user.id]);
+      if (!identity.rows[0]?.email) return res.status(401).json({ message: 'Your account email could not be verified. Please sign in again.' });
+      const accountEmail = String(identity.rows[0].email).trim().toLowerCase();
+      const [projects, connectedProjects, subscription, usage, wallet] = await Promise.all([
         db.query('SELECT id, name, created_at FROM iyonicdb_projects WHERE user_id = $1 ORDER BY created_at', [req.user.id]),
+        getConnectedProductProjects(db, req.user.id, accountEmail),
         getCurrentSubscription(db, req.user.id),
         db.query(
           `SELECT request_count FROM iyonicdb_usage
            WHERE user_id = $1 AND month_start = date_trunc('month', CURRENT_TIMESTAMP)::date`,
           [req.user.id]
         ),
+        db.query('SELECT balance, currency FROM wallets WHERE user_id = $1', [req.user.id]),
       ]);
-      const projectStorage = await Promise.all(projects.rows.map(async (project) => ({
-        projectId: project.id,
-        bytes: await getProjectStorageBytes(db, project.id),
-      })));
+      const databaseProjects = await Promise.all(projects.rows.map(async (project) => {
+        const [storageBytes, inventory] = await Promise.all([
+          getProjectStorageBytes(db, project.id),
+          getProjectInventory(db, project.id),
+        ]);
+        return { id: project.id, name: project.name, createdAt: project.created_at, storageBytes, ...inventory };
+      }));
       res.json({
-        projects: projects.rows.map((project) => ({ id: project.id, name: project.name, createdAt: project.created_at })),
+        projects: [...connectedProjects, ...databaseProjects],
         subscription,
+        wallet: wallet.rows[0] ? { balance: Number(wallet.rows[0].balance || 0), currency: wallet.rows[0].currency || 'USD' } : { balance: 0, currency: 'USD' },
         usage: {
           requests: Number(usage.rows[0]?.request_count || 0),
           requestLimit: subscription?.requestsPerMonth || 0,
-          storageBytes: projectStorage.reduce((total, project) => total + project.bytes, 0),
+          storageBytes: databaseProjects.reduce((total, project) => total + project.storageBytes, 0),
           storageLimitBytes: subscription?.storageBytes || 0,
           periodStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
         },
@@ -448,6 +704,151 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     } catch (error) {
       console.error('IyonicDB overview failed:', error);
       res.status(500).json({ message: 'Could not load the IyonicDB account overview.' });
+    }
+  });
+
+  app.get('/api/iyonicdb/accounts/:productKey/:accountId/data', authenticateToken, async (req, res) => {
+    const { productKey, accountId } = req.params;
+    const product = PRODUCT_ACCOUNTS[productKey];
+    if (!product) return res.status(404).json({ message: 'Connected product workspace not found.' });
+    if (!uuidPattern.test(String(accountId))) return res.status(404).json({ message: 'Workspace not found.' });
+    try {
+      const identity = await db.query('SELECT id, email FROM users WHERE id = $1', [req.user.id]);
+      const accountEmail = String(identity.rows[0]?.email || '').trim().toLowerCase();
+      if (!accountEmail) return res.status(401).json({ message: 'Your account email could not be verified. Please sign in again.' });
+      if (req.query.email && String(req.query.email).trim().toLowerCase() !== accountEmail) {
+        return res.status(403).json({ message: 'The requested email does not match your signed-in account.' });
+      }
+      const seller = productKey === 'iyonicpay' ? { rows: [] } : await db.query(
+        `SELECT DISTINCT s.id, s.store_name FROM sellers s
+         LEFT JOIN users owner ON owner.id = s.user_id
+         LEFT JOIN seller_managers sm ON sm.id = s.manager_id
+         LEFT JOIN users manager ON manager.id = sm.user_id
+         WHERE s.id = $1 AND (LOWER(owner.email) = LOWER($2) OR LOWER(manager.email) = LOWER($2))`,
+        [accountId, accountEmail]
+      );
+      const isSellerWorkspace = seller.rowCount > 0;
+      const optedIn = await db.query(
+        `SELECT 1 FROM user_product_access a JOIN users u ON u.id = a.user_id
+         WHERE LOWER(u.email) = LOWER($1) AND a.product_key = $2`,
+        [accountEmail, productKey]
+      );
+      const isPersonalWorkspace = accountId === req.user.id && (productKey === 'iyonicpay' || optedIn.rowCount > 0);
+      if (!isSellerWorkspace && !isPersonalWorkspace) return res.status(404).json({ message: 'Workspace not found.' });
+      if (productKey === 'iyonicpay' && !isPersonalWorkspace) return res.status(404).json({ message: 'Workspace not found.' });
+      const accountOwnerId = isSellerWorkspace ? accountId : req.user.id;
+      const tables = await getProductTables(db, productKey);
+      const datasets = await Promise.all(tables.map((table) => getProductDataset(db, productKey, table, accountOwnerId, req.user.id, isSellerWorkspace)));
+      const accountMedia = await getAccountMedia(db, productKey, accountOwnerId, req.user.id);
+      const mediaByUrl = new Map(accountMedia.map((asset) => [asset.url, asset]));
+      const findLegacyMedia = (value, key, record, tableName) => {
+        if (Array.isArray(value)) return value.forEach((item) => findLegacyMedia(item, key, record, tableName));
+        if (value && typeof value === 'object') return Object.entries(value).forEach(([childKey, childValue]) => findLegacyMedia(childValue, childKey, record, tableName));
+        if (typeof value !== 'string' || !/^https?:\/\//i.test(value) || !/(image|video|audio|thumbnail|logo|media|file|source_url)/i.test(key)) return;
+        if (mediaByUrl.has(value)) return;
+        const mediaType = /video/i.test(key) ? 'video' : /audio/i.test(key) ? 'audio' : 'image';
+        mediaByUrl.set(value, { id: `${tableName}:${record.id || value}`, originalName: record.name || record.title || value.split('/').pop(), url: value, mediaType, mimeType: '', sizeBytes: 0, createdAt: record.created_at || null, source: tableName });
+      };
+      datasets.forEach((dataset) => dataset.records.forEach((record) => Object.entries(record).forEach(([key, value]) => findLegacyMedia(value, key, record, dataset.name))));
+      const mediaCount = await getAccountMedia(db, productKey, accountOwnerId, req.user.id, false);
+      datasets.unshift({ name: 'media', records: [...mediaByUrl.values()], count: Math.max(mediaCount, mediaByUrl.size) });
+      const profile = isPersonalWorkspace ? await db.query('SELECT name FROM users WHERE id = $1', [req.user.id]) : null;
+      res.json({ productKey, productName: product.name, accountName: seller.rows[0]?.store_name || profile?.rows[0]?.name || 'Personal workspace', datasets });
+    } catch (error) {
+      console.error('IyonicDB product workspace data failed:', error);
+      res.status(500).json({ message: 'Could not load this product workspace data.' });
+    }
+  });
+
+  app.get('/api/iyonicdb/media', authenticateToken, async (req, res) => {
+    try {
+      const sellers = await db.query(
+        `SELECT s.id FROM sellers s
+         LEFT JOIN seller_managers sm ON sm.id = s.manager_id
+         WHERE s.user_id = $1 OR sm.user_id = $1`,
+        [req.user.id]
+      );
+      const sellerIds = sellers.rows.map((row) => row.id);
+      const [savedAssets, productImages, productVideos, sellerLogos, socialImages, songs, streams] = await Promise.all([
+        db.query(
+          `SELECT original_name, url, mime_type, media_type, size_bytes, created_at, 'uploads' AS source
+           FROM iyonic_media_assets
+           WHERE user_id = $1 OR seller_id = ANY($2::uuid[])
+           ORDER BY created_at DESC`,
+          [req.user.id, sellerIds]
+        ),
+        db.query(
+          `SELECT unnest(COALESCE(p.images, ARRAY[]::text[])) AS url, 'image' AS media_type,
+                  p.name AS original_name, p.created_at, 'products' AS source
+           FROM products p WHERE p.seller_id = ANY($1::uuid[]) AND COALESCE(array_length(p.images, 1), 0) > 0`,
+          [sellerIds]
+        ),
+        db.query(
+          `SELECT unnest(COALESCE(p.videos, ARRAY[]::text[])) AS url, 'video' AS media_type,
+                  p.name AS original_name, p.created_at, 'products' AS source
+           FROM products p WHERE p.seller_id = ANY($1::uuid[]) AND COALESCE(array_length(p.videos, 1), 0) > 0`,
+          [sellerIds]
+        ),
+        db.query(
+          `SELECT logo AS url, 'image' AS media_type, store_name AS original_name,
+                  updated_at AS created_at, 'store branding' AS source
+           FROM sellers WHERE id = ANY($1::uuid[]) AND logo IS NOT NULL AND logo <> ''`,
+          [sellerIds]
+        ),
+        db.query(
+          `SELECT image_url AS url, 'image' AS media_type, left(content, 80) AS original_name,
+                  created_at, 'social posts' AS source
+           FROM social_media_posts WHERE seller_id = ANY($1::uuid[]) AND image_url IS NOT NULL AND image_url <> ''`,
+          [sellerIds]
+        ),
+        db.query(
+          `SELECT audio_url AS url, COALESCE(audio_mime_type, 'audio/mpeg') AS mime_type,
+                  'audio' AS media_type, title AS original_name, created_at, 'music library' AS source
+           FROM nlm_songs WHERE (created_by = $1 OR seller_id = ANY($2::uuid[])) AND audio_url <> ''
+           UNION ALL
+           SELECT thumbnail_url AS url, COALESCE(thumbnail_mime_type, 'image/jpeg') AS mime_type,
+                  'image' AS media_type, title || ' thumbnail' AS original_name, created_at, 'music library' AS source
+           FROM nlm_songs WHERE (created_by = $1 OR seller_id = ANY($2::uuid[])) AND thumbnail_url IS NOT NULL AND thumbnail_url <> ''`,
+          [req.user.id, sellerIds]
+        ),
+        db.query(
+          `SELECT video_url AS url, 'video' AS media_type, title AS original_name,
+                  created_at, 'IxStream' AS source
+           FROM ixstream_content WHERE (created_by = $1 OR seller_id = ANY($2::uuid[])) AND video_url <> ''
+           UNION ALL
+           SELECT thumbnail_url AS url, 'image' AS media_type, title || ' thumbnail' AS original_name,
+                  created_at, 'IxStream' AS source
+           FROM ixstream_content WHERE (created_by = $1 OR seller_id = ANY($2::uuid[])) AND thumbnail_url IS NOT NULL AND thumbnail_url <> ''`,
+          [req.user.id, sellerIds]
+        ),
+      ]);
+
+      const byUrl = new Map();
+      const addAssets = (rows) => rows.forEach((row) => {
+        if (!row.url || byUrl.has(row.url)) return;
+        const extension = String(row.url).split(/[?#]/)[0].split('.').pop()?.toLowerCase();
+        const mimeType = row.mime_type || (row.media_type === 'image' ? `image/${extension || 'jpeg'}` : row.media_type === 'video' ? `video/${extension || 'mp4'}` : row.media_type === 'audio' ? `audio/${extension || 'mpeg'}` : 'application/octet-stream');
+        let originalName = row.original_name;
+        if (!originalName || originalName.includes('http')) {
+          try { originalName = decodeURIComponent(new URL(row.url, 'http://localhost').pathname.split('/').pop() || 'Media file'); }
+          catch { originalName = 'Media file'; }
+        }
+        byUrl.set(row.url, {
+          id: row.id || row.url,
+          url: row.url,
+          originalName,
+          mediaType: row.media_type || (mimeType.startsWith('image/') ? 'image' : mimeType.startsWith('video/') ? 'video' : mimeType.startsWith('audio/') ? 'audio' : 'other'),
+          mimeType,
+          sizeBytes: Number(row.size_bytes || 0),
+          createdAt: row.created_at,
+          source: row.source || 'library',
+        });
+      });
+      [savedAssets, productImages, productVideos, sellerLogos, socialImages, songs, streams].forEach((result) => addAssets(result.rows));
+      res.json([...byUrl.values()].sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()));
+    } catch (error) {
+      console.error('IyonicDB media library failed:', error);
+      res.status(500).json({ message: 'Could not load your media library.' });
     }
   });
 
@@ -769,19 +1170,24 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     if (!plan) return res.status(400).json({ message: 'Choose a valid IyonicDB plan.' });
     if (!process.env.PAYSTACK_SECRET_KEY) return res.status(503).json({ message: 'Billing is unavailable because the payment provider is not configured.' });
     try {
+      const active = await db.query(
+        `SELECT plan_id FROM iyonicdb_subscriptions
+         WHERE user_id = $1 AND status = 'active' AND current_period_end > CURRENT_TIMESTAMP
+         ORDER BY current_period_end DESC LIMIT 1`,
+        [req.user.id]
+      );
+      if (active.rows[0]?.plan_id === plan.id) return res.status(409).json({ message: 'This plan is already active on your account.' });
       const user = await db.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
       if (!user.rows[0]?.email) return res.status(422).json({ message: 'An account email is required for checkout.' });
       const gateway = Paystack(process.env.PAYSTACK_SECRET_KEY);
-      const callbackUrl = `${process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:4000'}/#/iyonicdb/console?billing=verify`;
       const payment = await new Promise((resolve, reject) => gateway.transaction.initialize({
         email: user.rows[0].email,
         amount: Math.round(plan.price * 100),
         currency: plan.currency,
         channels: ['card', 'mobile_money'],
-        callback_url: callbackUrl,
         metadata: { type: 'iyonicdb_subscription', userId: req.user.id, planId: plan.id },
       }, (error, body) => error ? reject(error) : resolve(body)));
-      if (!payment?.status || !payment.data?.reference || !payment.data?.authorization_url) {
+      if (!payment?.status || !payment.data?.reference) {
         return res.status(502).json({ message: 'The payment provider did not return a checkout session.' });
       }
       await db.query(
@@ -789,10 +1195,76 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
          VALUES ($1, $2, $3, $4, $5)`,
         [payment.data.reference, req.user.id, plan.id, plan.price, plan.currency]
       );
-      res.json({ authorizationUrl: payment.data.authorization_url, reference: payment.data.reference });
+      res.json({ accessCode: payment.data.access_code, reference: payment.data.reference, amount: Math.round(plan.price * 100), currency: plan.currency, email: user.rows[0].email });
     } catch (error) {
       console.error('IyonicDB payment initialization failed:', error);
       res.status(500).json({ message: 'Could not start IyonicDB checkout.' });
+    }
+  });
+
+  app.post('/api/iyonicdb/billing/wallet/subscribe', authenticateToken, async (req, res) => {
+    const plan = PLANS[req.body?.planId];
+    if (!plan) return res.status(400).json({ message: 'Choose a valid IyonicDB plan.' });
+    const ratesToUsd = { USD: 1, KES: 125, EUR: 0.92, GBP: 0.79, NGN: 1500, GHS: 13 };
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const active = await client.query(
+        `SELECT plan_id FROM iyonicdb_subscriptions
+         WHERE user_id = $1 AND status = 'active' AND current_period_end > CURRENT_TIMESTAMP
+         ORDER BY current_period_end DESC LIMIT 1 FOR UPDATE`,
+        [req.user.id]
+      );
+      if (active.rows[0]?.plan_id === plan.id) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ message: 'This plan is already active on your account.' });
+      }
+      const wallet = await client.query('SELECT id, balance, currency FROM wallets WHERE user_id = $1 FOR UPDATE', [req.user.id]);
+      const currentWallet = wallet.rows[0];
+      if (!currentWallet) {
+        await client.query('ROLLBACK');
+        return res.status(402).json({ message: 'No IyonicPay wallet is linked to your account. Open IyonicPay and add funds to subscribe.' });
+      }
+      const currency = String(currentWallet.currency || 'USD').toUpperCase();
+      const rate = ratesToUsd[currency] || 1;
+      const charge = Math.round(plan.price * rate * 100) / 100;
+      if (Number(currentWallet.balance) < charge) {
+        await client.query('ROLLBACK');
+        return res.status(402).json({ message: `Your IyonicPay balance is too low. This plan costs ${charge.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}.` });
+      }
+      const now = new Date();
+      const periodEnd = new Date(now);
+      periodEnd.setUTCDate(periodEnd.getUTCDate() + 30);
+      const reference = `idb_wallet_${nanoid(24)}`;
+      await client.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [charge, currentWallet.id]);
+      await client.query(
+        `INSERT INTO transactions (sender_wallet_id, amount, currency, type, status, description)
+         VALUES ($1, $2, $3, 'invoice_payment', 'completed', $4)`,
+        [currentWallet.id, charge, currency, `IyonicDB ${plan.name} subscription`]
+      );
+      await client.query(
+        `UPDATE iyonicdb_subscriptions SET status = 'expired'
+         WHERE user_id = $1 AND status = 'active'`,
+        [req.user.id]
+      );
+      await client.query(
+        `INSERT INTO iyonicdb_subscriptions (user_id, plan_id, status, current_period_start, current_period_end, payment_reference, payment_method)
+         VALUES ($1, $2, 'active', $3, $4, $5, 'iyonicpay')`,
+        [req.user.id, plan.id, now, periodEnd, reference]
+      );
+      await client.query(
+        `INSERT INTO iyonicdb_payment_attempts (reference, user_id, plan_id, amount, currency, status, completed_at)
+         VALUES ($1, $2, $3, $4, $5, 'completed', CURRENT_TIMESTAMP)`,
+        [reference, req.user.id, plan.id, plan.price, plan.currency]
+      );
+      await client.query('COMMIT');
+      res.json({ message: `${plan.name} plan activated with IyonicPay.`, subscription: { ...safePlan(plan), status: 'active', currentPeriodEnd: periodEnd }, charged: { amount: charge, currency } });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('IyonicDB IyonicPay subscription failed:', error);
+      res.status(500).json({ message: 'Could not activate the subscription with IyonicPay.' });
+    } finally {
+      client.release();
     }
   });
 
@@ -839,8 +1311,13 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
       const periodEnd = new Date(now);
       periodEnd.setUTCDate(periodEnd.getUTCDate() + 30);
       await client.query(
-        `INSERT INTO iyonicdb_subscriptions (user_id, plan_id, status, current_period_start, current_period_end, payment_reference)
-         VALUES ($1, $2, 'active', $3, $4, $5)`,
+        `UPDATE iyonicdb_subscriptions SET status = 'expired'
+         WHERE user_id = $1 AND status = 'active'`,
+        [req.user.id]
+      );
+      await client.query(
+        `INSERT INTO iyonicdb_subscriptions (user_id, plan_id, status, current_period_start, current_period_end, payment_reference, payment_method)
+         VALUES ($1, $2, 'active', $3, $4, $5, 'paystack')`,
         [req.user.id, plan.id, now, periodEnd, reference]
       );
       await client.query(

@@ -732,6 +732,75 @@ app.post('/api/auth/link-store', async (req, res) => {
   }
 });
 
+// Activate another IYONICORP product for an existing business account.
+app.post('/api/auth/opt-in-product', async (req, res) => {
+  const productKeys = new Set(['bizhub', 'iyonicpay', 'iyonicintelligence', 'iyonicdb', 'iyonic-mailer']);
+  const username = String(req.body.username || '').trim();
+  const password = String(req.body.password || '');
+  const productKey = String(req.body.productKey || '').trim().toLowerCase();
+
+  if (!username || !password || !productKeys.has(productKey)) {
+    return res.status(400).json({ message: 'Enter your username and password, and choose a valid product.' });
+  }
+
+  try {
+    const userRes = await db.query(
+      `SELECT u.*, s.id AS seller_id, s.store_name, sm.id AS manager_id
+       FROM users u
+       LEFT JOIN sellers s ON s.user_id = u.id
+       LEFT JOIN seller_managers sm ON sm.user_id = u.id
+       WHERE LOWER(u.username) = LOWER($1) OR LOWER(u.email) = LOWER($1)
+       LIMIT 1`,
+      [username]
+    );
+    if (!userRes.rows.length) return res.status(404).json({ message: 'We could not find an account with that username.' });
+
+    const user = userRes.rows[0];
+    if (user.is_suspended) return res.status(403).json({ message: 'This account is suspended. Please contact support.' });
+    if (!['seller', 'seller_manager'].includes(user.role)) {
+      return res.status(403).json({ message: 'Product access is available for IYONICORP business accounts.' });
+    }
+    if (!(await bcrypt.compare(password, user.password_hash))) {
+      return res.status(401).json({ message: 'That username and password do not match. Please try again.' });
+    }
+
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        'INSERT INTO user_product_access (user_id, product_key) VALUES ($1, $2) ON CONFLICT (user_id, product_key) DO NOTHING',
+        [user.id, productKey]
+      );
+      if (productKey === 'iyonicpay') {
+        await client.query('UPDATE users SET iyonicpay_opt_in = TRUE WHERE id = $1', [user.id]);
+        const sellerRes = await client.query('SELECT currency FROM sellers WHERE user_id = $1 LIMIT 1', [user.id]);
+        await client.query(
+          'INSERT INTO wallets (user_id, balance, currency) VALUES ($1, 0, $2) ON CONFLICT (user_id) DO NOTHING',
+          [user.id, sellerRes.rows[0]?.currency || 'USD']
+        );
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    const token = jwt.sign({ id: user.id, role: user.role, sellerId: user.seller_id, managerId: user.manager_id }, JWT_SECRET, { expiresIn: '1d' });
+    const { password_hash, seller_id, manager_id, ...safeUser } = user;
+    res.json({
+      success: true,
+      productKey,
+      user: toCamel({ ...safeUser, seller_id, manager_id, iyonicpay_opt_in: productKey === 'iyonicpay' ? true : user.iyonicpay_opt_in }),
+      token
+    });
+  } catch (err) {
+    console.error('Product opt-in error:', err);
+    res.status(500).json({ message: 'We could not activate this product right now. Please try again.' });
+  }
+});
+
 // Login
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
@@ -5000,9 +5069,24 @@ app.post('/api/ixstream/subscriptions/paystack/verify', authenticateToken, async
   }
 });
 
-app.post('/api/upload', authenticateToken, upload.array('files', 10), (req, res) => {
+app.post('/api/upload', authenticateToken, upload.array('files', 10), async (req, res) => {
   try {
     const fileUrls = req.files.map(file => `${req.protocol}://${req.get('host')}/uploads/${file.filename}`);
+    let sellerId = req.user.sellerId || null;
+    if (!sellerId) {
+      const sellerRes = await db.query('SELECT id FROM sellers WHERE user_id = $1 ORDER BY created_at LIMIT 1', [req.user.id]);
+      sellerId = sellerRes.rows[0]?.id || null;
+    }
+    await Promise.all(req.files.map((file, index) => {
+      const mediaType = file.mimetype.startsWith('image/') ? 'image' : file.mimetype.startsWith('video/') ? 'video' : 'other';
+      return db.query(
+        `INSERT INTO iyonic_media_assets (user_id, seller_id, original_name, url, mime_type, media_type, size_bytes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (user_id, url) DO UPDATE SET original_name = EXCLUDED.original_name,
+           mime_type = EXCLUDED.mime_type, media_type = EXCLUDED.media_type, size_bytes = EXCLUDED.size_bytes`,
+        [req.user.id, sellerId, path.basename(file.originalname).slice(0, 255), fileUrls[index], file.mimetype, mediaType, file.size]
+      );
+    }));
     res.json({ urls: fileUrls });
   } catch (err) {
     console.error(err);

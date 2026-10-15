@@ -30,6 +30,14 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS user_product_access (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    product_key VARCHAR(80) NOT NULL,
+    opted_in_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, product_key)
+);
+
+
 -- Pending manager invitations are separate from users until accepted.
 CREATE TABLE IF NOT EXISTS manager_invitations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -78,6 +86,24 @@ CREATE TABLE IF NOT EXISTS sellers (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS iyonic_media_assets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    seller_id UUID REFERENCES sellers(id) ON DELETE SET NULL,
+    original_name VARCHAR(255) NOT NULL,
+    url TEXT NOT NULL,
+    mime_type VARCHAR(150) NOT NULL,
+    media_type VARCHAR(20) NOT NULL CHECK (media_type IN ('image', 'video', 'audio', 'document', 'other')),
+    size_bytes BIGINT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (user_id, url)
+);
+
+CREATE INDEX IF NOT EXISTS idx_iyonic_media_assets_user_created
+    ON iyonic_media_assets(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_iyonic_media_assets_seller_created
+    ON iyonic_media_assets(seller_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS vip_theme_purchases (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -827,8 +853,11 @@ CREATE TABLE IF NOT EXISTS iyonicdb_subscriptions (
     current_period_start TIMESTAMPTZ NOT NULL,
     current_period_end TIMESTAMPTZ NOT NULL,
     payment_reference VARCHAR(255) NOT NULL UNIQUE,
+    payment_method VARCHAR(20) NOT NULL DEFAULT 'paystack',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE iyonicdb_subscriptions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20) NOT NULL DEFAULT 'paystack';
 
 CREATE INDEX IF NOT EXISTS idx_iyonicdb_subscriptions_user_period
     ON iyonicdb_subscriptions(user_id, current_period_end DESC);

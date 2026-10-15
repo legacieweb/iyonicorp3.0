@@ -18,10 +18,11 @@ export const NLMTrackDetail = ({ track, currentTime, onBack }: Props) => {
       ) : (
         <div className="nlm-details-page-art-fallback" aria-hidden="true"><Music2 size={56} /></div>
       )}
-      <button className="nlm-detail-back" onClick={onBack} type="button">
-        <ArrowLeft aria-hidden="true" size={15} />
-        <span>Back to discovery</span>
-      </button>
+      <nav className="nlm-detail-breadcrumb" aria-label="Breadcrumb">
+        <button className="nlm-detail-back" onClick={onBack} type="button" aria-label="Go to Home"><span>Home</span></button>
+        <span className="nlm-breadcrumb-separator" aria-hidden="true">/</span>
+        <span className="nlm-breadcrumb-current" aria-current="page">{track.title}</span>
+      </nav>
 
       <article className="nlm-details-shell">
         <section className="nlm-details-hero" aria-label="Track overview">

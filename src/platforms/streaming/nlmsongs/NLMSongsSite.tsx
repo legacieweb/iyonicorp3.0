@@ -186,17 +186,30 @@ const NLMSongsSite = ({ isVisible = true }: { isVisible?: boolean }) => {
       <main className="nlm-main">
         <header className="nlm-topbar">
           {!user && <a className="nlm-guest-brand" href="#home" onClick={(e) => { e.preventDefault(); setView('Home'); }} aria-label="NLM Songs home"><span className="nlm-brand-mark"><Music2 size={18} /></span><span>nlm<span className="nlm-brand-light">songs</span></span></a>}
-          <div className="nlm-search-panel">
-            <Search size={16} />
-            <input value={searchQuery} onChange={(e) => {
-              const value = e.target.value;
-              if (!isAdminMode && value.trim().normalize('NFKC').toLocaleLowerCase() === 'sinagadhambi') {
-                setSearchQuery('');
-                navigate('/nlmsongs/listen', { state: { openDeviceDownloads: true } });
-                return;
-              }
-              setSearchQuery(value);
-            }} placeholder="Search tracks, artists, genres..." aria-label="Search NLM Songs catalogue" />
+          <div className={`nlm-search-wrap ${searchQuery.trim() ? 'has-search-results' : ''}`}>
+            <div className="nlm-search-panel">
+              <Search size={16} />
+              <input value={searchQuery} onChange={(e) => {
+                const value = e.target.value;
+                if (!isAdminMode && value.trim().normalize('NFKC').toLocaleLowerCase() === 'sinagadhambi') {
+                  setSearchQuery('');
+                  navigate('/nlmsongs/listen', { state: { openDeviceDownloads: true } });
+                  return;
+                }
+                setSearchQuery(value);
+              }} placeholder="Search tracks, artists, genres..." aria-label="Search NLM Songs catalogue" aria-expanded={Boolean(searchQuery.trim())} aria-controls="nlm-search-results" />
+              {searchQuery && <button type="button" className="nlm-search-clear" onClick={() => setSearchQuery('')} aria-label="Clear search">×</button>}
+            </div>
+            {searchQuery.trim() && <div className="nlm-search-results" id="nlm-search-results" role="listbox" aria-label="Song search results">
+              <div className="nlm-search-results-heading"><span>Matching songs</span><small>{filteredTracks.length} {filteredTracks.length === 1 ? 'result' : 'results'}</small></div>
+              {filteredTracks.slice(0, 6).map((item) => <button key={item.id} type="button" className="nlm-search-result" role="option" aria-selected="false" onClick={() => { setSearchQuery(''); navigate(`/nlmsongs/track/${encodeURIComponent(item.id)}`); }}>
+                <span className="nlm-search-result-art">{item.thumbnailUrl ? <img src={resolveAssetUrl(item.thumbnailUrl)} alt="" loading="lazy" /> : <Music2 size={16} />}</span>
+                <span className="nlm-search-result-copy"><strong>{item.title}</strong><small>{item.artist || 'NLM Studio'}{item.genre ? ` · ${item.genre}` : ''}</small></span>
+                <ArrowUpRight size={15} aria-hidden="true" />
+              </button>)}
+              {filteredTracks.length === 0 && <p className="nlm-search-empty">No tracks found. Try a title, artist, or genre.</p>}
+              {filteredTracks.length > 6 && <div className="nlm-search-results-foot">Showing 6 of {filteredTracks.length} matches</div>}
+            </div>}
           </div>
           <div className="nlm-account-actions">
             {!user ? (

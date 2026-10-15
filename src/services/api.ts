@@ -386,6 +386,13 @@ export interface ManagerAnalytics {
 }
 
 export const authAPI = {
+  async optInToProduct(username: string, password: string, productKey: string): Promise<{ user: User; token: string; success: boolean; productKey: string }> {
+    const response = await api.post('/auth/opt-in-product', { username, password, productKey });
+    const { user, token } = response.data;
+    if (token) localStorage.setItem('iyonicorp_token', token);
+    return response.data;
+  },
+
   async login(email: string, password: string): Promise<User> {
     const response = await api.post('/auth/login', { email, password });
     const { user, token } = response.data;

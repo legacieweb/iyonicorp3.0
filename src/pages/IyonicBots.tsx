@@ -1605,6 +1605,7 @@ const IyonicBots: React.FC = () => {
                 <div className="mb-12">
                   <h3 className="text-4xl font-black text-gray-900 mb-4 tracking-tighter">Welcome Back</h3>
                   <p className="text-gray-500 font-medium">New to Iyonic Intelligence? <button onClick={() => { setIsLoginPopupOpen(false); setIsRegisterPopupOpen(true); }} className="text-blue-600 font-black hover:underline transition-colors">Create account</button></p>
+                  <Link to="/product-access/iyonicintelligence" className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:underline">Already use IYONICORP? Opt in to Intelligence <ArrowRight size={15} /></Link>
                 </div>
 
                 <form onSubmit={onLogin} className="space-y-6">

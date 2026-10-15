@@ -1177,7 +1177,7 @@ const NLMSongs = ({ mode = 'client', isVisible = true, showFloatingPlayer = true
             <NLMTrackDetail
               track={detailTrack}
               currentTime={audioPlayer.currentTime}
-              onBack={() => navigate('/nlmsongs/listen')}
+              onBack={() => navigate('/nlmsongs')}
             />
           )}
 

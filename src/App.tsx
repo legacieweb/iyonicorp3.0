@@ -19,6 +19,7 @@ const ManagerAdminDashboard = lazy(() => import('./pages/admin/ManagerAdminDashb
 const IyonicMailer = lazy(() => import('./pages/IyonicMailer').then(({ IyonicMailer }) => ({ default: IyonicMailer })));
 const IyonicMailerDocs = lazy(() => import('./pages/IyonicMailerDocs').then(({ IyonicMailerDocs }) => ({ default: IyonicMailerDocs })));
 const IyonicMailerAuth = lazy(() => import('./pages/auth/IyonicMailerAuth').then(({ IyonicMailerAuth }) => ({ default: IyonicMailerAuth })));
+const ProductOptIn = lazy(() => import('./pages/auth/ProductOptIn').then(({ ProductOptIn }) => ({ default: ProductOptIn })));
 const IyonicMailerDashboard = lazy(() => import('./pages/IyonicMailerDashboard').then(({ IyonicMailerDashboard }) => ({ default: IyonicMailerDashboard })));
 const CustomerDashboard = lazy(() => import('./pages/customer/CustomerDashboard'));
 const Storefront = lazy(() => import('./pages/Storefront'));
@@ -316,7 +317,7 @@ const AppContent: React.FC = () => {
   };
 
   const handleSignIn = () => {
-    navigate('/login');
+    navigate('/product-access/bizhub');
   };
 
   const handleBackToHomepage = () => {
@@ -338,6 +339,7 @@ const AppContent: React.FC = () => {
           <RegisterWrapper />
         </AuthRoute>
       } />
+      <Route path="/product-access/:product" element={<ProductOptIn />} />
 
       <Route path="/themes" element={<Themes />} />
       <Route path="/tspp" element={<TsppLandingPage />} />
