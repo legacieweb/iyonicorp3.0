@@ -26,7 +26,7 @@ const ensurePaystackInline = () => {
   const popupWindow = window as PaystackPopupWindow;
   if (popupWindow.PaystackPop?.setup) return Promise.resolve();
   if (!paystackInlineScript) {
-    paystackInlineScript = new Promise((resolve, reject) => {
+    paystackInlineScript = new Promise<void>((resolve, reject) => {
       const script = document.createElement('script');
       script.src = 'https://js.paystack.co/v1/inline.js';
       script.async = true;
@@ -423,7 +423,7 @@ export const IyonicDBConsole: React.FC = () => {
         {error && <div className="idb-console-error" role="alert">{error}<button type="button" onClick={() => setError('')} aria-label="Dismiss error"><X size={14} /></button></div>}
         {notice && <div className="idb-notice" role="status"><Check size={15} />{notice}<button type="button" onClick={() => setNotice('')} aria-label="Dismiss notification"><X size={14} /></button></div>}
         {!overview?.subscription && section !== 'billing' && <section className="idb-keys-warning"><ShieldCheck size={19} /><p><b>Your free workspace is being prepared.</b><span>Refresh the console in a moment to load your storage allowance.</span><button type="button" onClick={() => window.location.reload()}>Refresh console</button></p></section>}
-        {section === 'overview' && overview && <OverviewPanel overview={overview} project={project} selectedProjectId={selectedProjectId} onSelectProject={setSelectedProjectId} newProjectName={newProjectName} setNewProjectName={setNewProjectName} onCreate={createProject} onSectionChange={switchSection} />}
+        {section === 'overview' && overview && <OverviewPanel overview={overview} project={project} plans={plans} selectedProjectId={selectedProjectId} onSelectProject={setSelectedProjectId} newProjectName={newProjectName} setNewProjectName={setNewProjectName} onCreate={createProject} onSectionChange={switchSection} />}
         {section === 'data' && project?.isProductAccount && <ProductAccountDataPanel project={project} data={accountData} loading={accountDataLoading} error={accountDataError} onRetry={() => setAccountDataReload((revision) => revision + 1)} />}
         {section === 'data' && overview?.subscription && project && !project.isProductAccount && <DataPanel
           mode={dataMode} setMode={setDataMode} tables={tables} selectedTable={selectedTable} setSelectedTable={setSelectedTable}
@@ -442,8 +442,8 @@ export const IyonicDBConsole: React.FC = () => {
   </div>;
 };
 
-const OverviewPanel = ({ overview, project, selectedProjectId, onSelectProject, newProjectName, setNewProjectName, onCreate, onSectionChange }: {
-  overview: Overview; project: Project | null; selectedProjectId: string; onSelectProject: (id: string) => void; newProjectName: string; setNewProjectName: (name: string) => void; onCreate: () => void; onSectionChange: (section: Section) => void;
+const OverviewPanel = ({ overview, project, plans, selectedProjectId, onSelectProject, newProjectName, setNewProjectName, onCreate, onSectionChange }: {
+  overview: Overview; project: Project | null; plans: Plan[]; selectedProjectId: string; onSelectProject: (id: string) => void; newProjectName: string; setNewProjectName: (name: string) => void; onCreate: () => void; onSectionChange: (section: Section) => void;
 }) => {
   const subscription = overview.subscription;
   const storagePercent = subscription ? Math.min(100, (overview.usage.storageBytes / subscription.storageBytes) * 100) : 0;
