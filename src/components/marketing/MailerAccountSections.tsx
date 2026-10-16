@@ -8,17 +8,17 @@ type BillingData = { plans: MailerPlan[]; subscription: MailerPlan & { currentPe
 type MailerApiKey = { id: string; name: string; key_prefix: string; created_at: string; last_used_at: string | null; revoked_at: string | null };
 type PaystackPopupCallbacks = { onSuccess: (transaction: { reference: string }) => void; onCancel: () => void; onError: (error: { message?: string }) => void };
 type PaystackPopup = { resumeTransaction: (accessCode: string, callbacks: PaystackPopupCallbacks) => void };
-declare global { interface Window { PaystackPop?: new () => PaystackPopup } }
+const paystackWindow = window as unknown as { PaystackPop?: new () => PaystackPopup };
 let paystackInlineScript: Promise<void> | null = null;
 const loadPaystackInline = () => {
-  if (window.PaystackPop) return Promise.resolve();
+  if (paystackWindow.PaystackPop) return Promise.resolve();
   if (!paystackInlineScript) {
     paystackInlineScript = new Promise<void>((resolve, reject) => {
       const script = document.createElement('script');
       script.src = 'https://js.paystack.co/v2/inline.js';
       script.async = true;
       script.dataset.paystackInline = 'true';
-      script.onload = () => window.PaystackPop ? resolve() : reject(new Error('Paystack popup did not initialize.'));
+      script.onload = () => paystackWindow.PaystackPop ? resolve() : reject(new Error('Paystack popup did not initialize.'));
       script.onerror = () => reject(new Error('Could not load the Paystack popup. Check your connection and try again.'));
       document.head.appendChild(script);
     }).catch((error) => { paystackInlineScript = null; throw error; });
@@ -57,8 +57,8 @@ export const MailerBillingPanel: React.FC = () => {
       } else {
         const result = await api.post<{ accessCode: string }>('/iyonicmailer/billing/paystack/initialize', { planId: plan.id });
         await loadPaystackInline();
-        if (!window.PaystackPop) throw new Error('Paystack popup is unavailable. Please try again.');
-        const popup = new window.PaystackPop();
+        if (!paystackWindow.PaystackPop) throw new Error('Paystack popup is unavailable. Please try again.');
+        const popup = new paystackWindow.PaystackPop();
         popup.resumeTransaction(result.data.accessCode, {
           onSuccess: ({ reference }) => {
             setBusyPlan('verify');
