@@ -60,6 +60,8 @@ const IyonicPay = lazy(() => import('./pages/IyonicPay'));
 const IyonicBots = lazy(() => import('./pages/IyonicBots'));
 const IyonicDB = lazy(() => import('./pages/IyonicDB').then(({ IyonicDB }) => ({ default: IyonicDB })));
 const IyonicDBConsole = lazy(() => import('./pages/IyonicDBConsole'));
+const IyonicDBAuth = lazy(() => import('./pages/IyonicDBAuth'));
+const IyonicDBDocs = lazy(() => import('./pages/IyonicDBDocs'));
 const InvoicePage = lazy(() => import('./pages/InvoicePage'));
 const IyonicShop = lazy(() => import('./pages/IyonicShop'));
 const Refunds = lazy(() => import('./pages/Refunds'));
@@ -580,6 +582,10 @@ const AppContent: React.FC = () => {
       <Route path="/iyonicbots/*" element={<IyonicBotsRouteRedirect />} />
       <Route path="/iyonicintelligence/*" element={<IyonicBots />} />
       <Route path="/iyonicdb/console" element={<IyonicDBConsole />} />
+      <Route path="/iyonicdb/auth" element={<IyonicDBAuth />} />
+      <Route path="/iyonicdb/login" element={<IyonicDBAuth />} />
+      <Route path="/iyonicdb/register" element={<IyonicDBAuth />} />
+      <Route path="/iyonicdb/docs" element={<IyonicDBDocs />} />
       <Route path="/iyonicdb" element={<IyonicDB />} />
       <Route path="/bizhub" element={
         isAuthenticated && user ? (

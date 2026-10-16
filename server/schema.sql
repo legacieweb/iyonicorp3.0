@@ -826,8 +826,24 @@ CREATE TABLE IF NOT EXISTS iyonicdb_projects (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(63) NOT NULL,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE iyonicdb_projects ADD COLUMN IF NOT EXISTS is_default BOOLEAN NOT NULL DEFAULT FALSE;
+WITH first_project AS (
+    SELECT DISTINCT ON (user_id) id, user_id
+    FROM iyonicdb_projects
+    ORDER BY user_id, created_at, id
+)
+UPDATE iyonicdb_projects project
+SET is_default = TRUE, name = 'Default'
+FROM first_project
+WHERE project.id = first_project.id
+  AND NOT EXISTS (SELECT 1 FROM iyonicdb_projects existing WHERE existing.user_id = project.user_id AND existing.is_default);
+UPDATE iyonicdb_projects SET name = 'Default' WHERE is_default = TRUE AND name <> 'Default';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_iyonicdb_projects_one_default
+    ON iyonicdb_projects(user_id) WHERE is_default = TRUE;
 
 CREATE INDEX IF NOT EXISTS idx_iyonicdb_projects_user ON iyonicdb_projects(user_id, created_at);
 

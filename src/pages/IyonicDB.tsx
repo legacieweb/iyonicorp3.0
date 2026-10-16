@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import SEO from '../components/SEO';
 import { HomepageFooter } from '../components/HomepageFooter';
+import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import './iyonicdb.css';
 
@@ -33,6 +34,14 @@ type Plan = {
   storageGb: number;
   requestsPerMonth: number;
   tableLimit: number;
+  apiKeyLimit: number;
+};
+const formatPlanPrice = (plan: Pick<Plan, 'price' | 'currency'>) => {
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: plan.currency, maximumFractionDigits: 2 }).format(plan.price);
+  } catch {
+    return `${plan.currency} ${plan.price.toLocaleString()}`;
+  }
 };
 const messageForError = (error: unknown) => {
   if (typeof error === 'object' && error !== null && 'response' in error) {
@@ -49,19 +58,24 @@ const IyonicDBLogo = ({ compact = false }: { compact?: boolean }) => (
   </span>
 );
 
-const ProductHeader = () => (
+const scrollToIyonicDBSection = (sectionId: string) => {
+  document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+const ProductHeader = ({ isAuthenticated }: { isAuthenticated: boolean }) => (
   <header className="idb-header">
-    <Link to="/iyonicdb" aria-label="IyonicDB home"><IyonicDBLogo /></Link>
+    <Link className="idb-header-brand" to="/iyonicdb" aria-label="IyonicDB home"><IyonicDBLogo /><span>DATABASE PLATFORM</span></Link>
     <nav aria-label="IyonicDB navigation">
-      <a href="#capabilities">Capabilities</a>
-      <a href="#how-it-works">How it works</a>
-      <a href="#plans">Plans</a>
+      <button type="button" onClick={() => scrollToIyonicDBSection('capabilities')}>Platform</button>
+      <button type="button" onClick={() => scrollToIyonicDBSection('how-it-works')}>Data models</button>
+      <button type="button" onClick={() => scrollToIyonicDBSection('plans')}>Plans</button>
+      <button type="button" onClick={() => scrollToIyonicDBSection('faq')}>FAQ</button>
     </nav>
     <div className="idb-header-actions">
-      <Link className="idb-quiet-link" to="/product-access/iyonicdb">Console</Link>
-      <Link className="idb-button idb-button-small" to="/product-access/iyonicdb">Open console <ArrowUpRight size={15} /></Link>
+      <Link className="idb-header-docs" to="/iyonicdb/docs">Documentation</Link>
+      {isAuthenticated ? <Link className="idb-button idb-button-small" to="/iyonicdb/console">Open console <ArrowUpRight size={15} /></Link> : <><Link className="idb-header-signin" to="/iyonicdb/login">Sign in</Link><Link className="idb-button idb-button-small" to="/iyonicdb/register">Create account <ArrowUpRight size={15} /></Link></>}
     </div>
-    <Link className="idb-mobile-console" to="/product-access/iyonicdb" aria-label="Open console"><Terminal size={19} /></Link>
+    <Link className="idb-mobile-console" to={isAuthenticated ? '/iyonicdb/console' : '/iyonicdb/register'} aria-label={isAuthenticated ? 'Open console' : 'Create account'}>{isAuthenticated ? 'Console' : 'Sign up'}</Link>
   </header>
 );
 
@@ -114,6 +128,8 @@ const features = [
 ];
 
 export const IyonicDB: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  const consolePath = isAuthenticated ? '/iyonicdb/console' : '/iyonicdb/register';
   const [menuOpen, setMenuOpen] = useState(false);
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -126,17 +142,17 @@ export const IyonicDB: React.FC = () => {
   }, []);
 
   return (
-    <div className="idb-site">
+    <div className="idb-site" id="top">
       <SEO
         title="IyonicDB — Relational and document data, together"
         description="Create isolated PostgreSQL projects with SQL tables, JSON document collections, project-scoped API keys, and enforced monthly plans."
         keywords="IyonicDB, SQL database, document database, developer database"
         canonical="https://iyonicorp.com/iyonicdb"
       />
-      <ProductHeader />
+      <ProductHeader isAuthenticated={isAuthenticated} />
       <div className="idb-mobile-nav-wrap">
         <button type="button" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><Menu size={17} /> Explore IyonicDB <ChevronDown size={15} /></button>
-        {menuOpen && <div className="idb-mobile-nav"><a href="#capabilities" onClick={() => setMenuOpen(false)}>Capabilities</a><a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it works</a><a href="#plans" onClick={() => setMenuOpen(false)}>Plans</a></div>}
+        {menuOpen && <div className="idb-mobile-nav"><button type="button" onClick={() => { scrollToIyonicDBSection('capabilities'); setMenuOpen(false); }}>Platform</button><button type="button" onClick={() => { scrollToIyonicDBSection('how-it-works'); setMenuOpen(false); }}>Data models</button><button type="button" onClick={() => { scrollToIyonicDBSection('plans'); setMenuOpen(false); }}>Plans</button><button type="button" onClick={() => { scrollToIyonicDBSection('faq'); setMenuOpen(false); }}>FAQ</button><Link to="/iyonicdb/docs" onClick={() => setMenuOpen(false)}>Documentation</Link><Link to={consolePath} onClick={() => setMenuOpen(false)}>{isAuthenticated ? 'Open console' : 'Create account'}</Link></div>}
       </div>
       <main>
         <section className="idb-hero">
@@ -145,8 +161,8 @@ export const IyonicDB: React.FC = () => {
             <h1>One home for your<br /><em>many kinds</em> of data.</h1>
             <p className="idb-hero-lede">Relational SQL and flexible documents, brought into one developer-friendly workspace. Begin with a clear model. Keep your options open.</p>
             <div className="idb-hero-actions">
-              <Link className="idb-button" to="/product-access/iyonicdb">Explore the console <ArrowRight size={16} /></Link>
-              <a className="idb-text-link" href="#capabilities">See what fits <ArrowDown size={15} /></a>
+              <Link className="idb-button" to={consolePath}>{isAuthenticated ? 'Open console' : 'Create free account'} <ArrowRight size={16} /></Link>
+                <button className="idb-text-link" type="button" onClick={() => scrollToIyonicDBSection('capabilities')}>See what fits <ArrowDown size={15} /></button>
             </div>
             <p className="idb-honesty-note"><ShieldCheck size={14} /> Live PostgreSQL-backed projects. Sign in to create your database.</p>
           </div>
@@ -166,7 +182,7 @@ export const IyonicDB: React.FC = () => {
             <p className="idb-kicker">THE WORKSPACE</p>
             <h2>Start with the data.<br /><em>Stay in control.</em></h2>
             <p>A database experience should make the next step feel obvious — whether you are shaping your first table or checking how a project is behaving.</p>
-            <Link to="/product-access/iyonicdb" className="idb-underlined-link">Take a look inside <ArrowUpRight size={15} /></Link>
+            <Link to={consolePath} className="idb-underlined-link">{isAuthenticated ? 'Open your workspace' : 'Create an account to get started'} <ArrowUpRight size={15} /></Link>
           </div>
           <div className="idb-feature-list">
             {features.map(({ num, icon: Icon, title, copy, tags }) => (
@@ -206,35 +222,35 @@ export const IyonicDB: React.FC = () => {
             <article><span>STEP 02</span><Terminal size={20} /><h3>Store real data</h3><p>Create typed SQL tables, or write JSON documents.</p></article>
             <article><span>STEP 03</span><KeyRound size={20} /><h3>Connect securely</h3><p>Issue a project-scoped API key that is shown only once.</p></article>
           </div>
-          <Link className="idb-code-link" to="/product-access/iyonicdb"><span><Terminal size={15} /> Open database console</span><ArrowRight size={16} /></Link>
+          <Link className="idb-code-link" to={consolePath}><span><Terminal size={15} /> {isAuthenticated ? 'Open database console' : 'Create your IyonicDB account'}</span><ArrowRight size={16} /></Link>
         </section>
 
         <section className="idb-plans" id="plans">
-          <div className="idb-plan-heading"><div><p className="idb-kicker">START FREE · GROW WHEN READY</p><h2>A plan should feel<br /><em>easy to understand.</em></h2></div><p>Every account starts with 5 GB free storage. Upgrade for more projects, storage, and monthly requests. No automatic overages.</p></div>
+          <div className="idb-plan-heading"><div><p className="idb-kicker">START FREE · GROW WHEN READY</p><h2>A plan should feel<br /><em>easy to understand.</em></h2></div><p>Every account starts with 5 GB free storage. Paid plans add projects, storage, and monthly requests for 30 days per payment. Renew manually; there are no automatic overages.</p></div>
           {plansError && <p className="idb-api-error" role="alert">{plansError}</p>}
           {!plansError && !plans.length && <p className="idb-api-loading">Loading current plan rates…</p>}
           <div className="idb-plan-list">
             {plans.map((plan) => <article className={`idb-plan${plan.id === 'growth' ? ' idb-plan-featured' : ''}`} key={plan.id}>
               <div className="idb-plan-name">{plan.name}{plan.id === 'growth' && <span>POPULAR</span>}</div>
-              <p className="idb-plan-price">${plan.price}<small> / month</small></p>
+              <p className="idb-plan-price">{plan.price === 0 ? 'Free' : formatPlanPrice(plan)}<small>{plan.price === 0 ? ' forever' : ' / 30 days'}</small></p>
               <p className="idb-plan-intro">{plan.projectLimit} projects · {plan.tableLimit} tables per project</p>
-              <ul><li><ShieldCheck size={14} />{plan.storageGb} GB storage</li><li><ShieldCheck size={14} />{new Intl.NumberFormat('en-US').format(plan.requestsPerMonth)} requests/month</li><li><ShieldCheck size={14} />Hard cap · no surprise overages</li></ul>
-              <Link to={plan.id === 'free' ? '/product-access/iyonicdb' : '/iyonicdb/console?section=billing'} className={plan.id === 'growth' ? 'idb-plan-cta idb-plan-cta-dark' : 'idb-plan-cta'}>{plan.id === 'free' ? 'Get started free' : `Choose ${plan.name}`} <ArrowUpRight size={14} /></Link>
+              <ul><li><ShieldCheck size={14} />{plan.apiKeyLimit} active API keys</li><li><ShieldCheck size={14} />{plan.storageGb} GB storage</li><li><ShieldCheck size={14} />{new Intl.NumberFormat('en-US').format(plan.requestsPerMonth)} requests/month</li><li><ShieldCheck size={14} />Hard cap · no surprise overages</li></ul>
+              <Link to={isAuthenticated ? (plan.id === 'free' ? '/iyonicdb/console?section=overview' : '/iyonicdb/console?section=billing') : '/iyonicdb/register'} className={plan.id === 'growth' ? 'idb-plan-cta idb-plan-cta-dark' : 'idb-plan-cta'}>{isAuthenticated ? (plan.id === 'free' ? 'Open console' : `Choose ${plan.name}`) : 'Sign up to get started'} <ArrowUpRight size={14} /></Link>
             </article>)}
           </div>
         </section>
 
-        <section className="idb-faq">
-          <div><p className="idb-kicker">GOOD QUESTIONS</p><h2>A little clarity<br /><em>goes a long way.</em></h2></div>
+        <section className="idb-faq" id="faq">
+          <div className="idb-faq-intro"><p className="idb-kicker">GOOD QUESTIONS <span>·</span> CLEAR ANSWERS</p><h2>Know before<br /><em>you build.</em></h2><p>Quick answers on privacy, API access, and staying within your plan.</p><Link to="/iyonicdb/docs" className="idb-faq-docs">Explore the API docs <ArrowRight size={14} /></Link></div>
           <div className="idb-faq-list">
             {[
-              ['How are databases isolated?', 'Each account receives its own PostgreSQL schema. Project APIs verify ownership and scope requests to that project.'],
-              ['How do I connect from my app?', 'Create a project API key and send it in the bearer authorization header or the x-api-key header. Key secrets are hashed at rest and shown once.'],
-              ['What happens at a plan limit?', 'Requests stop at the monthly quota and writes are rejected when storage is full. There are no automatic overage charges.'],
-            ].map(([question, answer], index) => (
+              { question: 'How are databases isolated?', answer: 'Every project gets its own PostgreSQL schema. Requests are checked against the project attached to your API key, so a key cannot reach another project.', icon: Database, link: 'Learn about project security', href: '/iyonicdb/docs#authentication' },
+              { question: 'How do I connect from my app?', answer: 'Create a project key in the console, then send it as a Bearer token from your server. The secret is shown once and stored as a hash.', icon: KeyRound, link: 'Read the quickstart', href: '/iyonicdb/docs#quickstart' },
+              { question: 'What happens at a plan limit?', answer: 'Requests pause when the monthly quota is reached. Writes stop when storage is full. There are no automatic overage charges; upgrade your plan to continue.', icon: Activity, link: 'Compare plans', href: '#plans' },
+            ].map(({ question, answer, icon: Icon, link, href }, index) => (
               <article className={`idb-faq-item${faqOpen === index ? ' is-open' : ''}`} key={question}>
-                <button type="button" aria-expanded={faqOpen === index} onClick={() => setFaqOpen(faqOpen === index ? null : index)}><span>{question}</span><Plus size={17} /></button>
-                {faqOpen === index && <p>{answer}</p>}
+                <button type="button" aria-expanded={faqOpen === index} onClick={() => setFaqOpen(faqOpen === index ? null : index)}><span className="idb-faq-number">0{index + 1}</span><span className="idb-faq-question">{question as string}</span><Plus size={17} /></button>
+                {faqOpen === index && <div className="idb-faq-answer"><Icon size={16} /><div><p>{answer as string}</p>{String(href).startsWith('#') ? <button type="button" onClick={() => scrollToIyonicDBSection(String(href).slice(1))}>{link} <ArrowRight size={13} /></button> : <Link to={href}>{link} <ArrowRight size={13} /></Link>}</div></div>}
               </article>
             ))}
           </div>
@@ -243,7 +259,7 @@ export const IyonicDB: React.FC = () => {
           <div className="idb-closing-top"><span>IYONICDB / LIVE DATABASE SERVICE</span><span>GOOD DATA STARTS WITH A GOOD MODEL</span></div>
           <h2>Make room for<br /><em>what comes next.</em></h2>
           <p>Provision a project, connect your app, and manage real SQL and document data.</p>
-          <Link to="/product-access/iyonicdb" className="idb-button idb-button-light">Open IyonicDB console <ArrowRight size={16} /></Link>
+          <Link to={consolePath} className="idb-button idb-button-light">{isAuthenticated ? 'Open IyonicDB console' : 'Sign up for IyonicDB'} <ArrowRight size={16} /></Link>
           <span className="idb-closing-seal"><Layers3 size={20} /><b>ONE<br />WORKSPACE</b></span>
         </section>
       </main>

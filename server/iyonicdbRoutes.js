@@ -11,6 +11,7 @@ const PLANS = {
     storageBytes: 10 * 1024 ** 3,
     requestsPerMonth: 2_000_000,
     tableLimit: 25,
+    apiKeyLimit: 10,
   },
   growth: {
     id: 'growth',
@@ -21,6 +22,7 @@ const PLANS = {
     storageBytes: 10 * 1024 ** 3,
     requestsPerMonth: 10_000_000,
     tableLimit: 50,
+    apiKeyLimit: 25,
   },
   scale: {
     id: 'scale',
@@ -31,8 +33,11 @@ const PLANS = {
     storageBytes: 50 * 1024 ** 3,
     requestsPerMonth: 50_000_000,
     tableLimit: 200,
+    apiKeyLimit: 100,
   },
 };
+
+const IYONICPAY_RATES_TO_USD = { USD: 1, KES: 125, EUR: 0.92, GBP: 0.79, NGN: 1500, GHS: 13 };
 
 const FREE_PLAN = {
   id: 'free',
@@ -43,6 +48,7 @@ const FREE_PLAN = {
   storageBytes: 5 * 1024 ** 3,
   requestsPerMonth: 100_000,
   tableLimit: 10,
+  apiKeyLimit: 2,
   status: 'active',
   currentPeriodEnd: null,
 };
@@ -155,7 +161,9 @@ const getAccountMedia = async (db, productKey, accountId, userId, includeRecords
   const relations = Object.fromEntries(await Promise.all(names.map(async (name) => [name, await getAccountRelation(db, name)])));
   const relation = (name) => relations[name];
   if (!relation('iyonic_media_assets')) return includeRecords ? [] : 0;
-  const uploadScope = productKey === 'iyonicpay' ? 'seller_id IS NULL AND user_id = $1' : 'seller_id = $2::uuid OR (seller_id IS NULL AND user_id = $1)';
+  const uploadScope = productKey === 'iyonicpay' || accountId === userId
+    ? 'seller_id IS NULL AND user_id = $1::uuid'
+    : 'seller_id = $2::uuid AND $1::uuid IS NOT NULL';
   const sources = [
     `SELECT url, original_name AS "originalName", mime_type AS "mimeType", media_type AS "mediaType", size_bytes AS "sizeBytes", created_at AS "createdAt", 'uploads' AS source
      FROM ${relation('iyonic_media_assets')} WHERE ${uploadScope}`,
@@ -173,8 +181,8 @@ const getAccountMedia = async (db, productKey, accountId, userId, includeRecords
     `SELECT preview_image AS url, name AS "originalName", NULL::text AS "mimeType", 'image' AS "mediaType", 0::bigint AS "sizeBytes", created_at AS "createdAt", 'email templates' AS source FROM ${relation('email_templates')} WHERE seller_id = $2::uuid AND preview_image IS NOT NULL AND preview_image <> ''`
   );
   if (productKey === 'nlmsongs' && relation('nlm_songs')) sources.push(
-    `SELECT audio_url AS url, title AS "originalName", audio_mime_type AS "mimeType", 'audio' AS "mediaType", COALESCE(octet_length(audio_data), 0)::bigint AS "sizeBytes", created_at AS "createdAt", 'NLM audio' AS source FROM ${relation('nlm_songs')} WHERE (seller_id = $2::uuid OR (seller_id IS NULL AND created_by = $1::uuid)) AND audio_url IS NOT NULL AND audio_url <> ''`,
-    `SELECT thumbnail_url AS url, title AS "originalName", thumbnail_mime_type AS "mimeType", 'image' AS "mediaType", COALESCE(octet_length(thumbnail_data), 0)::bigint AS "sizeBytes", created_at AS "createdAt", 'NLM artwork' AS source FROM ${relation('nlm_songs')} WHERE (seller_id = $2::uuid OR (seller_id IS NULL AND created_by = $1::uuid)) AND thumbnail_url IS NOT NULL AND thumbnail_url <> ''`
+    `SELECT audio_url AS url, title AS "originalName", audio_mime_type AS "mimeType", 'audio' AS "mediaType", COALESCE(octet_length(audio_data), 0)::bigint AS "sizeBytes", created_at AS "createdAt", 'NLM audio' AS source FROM ${relation('nlm_songs')} WHERE (seller_id = $2::uuid OR ($2::uuid = $1::uuid AND seller_id IS NULL AND created_by = $1::uuid)) AND audio_url IS NOT NULL AND audio_url <> ''`,
+    `SELECT thumbnail_url AS url, title AS "originalName", thumbnail_mime_type AS "mimeType", 'image' AS "mediaType", COALESCE(octet_length(thumbnail_data), 0)::bigint AS "sizeBytes", created_at AS "createdAt", 'NLM artwork' AS source FROM ${relation('nlm_songs')} WHERE (seller_id = $2::uuid OR ($2::uuid = $1::uuid AND seller_id IS NULL AND created_by = $1::uuid)) AND thumbnail_url IS NOT NULL AND thumbnail_url <> ''`
   );
   const union = sources.map((source) => `(${source})`).join(' UNION ALL ');
   const params = productKey === 'iyonicpay' ? [userId] : [userId, accountId];
@@ -197,7 +205,31 @@ const getAccountMedia = async (db, productKey, accountId, userId, includeRecords
   }));
 };
 
-const getProductDataset = async (db, productKey, table, accountId, userId, isSellerWorkspace, includeRecords = true) => {
+const getAccountMediaStorageBytes = async (db, productKey, accountId, userId, includePersonalUploads = true) => {
+  const assets = await getAccountRelation(db, 'iyonic_media_assets');
+  const songs = productKey === 'nlmsongs' ? await getAccountRelation(db, 'nlm_songs') : null;
+  const sources = [];
+  const params = accountId === userId ? [userId] : [userId, accountId];
+  if (assets && (accountId !== userId || includePersonalUploads)) {
+    const scope = accountId === userId ? 'seller_id IS NULL AND user_id = $1::uuid' : 'seller_id = $2::uuid AND $1::uuid IS NOT NULL';
+    sources.push(`SELECT url, GREATEST(size_bytes, 0)::bigint AS size_bytes FROM ${assets} WHERE ${scope}`);
+  }
+  if (songs) {
+    const personalScope = accountId === userId ? 'seller_id IS NULL AND created_by = $1::uuid' : 'seller_id = $2::uuid';
+    sources.push(`SELECT COALESCE(audio_url, id::text || ':audio') AS url, COALESCE(octet_length(audio_data), 0)::bigint AS size_bytes FROM ${songs} WHERE ${personalScope} AND audio_data IS NOT NULL`);
+    sources.push(`SELECT COALESCE(thumbnail_url, id::text || ':thumbnail') AS url, COALESCE(octet_length(thumbnail_data), 0)::bigint AS size_bytes FROM ${songs} WHERE ${personalScope} AND thumbnail_data IS NOT NULL`);
+  }
+  if (!sources.length) return 0;
+  const result = await db.query(
+    `SELECT COALESCE(SUM(size_bytes), 0)::bigint AS bytes
+     FROM (SELECT url, MAX(size_bytes) AS size_bytes FROM (${sources.join(' UNION ALL ')}) media
+           WHERE url IS NOT NULL GROUP BY url) unique_media`,
+    params
+  );
+  return Number(result.rows[0]?.bytes || 0);
+};
+
+const getProductDataset = async (db, productKey, table, accountId, userId, isSellerWorkspace, includeRecords = true, limit = 200, offset = 0) => {
   const product = PRODUCT_ACCOUNTS[productKey];
   if (!product || (!product.tables.includes(table) && !(product.tablePrefixes || []).some((prefix) => table.startsWith(prefix)))) return { name: table, records: [], count: 0 };
   const tableInfo = await getAccountTable(db, table);
@@ -224,9 +256,9 @@ const getProductDataset = async (db, productKey, table, accountId, userId, isSel
     from = `${tableRelation} r JOIN ${productsRelation} p ON p.id = r.product_id`;
     where = 'p.seller_id = $1';
     params = [accountId];
-  } else if (productKey === 'nlmsongs' && table === 'nlm_songs' && isSellerWorkspace) {
-    where = 'seller_id = $1 OR (seller_id IS NULL AND created_by = $2)';
-    params = [accountId, userId];
+  } else if (productKey === 'nlmsongs' && table === 'nlm_songs') {
+    where = isSellerWorkspace ? 'seller_id = $1' : 'seller_id IS NULL AND created_by = $1';
+    params = [accountId];
   } else if (productKey === 'iyonicpos' && table === 'pos_loyalty_transactions' && isSellerWorkspace) {
     const loyaltyRelation = await getAccountRelation(db, 'pos_loyalty');
     if (!loyaltyRelation) return { name: table, records: [], count: 0, error: 'POS loyalty data is not available.' };
@@ -252,10 +284,11 @@ const getProductDataset = async (db, productKey, table, accountId, userId, isSel
   if (!includeRecords) return { name: table, records: [], count };
   const orderColumn = ['created_at', 'updated_at', 'id'].find((column) => available.has(column));
   const orderAlias = table === 'transactions' || table === 'pos_loyalty_transactions' ? 't.' : table === 'bot_messages' ? 'm.' : table === 'reviews' ? 'r.' : '';
-  const orderBy = orderColumn ? `${orderAlias}${quoteIdentifier(orderColumn)} DESC` : '';
+  const tieBreaker = available.has('id') && orderColumn !== 'id' ? `${orderAlias}${quoteIdentifier('id')} ASC` : '';
+  const orderBy = [orderColumn ? `${orderAlias}${quoteIdentifier(orderColumn)} DESC` : '', tieBreaker].filter(Boolean).join(', ');
   const select = table === 'bot_messages' ? 'm.*' : table === 'transactions' || table === 'pos_loyalty_transactions' ? 't.*' : table === 'reviews' ? 'r.*'
     : table === 'nlm_songs' ? [...available].filter((column) => !['audio_data', 'thumbnail_data'].includes(column)).map(quoteIdentifier).join(', ') : '*';
-  const result = await db.query(`SELECT ${select} FROM ${from} WHERE ${where}${orderBy ? ` ORDER BY ${orderBy}` : ''} LIMIT 200`, params);
+  const result = await db.query(`SELECT ${select} FROM ${from} WHERE ${where}${orderBy ? ` ORDER BY ${orderBy}` : ''} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, limit, offset]);
   const records = result.rows.map(sanitizeAccountValue);
   return { name: table, records, count };
 };
@@ -297,13 +330,14 @@ const getConnectedProductProjects = async (db, userId, accountEmail) => {
   const paySets = await Promise.all(PRODUCT_ACCOUNTS.iyonicpay.tables.map((table) => getProductDataset(db, 'iyonicpay', table, userId, userId, false, false)));
   const payCount = paySets.reduce((total, set) => total + set.count, 0);
   const payMediaCount = await getAccountMedia(db, 'iyonicpay', userId, userId, false);
-  if (optedProducts.has('iyonicpay') || payCount) workspaces.push({ id: `account:iyonicpay:${userId}`, name: `IyonicPay · ${profile.rows[0]?.name || 'Personal account'}`, createdAt: null, tablesCount: paySets.filter((set) => set.count > 0).length + (payMediaCount ? 1 : 0), recordsCount: payCount, mediaCount: payMediaCount, storageBytes: 0, isProductAccount: true, productKey: 'iyonicpay', accountId: userId, accountName: profile.rows[0]?.name || 'Personal account' });
-  if (optedProducts.has('bizhub') && !sellers.rows.length) workspaces.push({ id: `account:bizhub:${userId}`, name: 'BizHub · Personal workspace', createdAt: null, tablesCount: 0, recordsCount: 0, storageBytes: 0, isProductAccount: true, productKey: 'bizhub', accountId: userId, accountName: 'Personal workspace' });
-  for (const productKey of ['iyonicintelligence', 'iyonic-mailer']) {
-    if (optedProducts.has(productKey) && !sellers.rows.length) {
-      const product = PRODUCT_ACCOUNTS[productKey];
-      workspaces.push({ id: `account:${productKey}:${userId}`, name: `${product.name} · Personal workspace`, createdAt: null, tablesCount: 0, recordsCount: 0, storageBytes: 0, isProductAccount: true, productKey, accountId: userId, accountName: 'Personal workspace' });
-    }
+  if (optedProducts.has('iyonicpay') || payCount || payMediaCount) workspaces.push({ id: `account:iyonicpay:${userId}`, name: `IyonicPay · ${profile.rows[0]?.name || 'Personal account'}`, createdAt: null, tablesCount: paySets.filter((set) => set.count > 0).length + (payMediaCount ? 1 : 0), recordsCount: payCount, mediaCount: payMediaCount, storageBytes: 0, isProductAccount: true, productKey: 'iyonicpay', accountId: userId, accountName: profile.rows[0]?.name || 'Personal account' });
+  for (const productKey of ['bizhub', 'iyonicintelligence', 'iyonic-mailer', 'nlmsongs']) {
+    const product = PRODUCT_ACCOUNTS[productKey];
+    const tables = await getProductTables(db, productKey);
+    const sets = await Promise.all(tables.map((table) => getProductDataset(db, productKey, table, userId, userId, false, false)));
+    const recordsCount = sets.reduce((total, set) => total + set.count, 0);
+    const mediaCount = await getAccountMedia(db, productKey, userId, userId, false);
+    if (optedProducts.has(productKey) || recordsCount) workspaces.push({ id: `account:${productKey}:${userId}`, name: `${product.name} · Personal workspace`, createdAt: null, tablesCount: sets.filter((set) => set.count > 0).length + (mediaCount ? 1 : 0), recordsCount, mediaCount, storageBytes: 0, isProductAccount: true, productKey, accountId: userId, accountName: profile.rows[0]?.name || 'Personal workspace' });
   }
   return workspaces;
 };
@@ -318,24 +352,41 @@ const getProject = async (db, userId, projectId, client = db) => {
 };
 
 const getProjectStorageBytes = async (client, projectId) => {
-  const schema = schemaForProject(projectId);
-  const relation = await client.query(
-    'SELECT pg_total_relation_size($1::regclass) AS bytes',
-    [`${quoteIdentifier(schema)}.${quoteIdentifier('iyonicdb_documents')}`]
+  const result = await client.query(
+    `SELECT COALESCE(SUM(pg_total_relation_size(relation.oid::regclass)), 0) AS bytes
+     FROM pg_class AS relation
+     JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+     WHERE namespace.nspname = $1 AND relation.relkind IN ('r', 'm')`,
+    [schemaForProject(projectId)]
   );
-  const tableResult = await client.query(
-    `SELECT table_name FROM information_schema.tables
-     WHERE table_schema = $1 AND table_type = 'BASE TABLE'`,
-    [schema]
+  return Number(result.rows[0]?.bytes || 0);
+};
+
+const getProjectPlatformStorage = async (client, projectId) => {
+  const schema = quoteIdentifier(schemaForProject(projectId));
+  const result = await client.query(
+    `SELECT
+       COALESCE(document->>'platformKey', split_part(source_key, ':', 2)) AS product_key,
+       COALESCE(document->>'accountId', document->>'platformId', split_part(source_key, ':', 3)) AS account_id,
+       COALESCE(SUM(pg_column_size(document)), 0)::bigint AS storage_bytes
+     FROM ${schema}.iyonicdb_documents
+     WHERE collection = 'platform_data' AND source_key IS NOT NULL
+     GROUP BY 1, 2`
   );
-  let bytes = Number(relation.rows[0]?.bytes || 0);
-  for (const row of tableResult.rows) {
-    bytes += Number((await client.query(
-      'SELECT pg_total_relation_size($1::regclass) AS bytes',
-      [`${quoteIdentifier(schema)}.${quoteIdentifier(row.table_name)}`]
-    )).rows[0]?.bytes || 0);
-  }
-  return bytes;
+  return new Map(result.rows.map((row) => [`${row.product_key}:${row.account_id}`, Number(row.storage_bytes || 0)]));
+};
+
+const getUserStorageBytes = async (client, userId) => {
+  const result = await client.query(
+    `SELECT COALESCE(SUM(pg_total_relation_size(relation.oid::regclass)), 0) AS bytes
+     FROM iyonicdb_projects AS project
+     JOIN pg_namespace AS namespace
+       ON namespace.nspname = 'idb_' || replace(project.id::text, '-', '')
+     JOIN pg_class AS relation ON relation.relnamespace = namespace.oid
+     WHERE project.user_id = $1 AND relation.relkind IN ('r', 'm')`,
+    [userId]
+  );
+  return Number(result.rows[0]?.bytes || 0);
 };
 
 const ensureProjectSchema = async (client, projectId) => {
@@ -347,14 +398,44 @@ const ensureProjectSchema = async (client, projectId) => {
       project_id UUID NOT NULL,
       collection VARCHAR(63) NOT NULL,
       document JSONB NOT NULL CHECK (jsonb_typeof(document) = 'object'),
+      source_key TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`
   );
+  await client.query(`ALTER TABLE ${quoteIdentifier(schema)}.${quoteIdentifier('iyonicdb_documents')} ADD COLUMN IF NOT EXISTS source_key TEXT`);
+  await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS iyonicdb_documents_source_key ON ${quoteIdentifier(schema)}.${quoteIdentifier('iyonicdb_documents')} (project_id, collection, source_key) WHERE source_key IS NOT NULL`);
   await client.query(
     `CREATE INDEX IF NOT EXISTS iyonicdb_documents_project_collection
      ON ${quoteIdentifier(schema)}.${quoteIdentifier('iyonicdb_documents')} (project_id, collection, created_at DESC)`
   );
+};
+
+const ensureDefaultProject = async (client, userId) => {
+  await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]);
+  let result = await client.query(
+    'SELECT id, name, created_at, is_default FROM iyonicdb_projects WHERE user_id = $1 ORDER BY is_default DESC, created_at, id LIMIT 1',
+    [userId]
+  );
+  if (result.rows[0]) {
+    const existing = result.rows[0];
+    if (!existing.is_default) {
+      await client.query('UPDATE iyonicdb_projects SET is_default = TRUE, name = $2 WHERE id = $1', [existing.id, 'Default']);
+      existing.name = 'Default';
+      existing.is_default = true;
+    } else if (existing.name !== 'Default') {
+      await client.query("UPDATE iyonicdb_projects SET name = 'Default' WHERE id = $1", [existing.id]);
+      existing.name = 'Default';
+    }
+    await ensureProjectSchema(client, existing.id);
+    return existing;
+  }
+  result = await client.query(
+    "INSERT INTO iyonicdb_projects (user_id, name, is_default) VALUES ($1, 'Default', TRUE) RETURNING id, name, created_at, is_default",
+    [userId]
+  );
+  await ensureProjectSchema(client, result.rows[0].id);
+  return result.rows[0];
 };
 
 const requirePlan = async (db, req, res) => {
@@ -469,7 +550,7 @@ export const runSqlSelect = async (client, projectId, sql, params) => {
   return { rows: result.rows, rowCount: result.rowCount, fields: result.fields.map((field) => field.name) };
 };
 
-const insertSqlRow = async (db, projectId, tableName, row, subscription) => {
+const insertSqlRow = async (db, userId, projectId, tableName, row, subscription) => {
   if (!identifierPattern.test(tableName) || !row || typeof row !== 'object' || Array.isArray(row)) {
     throw Object.assign(new Error('Provide a valid table and JSON object row.'), { status: 400 });
   }
@@ -483,11 +564,12 @@ const insertSqlRow = async (db, projectId, tableName, row, subscription) => {
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]);
     await client.query('SELECT id FROM iyonicdb_projects WHERE id = $1 FOR UPDATE', [projectId]);
-    const currentBytes = await getProjectStorageBytes(client, projectId);
+    const currentBytes = await getUserStorageBytes(client, userId);
     if (currentBytes + size > subscription.storageBytes) {
       await client.query('ROLLBACK');
-      throw Object.assign(new Error('The plan storage limit has been reached.'), { status: 413 });
+      throw Object.assign(new Error('The account storage limit for this plan has been reached.'), { status: 413 });
     }
     const table = await client.query(
       'SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2',
@@ -520,9 +602,9 @@ const insertSqlRow = async (db, projectId, tableName, row, subscription) => {
        RETURNING *`,
       params
     );
-    if (await getProjectStorageBytes(client, projectId) > subscription.storageBytes) {
+    if (await getUserStorageBytes(client, userId) > subscription.storageBytes) {
       await client.query('ROLLBACK');
-      throw Object.assign(new Error('The plan storage limit has been reached.'), { status: 413 });
+      throw Object.assign(new Error('The account storage limit for this plan has been reached.'), { status: 413 });
     }
     await client.query('COMMIT');
     return result.rows[0];
@@ -534,26 +616,27 @@ const insertSqlRow = async (db, projectId, tableName, row, subscription) => {
   }
 };
 
-const insertDocument = async (db, projectId, collection, document, subscription) => {
+const insertDocument = async (db, userId, projectId, collection, document, subscription) => {
   const payload = JSON.stringify(document);
   const size = Buffer.byteLength(payload, 'utf8');
   if (size > 1024 * 1024) throw Object.assign(new Error('Documents are limited to 1 MB.'), { status: 413 });
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]);
     await client.query('SELECT id FROM iyonicdb_projects WHERE id = $1 FOR UPDATE', [projectId]);
-    if (await getProjectStorageBytes(client, projectId) + size > subscription.storageBytes) {
+    if (await getUserStorageBytes(client, userId) + size > subscription.storageBytes) {
       await client.query('ROLLBACK');
-      throw Object.assign(new Error('The plan storage limit has been reached.'), { status: 413 });
+      throw Object.assign(new Error('The account storage limit for this plan has been reached.'), { status: 413 });
     }
     const result = await client.query(
       `INSERT INTO ${quoteIdentifier(schemaForProject(projectId))}.${quoteIdentifier('iyonicdb_documents')} (project_id, collection, document)
        VALUES ($1, $2, $3::jsonb) RETURNING id, document, created_at, updated_at`,
       [projectId, collection, payload]
     );
-    if (await getProjectStorageBytes(client, projectId) > subscription.storageBytes) {
+    if (await getUserStorageBytes(client, userId) > subscription.storageBytes) {
       await client.query('ROLLBACK');
-      throw Object.assign(new Error('The plan storage limit has been reached.'), { status: 413 });
+      throw Object.assign(new Error('The account storage limit for this plan has been reached.'), { status: 413 });
     }
     await client.query('COMMIT');
     return result.rows[0];
@@ -565,7 +648,7 @@ const insertDocument = async (db, projectId, collection, document, subscription)
   }
 };
 
-const updateDocument = async (db, projectId, collection, documentId, document, subscription) => {
+const updateDocument = async (db, userId, projectId, collection, documentId, document, subscription) => {
   const payload = JSON.stringify(document);
   const size = Buffer.byteLength(payload, 'utf8');
   if (size > 1024 * 1024) throw Object.assign(new Error('Documents are limited to 1 MB.'), { status: 413 });
@@ -573,6 +656,7 @@ const updateDocument = async (db, projectId, collection, documentId, document, s
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]);
     await client.query('SELECT id FROM iyonicdb_projects WHERE id = $1 FOR UPDATE', [projectId]);
     const result = await client.query(
       `UPDATE ${quoteIdentifier(schemaForProject(projectId))}.${quoteIdentifier('iyonicdb_documents')}
@@ -585,9 +669,9 @@ const updateDocument = async (db, projectId, collection, documentId, document, s
       await client.query('ROLLBACK');
       throw Object.assign(new Error('Document not found.'), { status: 404 });
     }
-    if (await getProjectStorageBytes(client, projectId) > subscription.storageBytes) {
+    if (await getUserStorageBytes(client, userId) > subscription.storageBytes) {
       await client.query('ROLLBACK');
-      throw Object.assign(new Error('The plan storage limit has been reached.'), { status: 413 });
+      throw Object.assign(new Error('The account storage limit for this plan has been reached.'), { status: 413 });
     }
     await client.query('COMMIT');
     return result.rows[0];
@@ -599,7 +683,7 @@ const updateDocument = async (db, projectId, collection, documentId, document, s
   }
 };
 
-const updateSqlRow = async (db, projectId, tableName, rowId, row, subscription) => {
+const updateSqlRow = async (db, userId, projectId, tableName, rowId, row, subscription) => {
   if (!identifierPattern.test(tableName) || !uuidPattern.test(String(rowId)) || !row || typeof row !== 'object' || Array.isArray(row)) {
     throw Object.assign(new Error('Provide a valid table, row ID, and JSON object.'), { status: 400 });
   }
@@ -613,6 +697,7 @@ const updateSqlRow = async (db, projectId, tableName, rowId, row, subscription) 
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
+    await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]);
     await client.query('SELECT id FROM iyonicdb_projects WHERE id = $1 FOR UPDATE', [projectId]);
     const table = await client.query(
       'SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2',
@@ -644,9 +729,9 @@ const updateSqlRow = async (db, projectId, tableName, rowId, row, subscription) 
       await client.query('ROLLBACK');
       throw Object.assign(new Error('Row not found.'), { status: 404 });
     }
-    if (await getProjectStorageBytes(client, projectId) > subscription.storageBytes) {
+    if (await getUserStorageBytes(client, userId) > subscription.storageBytes) {
       await client.query('ROLLBACK');
-      throw Object.assign(new Error('The plan storage limit has been reached.'), { status: 413 });
+      throw Object.assign(new Error('The account storage limit for this plan has been reached.'), { status: 413 });
     }
     await client.query('COMMIT');
     return result.rows[0];
@@ -668,16 +753,30 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
 
   app.get('/api/iyonicdb/overview', authenticateToken, async (req, res) => {
     try {
+      const defaultClient = await db.pool.connect();
+      try {
+        await defaultClient.query('BEGIN');
+        await ensureDefaultProject(defaultClient, req.user.id);
+        await defaultClient.query('COMMIT');
+      } catch (error) {
+        await defaultClient.query('ROLLBACK');
+        throw error;
+      } finally {
+        defaultClient.release();
+      }
       const identity = await db.query('SELECT id, email FROM users WHERE id = $1', [req.user.id]);
       if (!identity.rows[0]?.email) return res.status(401).json({ message: 'Your account email could not be verified. Please sign in again.' });
       const accountEmail = String(identity.rows[0].email).trim().toLowerCase();
       const [projects, connectedProjects, subscription, usage, wallet] = await Promise.all([
-        db.query('SELECT id, name, created_at FROM iyonicdb_projects WHERE user_id = $1 ORDER BY created_at', [req.user.id]),
+        db.query('SELECT id, name, created_at, is_default FROM iyonicdb_projects WHERE user_id = $1 ORDER BY is_default DESC, created_at', [req.user.id]),
         getConnectedProductProjects(db, req.user.id, accountEmail),
         getCurrentSubscription(db, req.user.id),
         db.query(
-          `SELECT request_count FROM iyonicdb_usage
-           WHERE user_id = $1 AND month_start = date_trunc('month', CURRENT_TIMESTAMP)::date`,
+          `SELECT COALESCE((
+             SELECT request_count FROM iyonicdb_usage
+             WHERE user_id = $1 AND month_start = date_trunc('month', CURRENT_TIMESTAMP)::date
+           ), 0)::int AS request_count,
+           date_trunc('month', CURRENT_TIMESTAMP)::date::text AS period_start`,
           [req.user.id]
         ),
         db.query('SELECT balance, currency FROM wallets WHERE user_id = $1', [req.user.id]),
@@ -687,18 +786,61 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
           getProjectStorageBytes(db, project.id),
           getProjectInventory(db, project.id),
         ]);
-        return { id: project.id, name: project.name, createdAt: project.created_at, storageBytes, ...inventory };
+        return { id: project.id, name: project.name, createdAt: project.created_at, isDefault: project.is_default, storageBytes, ...inventory };
       }));
+      const defaultProject = projects.rows.find((project) => project.is_default);
+      let storageBreakdownComplete = true;
+      let platformStorage = new Map();
+      try {
+        if (defaultProject) platformStorage = await getProjectPlatformStorage(db, defaultProject.id);
+      } catch (storageError) {
+        storageBreakdownComplete = false;
+        console.error('IyonicDB platform storage breakdown failed:', storageError);
+      }
+      const personalMediaWorkspaceId = connectedProjects.find((workspace) => workspace.accountId === req.user.id)?.id;
+      const accountWorkspaces = await Promise.all(connectedProjects.map(async (workspace) => {
+        let mediaStorageBytes = 0;
+        try {
+          mediaStorageBytes = await getAccountMediaStorageBytes(
+            db,
+            workspace.productKey,
+            workspace.accountId,
+            req.user.id,
+            workspace.id === personalMediaWorkspaceId
+          );
+        } catch (storageError) {
+          storageBreakdownComplete = false;
+          console.error(`IyonicDB media storage breakdown failed for ${workspace.productKey}:`, storageError);
+        }
+        return {
+          ...workspace,
+          mediaStorageBytes,
+          storageBytes: (platformStorage.get(`${workspace.productKey}:${workspace.accountId}`) || 0) + mediaStorageBytes,
+        };
+      }));
+      const platformMediaStorageBytes = accountWorkspaces.reduce((total, workspace) => total + workspace.mediaStorageBytes, 0);
+      const currentWallet = wallet.rows[0];
+      const walletCurrency = String(currentWallet?.currency || 'USD').toUpperCase();
+      const walletRate = IYONICPAY_RATES_TO_USD[walletCurrency];
       res.json({
-        projects: [...connectedProjects, ...databaseProjects],
+        projects: databaseProjects,
+        accountWorkspaces,
+        databaseProjectCount: databaseProjects.length,
         subscription,
-        wallet: wallet.rows[0] ? { balance: Number(wallet.rows[0].balance || 0), currency: wallet.rows[0].currency || 'USD' } : { balance: 0, currency: 'USD' },
+        wallet: {
+          balance: Number(currentWallet?.balance || 0),
+          currency: walletCurrency,
+          available: Boolean(currentWallet),
+          planCharges: walletRate ? Object.fromEntries(Object.values(PLANS).map((plan) => [plan.id, Math.round(plan.price * walletRate * 100) / 100])) : {},
+        },
         usage: {
           requests: Number(usage.rows[0]?.request_count || 0),
           requestLimit: subscription?.requestsPerMonth || 0,
-          storageBytes: databaseProjects.reduce((total, project) => total + project.storageBytes, 0),
+          storageBytes: databaseProjects.reduce((total, project) => total + project.storageBytes, 0) + platformMediaStorageBytes,
+          mediaStorageBytes: platformMediaStorageBytes,
+          storageBreakdownComplete,
           storageLimitBytes: subscription?.storageBytes || 0,
-          periodStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
+          periodStart: usage.rows[0]?.period_start || new Date().toISOString().slice(0, 10),
         },
       });
     } catch (error) {
@@ -719,22 +861,16 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
       if (req.query.email && String(req.query.email).trim().toLowerCase() !== accountEmail) {
         return res.status(403).json({ message: 'The requested email does not match your signed-in account.' });
       }
-      const seller = productKey === 'iyonicpay' ? { rows: [] } : await db.query(
-        `SELECT DISTINCT s.id, s.store_name FROM sellers s
-         LEFT JOIN users owner ON owner.id = s.user_id
-         LEFT JOIN seller_managers sm ON sm.id = s.manager_id
-         LEFT JOIN users manager ON manager.id = sm.user_id
-         WHERE s.id = $1 AND (LOWER(owner.email) = LOWER($2) OR LOWER(manager.email) = LOWER($2))`,
-        [accountId, accountEmail]
-      );
-      const isSellerWorkspace = seller.rowCount > 0;
-      const optedIn = await db.query(
-        `SELECT 1 FROM user_product_access a JOIN users u ON u.id = a.user_id
-         WHERE LOWER(u.email) = LOWER($1) AND a.product_key = $2`,
-        [accountEmail, productKey]
-      );
-      const isPersonalWorkspace = accountId === req.user.id && (productKey === 'iyonicpay' || optedIn.rowCount > 0);
-      if (!isSellerWorkspace && !isPersonalWorkspace) return res.status(404).json({ message: 'Workspace not found.' });
+      // Resolve access through the same workspace list used by /overview. This
+      // keeps account IDs and ownership rules consistent across both routes.
+      const connectedWorkspaces = await getConnectedProductProjects(db, req.user.id, accountEmail);
+      const workspace = connectedWorkspaces.find((item) => item.productKey === productKey && item.accountId === accountId);
+      if (!workspace) return res.status(404).json({ message: 'Workspace not found.' });
+      const seller = productKey === 'iyonicpay' || accountId === req.user.id
+        ? { rows: [] }
+        : await db.query('SELECT id, store_name FROM sellers WHERE id = $1', [accountId]);
+      const isSellerWorkspace = Boolean(seller.rowCount && accountId !== req.user.id);
+      const isPersonalWorkspace = accountId === req.user.id;
       if (productKey === 'iyonicpay' && !isPersonalWorkspace) return res.status(404).json({ message: 'Workspace not found.' });
       const accountOwnerId = isSellerWorkspace ? accountId : req.user.id;
       const tables = await getProductTables(db, productKey);
@@ -757,6 +893,109 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     } catch (error) {
       console.error('IyonicDB product workspace data failed:', error);
       res.status(500).json({ message: 'Could not load this product workspace data.' });
+    }
+  });
+
+  app.post('/api/iyonicdb/projects/:projectId/platform-data/sync', authenticateToken, async (req, res) => {
+    const subscription = await requirePlan(db, req, res);
+    if (!subscription) return;
+    const project = await getProject(db, req.user.id, req.params.projectId);
+    if (!project) return res.status(404).json({ message: 'Project not found.' });
+    const defaultCheck = await db.query('SELECT is_default FROM iyonicdb_projects WHERE id = $1 AND user_id = $2', [project.id, req.user.id]);
+    if (!defaultCheck.rows[0]?.is_default) return res.status(403).json({ message: 'Platform data can only sync to your Default project.' });
+    const identity = await db.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+    const accountEmail = String(identity.rows[0]?.email || '').trim().toLowerCase();
+    if (!accountEmail) return res.status(401).json({ message: 'Your account email could not be verified. Please sign in again.' });
+    const sellers = await db.query(
+      `SELECT DISTINCT s.id, s.store_name
+       FROM sellers s
+       LEFT JOIN users owner ON owner.id = s.user_id
+       LEFT JOIN seller_managers sm ON sm.id = s.manager_id
+       LEFT JOIN users manager ON manager.id = sm.user_id
+       WHERE LOWER(owner.email) = LOWER($1) OR LOWER(manager.email) = LOWER($1)
+       ORDER BY s.store_name`,
+      [accountEmail]
+    );
+    const personalAccess = await db.query('SELECT product_key FROM user_product_access WHERE user_id = $1', [req.user.id]);
+    const personalProductKeys = [...new Set([...personalAccess.rows.map((row) => row.product_key).filter((key) => PRODUCT_ACCOUNTS[key]), 'nlmsongs'])];
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
+      await client.query('SELECT id FROM iyonicdb_projects WHERE id = $1 FOR UPDATE', [project.id]);
+      await ensureProjectSchema(client, project.id);
+      const schema = quoteIdentifier(schemaForProject(project.id));
+      const now = new Date().toISOString();
+      let recordsSynced = 0;
+      let datasetsSynced = 0;
+      const platformsSynced = new Set();
+      const tableCache = new Map();
+      const syncWorkspace = async ({ productKey, accountId, isSellerWorkspace, platformName }) => {
+        const product = PRODUCT_ACCOUNTS[productKey];
+        if (!tableCache.has(productKey)) tableCache.set(productKey, await getProductTables(db, productKey));
+        for (const table of tableCache.get(productKey)) {
+          const metadata = await getProductDataset(db, productKey, table, accountId, req.user.id, isSellerWorkspace, false);
+          if (!metadata.count) continue;
+          platformsSynced.add(productKey);
+          const prefix = `account:${productKey}:${accountId}:${table}:`;
+          const sourceKeys = [];
+          for (let offset = 0; offset < metadata.count; offset += 200) {
+            const page = await getProductDataset(db, productKey, table, accountId, req.user.id, isSellerWorkspace, true, 200, offset);
+            const values = [];
+            const params = [];
+            for (const row of page.records) {
+              const sourceId = row.id ?? row._id ?? crypto.createHash('sha256').update(JSON.stringify(row)).digest('hex');
+              const sourceKey = `${prefix}${String(sourceId)}`;
+              sourceKeys.push(sourceKey);
+              const document = JSON.stringify({ platform: product.name, platformKey: productKey, platformId: accountId, accountId, platformName, dataset: table, sourceId, data: row, syncedAt: now });
+              const base = params.length;
+              params.push(project.id, 'platform_data', document, sourceKey);
+              values.push(`($${base + 1}, $${base + 2}, $${base + 3}::jsonb, $${base + 4})`);
+            }
+            if (values.length) {
+              await client.query(
+                `INSERT INTO ${schema}.iyonicdb_documents (project_id, collection, document, source_key)
+                 VALUES ${values.join(', ')}
+                 ON CONFLICT (project_id, collection, source_key) WHERE source_key IS NOT NULL
+                 DO UPDATE SET document = EXCLUDED.document, updated_at = CURRENT_TIMESTAMP`,
+                params
+              );
+              recordsSynced += values.length;
+              const storageBytes = await getUserStorageBytes(client, req.user.id);
+              if (storageBytes > subscription.storageBytes) throw Object.assign(new Error('Syncing this platform would exceed your IyonicDB storage allowance. Upgrade your plan or reduce the platform data before syncing again.'), { status: 413 });
+            }
+          }
+          await client.query(
+            `DELETE FROM ${schema}.iyonicdb_documents
+             WHERE project_id = $1 AND collection = 'platform_data'
+               AND left(source_key, length($2)) = $2
+               AND NOT (source_key = ANY($3::text[]))`,
+            [project.id, prefix, sourceKeys]
+          );
+          datasetsSynced += 1;
+        }
+      };
+      const sellerProductKeys = Object.keys(PRODUCT_ACCOUNTS).filter((key) => key !== 'iyonicpay');
+      for (const seller of sellers.rows) {
+        for (const productKey of sellerProductKeys) {
+          const productName = `${PRODUCT_ACCOUNTS[productKey].name} · ${seller.store_name}`;
+          await syncWorkspace({ productKey, accountId: seller.id, isSellerWorkspace: true, platformName: productName });
+        }
+      }
+      const profile = await db.query('SELECT name FROM users WHERE id = $1', [req.user.id]);
+      for (const productKey of personalProductKeys) {
+        await syncWorkspace({ productKey, accountId: req.user.id, isSellerWorkspace: false, platformName: profile.rows[0]?.name || 'Personal account' });
+      }
+      const storageBytes = await getUserStorageBytes(client, req.user.id);
+      await client.query('COMMIT');
+      res.json({ platforms: platformsSynced.size, datasetsSynced, recordsSynced, storageBytes, storageLimitBytes: subscription.storageBytes, syncedAt: now });
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      if (error.status) return res.status(error.status).json({ message: error.message });
+      console.error('IyonicDB platform sync failed:', error);
+      res.status(500).json({ message: 'Could not sync platform data to the Default project.' });
+    } finally {
+      client.release();
     }
   });
 
@@ -867,7 +1106,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
         return res.status(409).json({ message: `Your ${subscription.name} plan allows ${subscription.projectLimit} project(s).` });
       }
       const project = await client.query(
-        'INSERT INTO iyonicdb_projects (user_id, name) VALUES ($1, $2) RETURNING id, name, created_at',
+        'INSERT INTO iyonicdb_projects (user_id, name, is_default) VALUES ($1, $2, FALSE) RETURNING id, name, created_at, is_default',
         [req.user.id, name]
       );
       await ensureProjectSchema(client, project.rows[0].id);
@@ -933,6 +1172,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
+      await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
       await client.query('SELECT id FROM iyonicdb_projects WHERE id = $1 FOR UPDATE', [project.id]);
       const count = await client.query(
         `SELECT count(*)::int AS count FROM information_schema.tables
@@ -949,9 +1189,9 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
         `${quoteIdentifier('created_at')} TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP`,
       ];
       await client.query(`CREATE TABLE ${quoteIdentifier(schema)}.${quoteIdentifier(name)} (${definitions.join(', ')})`);
-      if (await getProjectStorageBytes(client, project.id) > subscription.storageBytes) {
+      if (await getUserStorageBytes(client, req.user.id) > subscription.storageBytes) {
         await client.query('ROLLBACK');
-        return res.status(413).json({ message: 'The plan storage limit has been reached.' });
+        return res.status(413).json({ message: 'The account storage limit for this plan has been reached.' });
       }
       await client.query('COMMIT');
       res.status(201).json({ name, columns: [{ name: 'id', type: 'uuid' }, ...columns, { name: 'created_at', type: 'timestamp with time zone' }], rowCount: 0 });
@@ -1001,7 +1241,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     const project = await getProject(db, req.user.id, req.params.projectId);
     if (!project) return res.status(404).json({ message: 'Project not found.' });
     try {
-      const row = await insertSqlRow(db, project.id, req.params.table, req.body?.row, subscription);
+      const row = await insertSqlRow(db, req.user.id, project.id, req.params.table, req.body?.row, subscription);
       res.status(201).json(row);
     } catch (error) {
       res.status(error.status || 500).json({ message: error.status ? error.message : 'Could not save table row.' });
@@ -1014,7 +1254,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     const project = await getProject(db, req.user.id, req.params.projectId);
     if (!project) return res.status(404).json({ message: 'Project not found.' });
     try {
-      const row = await updateSqlRow(db, project.id, req.params.table, req.params.rowId, req.body?.row, subscription);
+      const row = await updateSqlRow(db, req.user.id, project.id, req.params.table, req.params.rowId, req.body?.row, subscription);
       res.json(row);
     } catch (error) {
       res.status(error.status || 500).json({ message: error.status ? error.message : 'Could not update table row.' });
@@ -1039,6 +1279,26 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
       if (error.code === '42P01') return res.status(404).json({ message: 'Table not found in this project.' });
       console.error('IyonicDB row deletion failed:', error);
       res.status(500).json({ message: 'Could not delete this table row.' });
+    }
+  });
+
+  app.get('/api/iyonicdb/projects/:projectId/documents', authenticateToken, async (req, res) => {
+    if (!await requirePlan(db, req, res)) return;
+    const project = await getProject(db, req.user.id, req.params.projectId);
+    if (!project) return res.status(404).json({ message: 'Project not found.' });
+    try {
+      const result = await db.query(
+        `SELECT collection, COUNT(*)::int AS count
+         FROM ${quoteIdentifier(schemaForProject(project.id))}.${quoteIdentifier('iyonicdb_documents')}
+         WHERE project_id = $1
+         GROUP BY collection
+         ORDER BY collection`,
+        [project.id]
+      );
+      res.json(result.rows);
+    } catch (error) {
+      console.error('IyonicDB document collection listing failed:', error);
+      res.status(500).json({ message: 'Could not load document collections.' });
     }
   });
 
@@ -1069,7 +1329,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
       return res.status(400).json({ message: 'Provide a valid collection and JSON object document.' });
     }
     try {
-      const document = await insertDocument(db, project.id, req.params.collection, req.body.document, subscription);
+      const document = await insertDocument(db, req.user.id, project.id, req.params.collection, req.body.document, subscription);
       res.status(201).json(document);
     } catch (error) {
       if (error.status) return res.status(error.status).json({ message: error.message });
@@ -1087,7 +1347,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
       return res.status(400).json({ message: 'Provide a valid collection and JSON object document.' });
     }
     try {
-      const document = await updateDocument(db, project.id, req.params.collection, req.params.documentId, req.body.document, subscription);
+      const document = await updateDocument(db, req.user.id, project.id, req.params.collection, req.params.documentId, req.body.document, subscription);
       res.json(document);
     } catch (error) {
       res.status(error.status || 500).json({ message: error.status ? error.message : 'Could not update document.' });
@@ -1136,17 +1396,37 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     const project = await getProject(db, req.user.id, projectId);
     if (!project) return res.status(404).json({ message: 'Project not found.' });
     const key = `idb_live_${nanoid(40)}`;
+    const client = await db.pool.connect();
     try {
-      const result = await db.query(
+      await client.query('BEGIN');
+      await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
+      const subscription = await getCurrentSubscription(db, req.user.id, client);
+      const activeKeys = await client.query(
+        'SELECT count(*)::int AS count FROM iyonicdb_api_keys WHERE user_id = $1 AND revoked_at IS NULL',
+        [req.user.id]
+      );
+      if (Number(activeKeys.rows[0]?.count || 0) >= subscription.apiKeyLimit) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          message: `Your ${subscription.name} plan allows ${subscription.apiKeyLimit} active API keys. Revoke an existing key or upgrade your plan.`,
+          activeKeyCount: Number(activeKeys.rows[0]?.count || 0),
+          apiKeyLimit: subscription.apiKeyLimit,
+        });
+      }
+      const result = await client.query(
         `INSERT INTO iyonicdb_api_keys (user_id, project_id, name, key_prefix, key_hash)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING id, name, key_prefix, created_at`,
         [req.user.id, project.id, name, key.slice(0, 17), hashKey(key)]
       );
+      await client.query('COMMIT');
       res.status(201).json({ ...result.rows[0], secret: key });
     } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
       console.error('IyonicDB API key creation failed:', error);
       res.status(500).json({ message: 'Could not create the API key.' });
+    } finally {
+      client.release();
     }
   });
 
@@ -1205,7 +1485,6 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
   app.post('/api/iyonicdb/billing/wallet/subscribe', authenticateToken, async (req, res) => {
     const plan = PLANS[req.body?.planId];
     if (!plan) return res.status(400).json({ message: 'Choose a valid IyonicDB plan.' });
-    const ratesToUsd = { USD: 1, KES: 125, EUR: 0.92, GBP: 0.79, NGN: 1500, GHS: 13 };
     const client = await db.pool.connect();
     try {
       await client.query('BEGIN');
@@ -1226,7 +1505,11 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
         return res.status(402).json({ message: 'No IyonicPay wallet is linked to your account. Open IyonicPay and add funds to subscribe.' });
       }
       const currency = String(currentWallet.currency || 'USD').toUpperCase();
-      const rate = ratesToUsd[currency] || 1;
+      const rate = IYONICPAY_RATES_TO_USD[currency];
+      if (!rate) {
+        await client.query('ROLLBACK');
+        return res.status(422).json({ message: `IyonicPay subscriptions do not support ${currency} wallets yet. Please use Paystack or a supported wallet currency.` });
+      }
       const charge = Math.round(plan.price * rate * 100) / 100;
       if (Number(currentWallet.balance) < charge) {
         await client.query('ROLLBACK');
@@ -1366,7 +1649,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
   app.post('/api/iyonicdb/v1/projects/:projectId/tables/:table/rows', authenticateKey, async (req, res) => {
     if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
     try {
-      const row = await insertSqlRow(db, req.params.projectId, req.params.table, req.body?.row, req.iyonicDbKey.subscription);
+      const row = await insertSqlRow(db, req.iyonicDbKey.userId, req.params.projectId, req.params.table, req.body?.row, req.iyonicDbKey.subscription);
       res.status(201).json(row);
     } catch (error) {
       res.status(error.status || 500).json({ message: error.status ? error.message : 'Could not save table row.' });
@@ -1376,7 +1659,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
   app.put('/api/iyonicdb/v1/projects/:projectId/tables/:table/rows/:rowId', authenticateKey, async (req, res) => {
     if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
     try {
-      const row = await updateSqlRow(db, req.params.projectId, req.params.table, req.params.rowId, req.body?.row, req.iyonicDbKey.subscription);
+      const row = await updateSqlRow(db, req.iyonicDbKey.userId, req.params.projectId, req.params.table, req.params.rowId, req.body?.row, req.iyonicDbKey.subscription);
       res.json(row);
     } catch (error) {
       res.status(error.status || 500).json({ message: error.status ? error.message : 'Could not update table row.' });
@@ -1423,7 +1706,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
       return res.status(400).json({ message: 'Provide a valid collection and JSON object document.' });
     }
     try {
-      const document = await insertDocument(db, req.params.projectId, req.params.collection, req.body.document, req.iyonicDbKey.subscription);
+      const document = await insertDocument(db, req.iyonicDbKey.userId, req.params.projectId, req.params.collection, req.body.document, req.iyonicDbKey.subscription);
       res.status(201).json(document);
     } catch (error) {
       if (error.status) return res.status(error.status).json({ message: error.message });
@@ -1438,7 +1721,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
       return res.status(400).json({ message: 'Provide a valid collection and JSON object document.' });
     }
     try {
-      const document = await updateDocument(db, req.params.projectId, req.params.collection, req.params.documentId, req.body.document, req.iyonicDbKey.subscription);
+      const document = await updateDocument(db, req.iyonicDbKey.userId, req.params.projectId, req.params.collection, req.params.documentId, req.body.document, req.iyonicDbKey.subscription);
       res.json(document);
     } catch (error) {
       res.status(error.status || 500).json({ message: error.status ? error.message : 'Could not update document.' });
