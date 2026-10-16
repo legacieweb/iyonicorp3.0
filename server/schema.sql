@@ -909,6 +909,15 @@ CREATE TABLE IF NOT EXISTS iyonicdb_api_keys (
 
 CREATE INDEX IF NOT EXISTS idx_iyonicdb_api_keys_user ON iyonicdb_api_keys(user_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS iyonicdb_migrations (
+    project_id UUID NOT NULL REFERENCES iyonicdb_projects(id) ON DELETE CASCADE,
+    name VARCHAR(128) NOT NULL,
+    checksum CHAR(64) NOT NULL,
+    statement_count INTEGER NOT NULL CHECK (statement_count > 0),
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (project_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS iyonicdb_subscriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,

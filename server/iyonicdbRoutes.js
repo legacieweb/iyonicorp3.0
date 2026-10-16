@@ -58,6 +58,147 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}
 const quoteIdentifier = (value) => `"${String(value).replaceAll('"', '""')}"`;
 const schemaForProject = (projectId) => `idb_${String(projectId).replaceAll('-', '')}`;
 const hashKey = (key) => crypto.createHash('sha256').update(key).digest('hex');
+const splitMigrationSql = (sql) => {
+  const statements = [];
+  let current = '';
+  let state = 'normal';
+  let blockDepth = 0;
+  let dollarTag = '';
+  let escapeString = false;
+  for (let index = 0; index < sql.length; index += 1) {
+    const char = sql[index];
+    const next = sql[index + 1];
+    if (state === 'line-comment') {
+      current += char;
+      if (char === '\n') state = 'normal';
+      continue;
+    }
+    if (state === 'block-comment') {
+      current += char;
+      if (char === '/' && next === '*') { current += next; index += 1; blockDepth += 1; }
+      else if (char === '*' && next === '/') { current += next; index += 1; blockDepth -= 1; if (!blockDepth) state = 'normal'; }
+      continue;
+    }
+    if (state === 'single-quote') {
+      current += char;
+      if (escapeString && char === '\\' && next) { current += next; index += 1; }
+      else if (char === "'" && next === "'") { current += next; index += 1; }
+      else if (char === "'") state = 'normal';
+      continue;
+    }
+    if (state === 'double-quote') {
+      current += char;
+      if (char === '"' && next === '"') { current += next; index += 1; }
+      else if (char === '"') state = 'normal';
+      continue;
+    }
+    if (state === 'dollar-quote') {
+      if (sql.startsWith(dollarTag, index)) { current += dollarTag; index += dollarTag.length - 1; state = 'normal'; }
+      else current += char;
+      continue;
+    }
+    if (char === '-' && next === '-') { current += '--'; index += 1; state = 'line-comment'; continue; }
+    if (char === '/' && next === '*') { current += '/*'; index += 1; state = 'block-comment'; blockDepth = 1; continue; }
+    if (char === "'") {
+      escapeString = /(?:^|[^A-Za-z0-9_$])[eE]$/.test(current);
+      current += char;
+      state = 'single-quote';
+      continue;
+    }
+    if (char === '"') { current += char; state = 'double-quote'; continue; }
+    if (char === '$') {
+      const tag = sql.slice(index).match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/)?.[0];
+      if (tag) { dollarTag = tag; current += tag; index += tag.length - 1; state = 'dollar-quote'; continue; }
+    }
+    if (char === ';') {
+      if (current.trim() && maskMigrationSql(current).trim()) statements.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+  if (['single-quote', 'double-quote', 'dollar-quote', 'block-comment'].includes(state)) {
+    throw Object.assign(new Error('The migration contains an unterminated SQL string, identifier, or comment.'), { status: 400 });
+  }
+  if (current.trim() && maskMigrationSql(current).trim()) statements.push(current.trim());
+  if (!statements.length) throw Object.assign(new Error('Provide at least one SQL migration statement.'), { status: 400 });
+  if (statements.length > 100) throw Object.assign(new Error('A migration may contain at most 100 statements.'), { status: 413 });
+  return statements;
+};
+
+const maskMigrationSql = (sql) => {
+  let output = '';
+  let state = 'normal';
+  let blockDepth = 0;
+  let dollarTag = '';
+  let escapeString = false;
+  for (let index = 0; index < sql.length; index += 1) {
+    const char = sql[index];
+    const next = sql[index + 1];
+    if (state === 'line-comment') {
+      output += char === '\n' ? '\n' : ' ';
+      if (char === '\n') state = 'normal';
+      continue;
+    }
+    if (state === 'block-comment') {
+      output += char === '\n' ? '\n' : ' ';
+      if (char === '/' && next === '*') { output += ' '; index += 1; blockDepth += 1; }
+      else if (char === '*' && next === '/') { output += ' '; index += 1; blockDepth -= 1; if (!blockDepth) state = 'normal'; }
+      continue;
+    }
+    if (state === 'single-quote') {
+      output += char === '\n' ? '\n' : ' ';
+      if (escapeString && char === '\\' && next) { output += next === '\n' ? '\n' : ' '; index += 1; }
+      else if (char === "'" && next === "'") { output += ' '; index += 1; }
+      else if (char === "'") { state = 'normal'; escapeString = false; }
+      continue;
+    }
+    if (state === 'dollar-quote') {
+      if (sql.startsWith(dollarTag, index)) { output += ' '.repeat(dollarTag.length); index += dollarTag.length - 1; state = 'normal'; }
+      else output += char === '\n' ? '\n' : ' ';
+      continue;
+    }
+    if (char === '-' && next === '-') { output += '  '; index += 1; state = 'line-comment'; continue; }
+    if (char === '/' && next === '*') { output += '  '; index += 1; state = 'block-comment'; blockDepth = 1; continue; }
+    if (state === 'double-quote') {
+      output += char;
+      if (char === '"' && next === '"') { output += next; index += 1; }
+      else if (char === '"') state = 'normal';
+      continue;
+    }
+    if (char === "'") { escapeString = /(?:^|[^A-Za-z0-9_$])[eE]$/.test(sql.slice(0, index)); output += ' '; state = 'single-quote'; continue; }
+    if (char === '"') { output += char; state = 'double-quote'; continue; }
+    if (char === '$') {
+      const tag = sql.slice(index).match(/^\$[A-Za-z_][A-Za-z0-9_]*\$|^\$\$/)?.[0];
+      if (tag) { dollarTag = tag; output += ' '.repeat(tag.length); index += tag.length - 1; state = 'dollar-quote'; continue; }
+    }
+    output += char;
+  }
+  return output;
+};
+
+const validateMigrationStatements = (statements) => {
+  const allowedStart = /^(?:CREATE\s+(?:UNIQUE\s+)?(?:TABLE|INDEX|TYPE|SEQUENCE|DOMAIN)|ALTER\s+(?:TABLE|TYPE|SEQUENCE|DOMAIN)|DROP\s+(?:TABLE|INDEX|TYPE|SEQUENCE|DOMAIN))\b/i;
+  const qualifiedName = /(?:[A-Za-z_][A-Za-z0-9_$]*|"(?:""|[^"])+")\s*\.\s*(?:[A-Za-z_][A-Za-z0-9_$]*|"(?:""|[^"])+")/;
+  for (const statement of statements) {
+    const code = maskMigrationSql(statement).trim();
+    if (!allowedStart.test(code)) {
+      throw Object.assign(new Error('Migrations may only create, alter, or drop tables, indexes, types, sequences, and domains.'), { status: 400 });
+    }
+    if (qualifiedName.test(code) || /\bSET\s+SCHEMA\b/i.test(code)) {
+      throw Object.assign(new Error('Schema-qualified names and moving objects between schemas are not allowed. Migrations are automatically scoped to this API key’s project.'), { status: 400 });
+    }
+    if (/\biyonicdb_documents\b/i.test(code)) {
+      throw Object.assign(new Error('The internal IyonicDB document storage table cannot be changed by migrations.'), { status: 400 });
+    }
+    if (/\b(?:nextval|currval|setval|pg_sleep|pg_read_file|pg_read_binary_file|pg_write_file|pg_write_binary_file|pg_ls_dir|lo_import|lo_export|set_config)\s*\(/i.test(code)) {
+      throw Object.assign(new Error('This migration uses a database function that IyonicDB does not allow.'), { status: 400 });
+    }
+    if (/\b(?:CONCURRENTLY|TABLESPACE|OWNER\s+TO|SECURITY\s+DEFINER|CASCADE\s+TO)\b/i.test(code)) {
+      throw Object.assign(new Error('This migration uses a database-wide or non-transactional option that IyonicDB does not allow.'), { status: 400 });
+    }
+  }
+};
 const safePlan = (plan) => plan ? {
   ...plan,
   storageGb: plan.storageBytes / 1024 ** 3,
@@ -379,7 +520,7 @@ const getProjectPlatformStorage = async (client, projectId) => {
 const getUserStorageBytes = async (client, userId) => {
   const result = await client.query(
     `SELECT COALESCE(SUM(pg_total_relation_size(relation.oid::regclass)), 0) AS bytes
-     FROM iyonicdb_projects AS project
+     FROM public.iyonicdb_projects AS project
      JOIN pg_namespace AS namespace
        ON namespace.nspname = 'idb_' || replace(project.id::text, '-', '')
      JOIN pg_class AS relation ON relation.relnamespace = namespace.oid
@@ -1633,6 +1774,104 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
   app.get('/api/iyonicdb/v1/projects/:projectId/health', (req, res) => {
     if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
     res.json({ healthy: true });
+  });
+
+  app.get('/api/iyonicdb/v1/projects/:projectId/migrations', async (req, res) => {
+    if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
+    try {
+      const result = await db.query(
+        `SELECT name, checksum, statement_count AS "statementCount", applied_at AS "appliedAt"
+         FROM public.iyonicdb_migrations WHERE project_id = $1 ORDER BY applied_at, name`,
+        [req.params.projectId]
+      );
+      res.json(result.rows);
+    } catch (error) {
+      console.error('IyonicDB migration history failed:', error);
+      res.status(500).json({ message: 'Could not load migration history.' });
+    }
+  });
+
+  app.post('/api/iyonicdb/v1/projects/:projectId/migrations', async (req, res) => {
+    if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    const sql = typeof req.body?.sql === 'string' ? req.body.sql.trim() : '';
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(name)) {
+      return res.status(400).json({ message: 'Migration name must be 1 to 128 letters, numbers, dots, underscores, or hyphens.' });
+    }
+    if (!sql) return res.status(400).json({ message: 'Provide the migration SQL.' });
+    if (Buffer.byteLength(sql, 'utf8') > 256 * 1024) return res.status(413).json({ message: 'A migration is limited to 256 KB.' });
+
+    let statements;
+    try {
+      statements = splitMigrationSql(sql);
+      validateMigrationStatements(statements);
+    } catch (error) {
+      return res.status(error.status || 400).json({ message: error.message || 'The migration is invalid.' });
+    }
+
+    const checksum = crypto.createHash('sha256').update(sql).digest('hex');
+    const projectId = req.params.projectId;
+    const schema = schemaForProject(projectId);
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [projectId]);
+      await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [req.iyonicDbKey.userId]);
+      await client.query('SELECT id FROM iyonicdb_projects WHERE id = $1 FOR UPDATE', [projectId]);
+
+      const existing = await client.query(
+        'SELECT checksum, statement_count, applied_at FROM public.iyonicdb_migrations WHERE project_id = $1 AND name = $2',
+        [projectId, name]
+      );
+      if (existing.rowCount) {
+        if (existing.rows[0].checksum !== checksum) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ message: 'This migration name was already applied with different SQL. Use a new migration name.' });
+        }
+        await client.query('COMMIT');
+        return res.json({ name, checksum, statementCount: existing.rows[0].statement_count, appliedAt: existing.rows[0].applied_at, alreadyApplied: true });
+      }
+
+      await client.query(`SET LOCAL search_path TO ${quoteIdentifier(schema)}, pg_catalog`);
+      await client.query("SET LOCAL statement_timeout = '30s'");
+      await client.query("SET LOCAL lock_timeout = '5s'");
+      for (const statement of statements) await client.query(statement);
+
+      const tableCount = await client.query(
+        `SELECT count(*)::int AS count FROM information_schema.tables
+         WHERE table_schema = $1 AND table_type = 'BASE TABLE' AND table_name <> 'iyonicdb_documents'`,
+        [schema]
+      );
+      if (Number(tableCount.rows[0]?.count || 0) > req.iyonicDbKey.subscription.tableLimit) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ message: `This migration would exceed your ${req.iyonicDbKey.subscription.name} plan limit of ${req.iyonicDbKey.subscription.tableLimit} tables.` });
+      }
+      if (await getUserStorageBytes(client, req.iyonicDbKey.userId) > req.iyonicDbKey.subscription.storageBytes) {
+        await client.query('ROLLBACK');
+        return res.status(413).json({ message: 'This migration would exceed your account storage limit.' });
+      }
+
+      const applied = await client.query(
+        `INSERT INTO public.iyonicdb_migrations (project_id, name, checksum, statement_count)
+         VALUES ($1, $2, $3, $4) RETURNING applied_at AS "appliedAt"`,
+        [projectId, name, checksum, statements.length]
+      );
+      await client.query('COMMIT');
+      res.status(201).json({ name, checksum, statementCount: statements.length, appliedAt: applied.rows[0].appliedAt, alreadyApplied: false });
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      if (['42P07', '42701', '42710'].includes(error.code)) {
+        return res.status(409).json({ message: 'The migration conflicts with an existing database object. No changes were applied.' });
+      }
+      if (['57014', '55P03'].includes(error.code)) {
+        return res.status(409).json({ message: 'The migration timed out or could not obtain a database lock. No changes were applied.' });
+      }
+      console.error('IyonicDB migration failed:', error);
+      const userSqlError = ['42601', '42P01', '42703', '42804', '42P16', '23502', '23503', '23505', '23514'].includes(error.code);
+      res.status(error.status || (userSqlError ? 400 : 500)).json({ message: (error.status || userSqlError) ? error.message : 'The migration failed. No changes were applied.', code: error.code || undefined });
+    } finally {
+      client.release();
+    }
   });
 
   app.post('/api/iyonicdb/v1/projects/:projectId/query', async (req, res) => {

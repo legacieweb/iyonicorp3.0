@@ -87,11 +87,11 @@ type PaystackPopup = {
 };
 type PaystackPopupConstructor = new () => PaystackPopup;
 
-declare global {
-  interface Window {
-    PaystackPop?: PaystackPopupConstructor & { setup?: (...args: any[]) => any };
-  }
-}
+// Keep the Paystack v2 constructor local to this feature. Global Window
+// augmentation collides with other Paystack integrations that use setup().
+const paystackWindow = window as unknown as {
+  PaystackPop?: PaystackPopupConstructor & { setup?: (...args: any[]) => any };
+};
 
 let paystackPopupConstructorPromise: Promise<PaystackPopupConstructor> | null = null;
 
@@ -99,14 +99,14 @@ const loadPaystackPopup = () => {
   if (paystackPopupConstructorPromise) return paystackPopupConstructorPromise;
 
   paystackPopupConstructorPromise = new Promise<PaystackPopupConstructor>((resolve, reject) => {
-    const legacyPaystackPop = window.PaystackPop;
+    const legacyPaystackPop = paystackWindow.PaystackPop;
     const script = document.createElement('script');
     script.src = 'https://js.paystack.co/v2/inline.js';
     script.async = true;
     script.onload = () => {
-      const popupConstructor = window.PaystackPop;
-      if (legacyPaystackPop) window.PaystackPop = legacyPaystackPop;
-      else delete window.PaystackPop;
+      const popupConstructor = paystackWindow.PaystackPop;
+      if (legacyPaystackPop) paystackWindow.PaystackPop = legacyPaystackPop;
+      else delete paystackWindow.PaystackPop;
 
       if (popupConstructor?.prototype?.resumeTransaction) resolve(popupConstructor);
       else {
@@ -116,8 +116,8 @@ const loadPaystackPopup = () => {
       }
     };
     script.onerror = () => {
-      if (legacyPaystackPop) window.PaystackPop = legacyPaystackPop;
-      else delete window.PaystackPop;
+      if (legacyPaystackPop) paystackWindow.PaystackPop = legacyPaystackPop;
+      else delete paystackWindow.PaystackPop;
       script.remove();
       paystackPopupConstructorPromise = null;
       reject(new Error('The secure payment window could not be loaded. Check your connection and try again.'));
