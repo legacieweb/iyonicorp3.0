@@ -360,6 +360,7 @@
 .idb-key-list { padding: 0 15px; }
 .idb-key-list .idb-panel-heading { align-items: center; padding: 15px 0; border-bottom: 1px solid #e9ede8; }
 .idb-key-list .idb-panel-heading button { border-color: #416449; background: #416449; color: white; }
+.idb-key-scope-note { flex: 1 0 100%; color: #748277; font-size: 8px; line-height: 1.5; }
 .idb-key-row { min-height: 60px; display: grid; grid-template-columns: 30px 1fr minmax(110px,.65fr) 80px 20px; gap: 10px; align-items: center; border-bottom: 1px solid #edf0eb; }
 .idb-key-icon { display: grid; place-items: center; width: 28px; height: 28px; background: #eef2ec; color: #5c795f; }
 .idb-key-row > span:nth-child(2) { display: grid; gap: 3px; }
@@ -1376,5 +1377,6 @@
 .idb-key-count{color:#9bab9d;font-size:9px}
 .idb-key-list .idb-panel-heading{align-items:center}
 .idb-key-create-form{flex-wrap:wrap}
+.idb-key-scope-note{color:#a8b5aa}
 .idb-key-limit-note{flex:1 0 100%;margin:0;color:#dccb9e;font-size:9px;line-height:1.5}
 @media(max-width:600px){.idb-key-plan-card{grid-template-columns:36px minmax(0,1fr);padding:14px}.idb-key-plan-card>button{grid-column:2;justify-self:start}.idb-key-plan-icon{width:34px;height:34px}}

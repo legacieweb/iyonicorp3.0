@@ -6,6 +6,25 @@ import { api } from '../../services/api';
 type MailerPlan = { id: string; name: string; price: number; currency: string; apiKeyLimit: number; monthlyEmailLimit: number };
 type BillingData = { plans: MailerPlan[]; subscription: MailerPlan & { currentPeriodEnd: string | null; paymentMethod: string | null }; usage: { emailsSent: number; emailLimit: number }; wallet: { available: boolean; balance: number; currency: string; planCharges: Record<string, number> } };
 type MailerApiKey = { id: string; name: string; key_prefix: string; created_at: string; last_used_at: string | null; revoked_at: string | null };
+type PaystackPopupCallbacks = { onSuccess: (transaction: { reference: string }) => void; onCancel: () => void; onError: (error: { message?: string }) => void };
+type PaystackPopup = { resumeTransaction: (accessCode: string, callbacks: PaystackPopupCallbacks) => void };
+declare global { interface Window { PaystackPop?: new () => PaystackPopup } }
+let paystackInlineScript: Promise<void> | null = null;
+const loadPaystackInline = () => {
+  if (window.PaystackPop) return Promise.resolve();
+  if (!paystackInlineScript) {
+    paystackInlineScript = new Promise<void>((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://js.paystack.co/v2/inline.js';
+      script.async = true;
+      script.dataset.paystackInline = 'true';
+      script.onload = () => window.PaystackPop ? resolve() : reject(new Error('Paystack popup did not initialize.'));
+      script.onerror = () => reject(new Error('Could not load the Paystack popup. Check your connection and try again.'));
+      document.head.appendChild(script);
+    }).catch((error) => { paystackInlineScript = null; throw error; });
+  }
+  return paystackInlineScript;
+};
 const messageFrom = (error: unknown) => typeof error === 'object' && error !== null && 'response' in error && (error as { response?: { data?: { message?: string } } }).response?.data?.message || (error instanceof Error ? error.message : 'Could not complete the request.');
 const money = (amount: number, currency: string) => { try { return new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 2 }).format(amount); } catch { return `${currency} ${amount.toFixed(2)}`; } };
 
@@ -36,8 +55,21 @@ export const MailerBillingPanel: React.FC = () => {
         const result = await api.post('/iyonicmailer/billing/wallet/subscribe', { planId: plan.id });
         setNotice(result.data.message); await refresh();
       } else {
-        const result = await api.post<{ authorizationUrl: string }>('/iyonicmailer/billing/paystack/initialize', { planId: plan.id });
-        window.location.assign(result.data.authorizationUrl);
+        const result = await api.post<{ accessCode: string }>('/iyonicmailer/billing/paystack/initialize', { planId: plan.id });
+        await loadPaystackInline();
+        if (!window.PaystackPop) throw new Error('Paystack popup is unavailable. Please try again.');
+        const popup = new window.PaystackPop();
+        popup.resumeTransaction(result.data.accessCode, {
+          onSuccess: ({ reference }) => {
+            setBusyPlan('verify');
+            api.post('/iyonicmailer/billing/paystack/verify', { reference })
+              .then(async ({ data: verification }) => { setNotice(verification.message || 'Payment confirmed. Your plan is active.'); await refresh(); })
+              .catch((err) => setError(messageFrom(err)))
+              .finally(() => setBusyPlan(''));
+          },
+          onCancel: () => { setBusyPlan(''); setNotice('Payment was cancelled. Your plan has not changed.'); },
+          onError: (popupError) => { setBusyPlan(''); setError(popupError.message || 'Paystack could not open the payment popup.'); },
+        });
       }
     } catch (err) { setError(messageFrom(err)); setBusyPlan(''); }
   };
@@ -50,7 +82,7 @@ export const MailerBillingPanel: React.FC = () => {
     <section className="mailer-account-hero"><span className="mailer-section-icon"><CreditCard size={20} /></span><div><span className="mailer-eyebrow">SUBSCRIPTION</span><h2>{current.name} plan</h2><p>{current.id === 'free' ? 'Your free workspace is active. Upgrade when you need more API keys or email sends.' : `Active through ${current.currentPeriodEnd ? new Date(current.currentPeriodEnd).toLocaleDateString() : 'the current billing period'} · paid with ${current.paymentMethod || 'online checkout'}.`}</p></div><span className="mailer-plan-active"><i /> ACTIVE</span></section>
     <div className="mailer-account-usage-grid"><article><span>API EMAILS THIS MONTH</span><b>{data.usage.emailsSent.toLocaleString()} <small>/ {data.usage.emailLimit.toLocaleString()}</small></b><div className="mailer-plan-meter"><i style={{ width: `${Math.min(100, data.usage.emailsSent / Math.max(1, data.usage.emailLimit) * 100)}%` }} /></div></article><article><span>API KEYS INCLUDED</span><b>{current.apiKeyLimit} <small>active keys</small></b><p>Limits apply across your IyonicMailer account.</p></article><article><span>IYONICPAY WALLET</span><b>{data.wallet.available ? money(data.wallet.balance, data.wallet.currency) : 'Not linked'}</b><p>{data.wallet.available ? 'Available for plan checkout' : 'Link a wallet in IyonicPay to pay here.'}</p></article></div>
     <section className="mailer-plan-list"><div className="mailer-account-section-heading"><div><span className="mailer-eyebrow">PLANS & BILLING</span><h2>Choose your plan</h2></div><a href="/iyonicpay">Manage IyonicPay <ArrowRight size={14} /></a></div><div className="mailer-plan-cards">{data.plans.map((plan) => { const isCurrent = plan.id === current.id; const walletCharge = data.wallet.planCharges[plan.id]; const walletReady = data.wallet.available && walletCharge !== undefined && data.wallet.balance >= walletCharge; return <article className={`mailer-plan-card${isCurrent ? ' is-current' : ''}`} key={plan.id}><div className="mailer-plan-title"><b>{plan.name}</b>{isCurrent && <span>Current plan</span>}</div><strong>{plan.price === 0 ? 'Free' : money(plan.price, plan.currency)}<small>{plan.price ? ' / 30 days' : ' forever'}</small></strong><ul><li><KeyRound size={14} /> {plan.apiKeyLimit} active API keys</li><li><Send size={14} /> {plan.monthlyEmailLimit.toLocaleString()} API emails / month</li></ul>{plan.price > 0 && <p className="mailer-plan-wallet-quote">{walletCharge === undefined ? 'Wallet currency is not supported.' : `IyonicPay charge: ${money(walletCharge, data.wallet.currency)}`}</p>}{plan.price === 0 ? <button disabled>{isCurrent ? 'Included with your account' : 'Free plan'}</button> : <div className="mailer-plan-actions"><button disabled={busyPlan !== '' || isCurrent || !walletReady} onClick={() => choosePlan(plan, 'iyonicpay')}>{busyPlan === `${plan.id}-iyonicpay` ? 'Processing…' : !data.wallet.available ? 'Wallet not linked' : !walletReady ? 'Insufficient balance' : 'Pay with IyonicPay'}</button><button disabled={busyPlan !== '' || isCurrent} onClick={() => choosePlan(plan, 'paystack')}>{busyPlan === `${plan.id}-paystack` ? 'Opening checkout…' : 'Pay with Paystack'}</button></div>}</article>; })}</div></section>
-    {busyPlan === 'verify' && <p className="mailer-account-loading"><Loader2 className="mailer-spin" size={16} /> Verifying Paystack payment…</p>}
+    {(busyPlan === 'verify' || busyPlan.endsWith('-paystack')) && <p className="mailer-account-loading"><Loader2 className="mailer-spin" size={16} /> {busyPlan === 'verify' ? 'Verifying Paystack payment…' : 'Complete payment in the Paystack popup…'}</p>}
   </div>;
 };
 

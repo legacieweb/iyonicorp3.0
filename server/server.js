@@ -9095,20 +9095,18 @@ app.post('/api/iyonicmailer/billing/paystack/initialize', authenticateToken, asy
     const account = await db.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
     if (!account.rows[0]?.email) return res.status(422).json({ message: 'An account email is required for checkout.' });
     const reference = `im_${nanoid(24)}`;
-    const callbackBase = (process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:4000').replace(/\/$/, '');
     const gateway = Paystack(process.env.PAYSTACK_SECRET_KEY);
     const payment = await new Promise((resolve, reject) => gateway.transaction.initialize({
       email: account.rows[0].email,
       amount: Math.round(plan.price * 100),
       currency: plan.currency,
       channels: ['card', 'mobile_money'],
-      callback_url: `${callbackBase}/#/iyonic-mailer/dashboard?tab=billing&billing=verify`,
       reference,
       metadata: { type: 'iyonicmailer_subscription', userId: req.user.id, planId: plan.id }
     }, (error, body) => error ? reject(error) : resolve(body)));
-    if (!payment?.status || !payment.data?.authorization_url || !payment.data?.reference) return res.status(502).json({ message: 'Paystack did not return a checkout link.' });
+    if (!payment?.status || !payment.data?.access_code || !payment.data?.reference) return res.status(502).json({ message: 'Paystack did not return a popup access code.' });
     await db.query(`INSERT INTO iyonicmailer_payment_attempts (reference, user_id, plan_id, amount, currency, payment_method) VALUES ($1, $2, $3, $4, $5, 'paystack')`, [payment.data.reference, req.user.id, plan.id, plan.price, plan.currency]);
-    res.json({ authorizationUrl: payment.data.authorization_url, reference: payment.data.reference });
+    res.json({ accessCode: payment.data.access_code, reference: payment.data.reference });
   } catch (error) {
     console.error('IyonicMailer Paystack initialization failed:', error);
     res.status(500).json({ message: 'Could not start Paystack checkout.' });

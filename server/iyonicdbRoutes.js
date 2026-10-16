@@ -1620,7 +1620,22 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
   });
 
   const authenticateKey = authenticateIyonicDbKey(db);
-  app.post('/api/iyonicdb/v1/projects/:projectId/query', authenticateKey, async (req, res) => {
+  // A key is scoped to exactly one project, so integrations can omit project IDs.
+  // Keep the project-qualified routes for backwards compatibility and route the
+  // shorter key-only API paths through the same handlers.
+  app.use('/api/iyonicdb/v1', authenticateKey, (req, res, next) => {
+    if (!req.path.startsWith('/projects/')) {
+      req.url = `/projects/${encodeURIComponent(req.iyonicDbKey.projectId)}${req.url}`;
+    }
+    next();
+  });
+
+  app.get('/api/iyonicdb/v1/projects/:projectId/health', (req, res) => {
+    if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
+    res.json({ healthy: true });
+  });
+
+  app.post('/api/iyonicdb/v1/projects/:projectId/query', async (req, res) => {
     if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
     try {
       const result = await runSqlSelect(db, req.params.projectId, req.body?.sql, req.body?.params || []);
@@ -1630,7 +1645,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     }
   });
 
-  app.get('/api/iyonicdb/v1/projects/:projectId/tables/:table/rows', authenticateKey, async (req, res) => {
+  app.get('/api/iyonicdb/v1/projects/:projectId/tables/:table/rows', async (req, res) => {
     if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
     if (!identifierPattern.test(req.params.table)) return res.status(400).json({ message: 'Invalid table name.' });
     try {
@@ -1646,7 +1661,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     }
   });
 
-  app.post('/api/iyonicdb/v1/projects/:projectId/tables/:table/rows', authenticateKey, async (req, res) => {
+  app.post('/api/iyonicdb/v1/projects/:projectId/tables/:table/rows', async (req, res) => {
     if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
     try {
       const row = await insertSqlRow(db, req.iyonicDbKey.userId, req.params.projectId, req.params.table, req.body?.row, req.iyonicDbKey.subscription);
@@ -1656,7 +1671,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     }
   });
 
-  app.put('/api/iyonicdb/v1/projects/:projectId/tables/:table/rows/:rowId', authenticateKey, async (req, res) => {
+  app.put('/api/iyonicdb/v1/projects/:projectId/tables/:table/rows/:rowId', async (req, res) => {
     if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
     try {
       const row = await updateSqlRow(db, req.iyonicDbKey.userId, req.params.projectId, req.params.table, req.params.rowId, req.body?.row, req.iyonicDbKey.subscription);
@@ -1666,7 +1681,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     }
   });
 
-  app.delete('/api/iyonicdb/v1/projects/:projectId/tables/:table/rows/:rowId', authenticateKey, async (req, res) => {
+  app.delete('/api/iyonicdb/v1/projects/:projectId/tables/:table/rows/:rowId', async (req, res) => {
     if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
     if (!identifierPattern.test(req.params.table)) return res.status(400).json({ message: 'Invalid table name.' });
     try {
@@ -1684,7 +1699,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     }
   });
 
-  app.get('/api/iyonicdb/v1/projects/:projectId/documents/:collection', authenticateKey, async (req, res) => {
+  app.get('/api/iyonicdb/v1/projects/:projectId/documents/:collection', async (req, res) => {
     if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
     if (!identifierPattern.test(req.params.collection)) return res.status(400).json({ message: 'Invalid collection name.' });
     try {
@@ -1700,7 +1715,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     }
   });
 
-  app.post('/api/iyonicdb/v1/projects/:projectId/documents/:collection', authenticateKey, async (req, res) => {
+  app.post('/api/iyonicdb/v1/projects/:projectId/documents/:collection', async (req, res) => {
     if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
     if (!identifierPattern.test(req.params.collection) || !req.body?.document || Array.isArray(req.body.document) || typeof req.body.document !== 'object') {
       return res.status(400).json({ message: 'Provide a valid collection and JSON object document.' });
@@ -1715,7 +1730,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     }
   });
 
-  app.put('/api/iyonicdb/v1/projects/:projectId/documents/:collection/:documentId', authenticateKey, async (req, res) => {
+  app.put('/api/iyonicdb/v1/projects/:projectId/documents/:collection/:documentId', async (req, res) => {
     if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
     if (!identifierPattern.test(req.params.collection) || !req.body?.document || Array.isArray(req.body.document) || typeof req.body.document !== 'object') {
       return res.status(400).json({ message: 'Provide a valid collection and JSON object document.' });
@@ -1728,7 +1743,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     }
   });
 
-  app.delete('/api/iyonicdb/v1/projects/:projectId/documents/:collection/:documentId', authenticateKey, async (req, res) => {
+  app.delete('/api/iyonicdb/v1/projects/:projectId/documents/:collection/:documentId', async (req, res) => {
     if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
     if (!identifierPattern.test(req.params.collection) || !uuidPattern.test(String(req.params.documentId))) {
       return res.status(400).json({ message: 'Invalid collection or document ID.' });

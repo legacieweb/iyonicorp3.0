@@ -88,7 +88,7 @@ const ProductArchitecture = () => (
     <div className="idb-architecture-body">
       <div className="idb-code-pane">
         <div className="idb-code-title"><Terminal size={13} /> SQL + REST API <span>•••</span></div>
-        <pre><code><span className="idb-code-purple">POST</span> /api/iyonicdb/v1{'\n'}<span className="idb-code-green">projects/:id/query</span>{'\n'}<span className="idb-code-purple">Authorization:</span>{'\n'}Bearer [project key]</code></pre>
+        <pre><code><span className="idb-code-purple">POST</span> /api/iyonicdb/v1{'\n'}<span className="idb-code-green">query</span>{'\n'}<span className="idb-code-purple">Authorization:</span>{'\n'}Bearer [API key]</code></pre>
         <div className="idb-query-result"><span>PARAMETERIZED SQL</span><span>HTTPS</span></div>
       </div>
       <div className="idb-architecture-bridge"><span /><ArrowRight size={14} /><span /></div>
@@ -209,18 +209,18 @@ export const IyonicDB: React.FC = () => {
               <div className="idb-model-top"><span>02 / DOCUMENT</span><Braces size={18} /></div>
               <h3>When your model moves.</h3>
               <p>Store flexible JSON in project-scoped document collections with a simple API.</p>
-              <pre className="idb-json-sample"><code><span>POST</span>{'\n'}  <b>/projects/:id/</b>{'\n'}  <i>documents/:collection</i>{'\n\n'}API key header: [project key]</code></pre>
+              <pre className="idb-json-sample"><code><span>POST</span>{'\n'}  <b>/</b><i>documents/:collection</i>{'\n\n'}API key header: [API key]</code></pre>
             </article>
           </div>
           <p className="idb-model-caption"><ShieldCheck size={14} /> SQL tables and JSON document collections are backed by PostgreSQL.</p>
         </section>
 
         <section className="idb-onboarding">
-          <div className="idb-onboarding-intro"><p className="idb-kicker">FROM IDEA TO INTEGRATION</p><h2>Just enough structure<br />to get <em>moving.</em></h2><p>Create a project, define a SQL table or document collection, then connect securely with a project-scoped API key.</p></div>
+          <div className="idb-onboarding-intro"><p className="idb-kicker">FROM IDEA TO INTEGRATION</p><h2>Just enough structure<br />to get <em>moving.</em></h2><p>Create a project, define a SQL table or document collection, then connect securely with an API key that selects its project automatically.</p></div>
           <div className="idb-steps">
             <article><span>STEP 01</span><Code2 size={20} /><h3>Create a project</h3><p>Provision a database namespace isolated to your account.</p></article>
             <article><span>STEP 02</span><Terminal size={20} /><h3>Store real data</h3><p>Create typed SQL tables, or write JSON documents.</p></article>
-            <article><span>STEP 03</span><KeyRound size={20} /><h3>Connect securely</h3><p>Issue a project-scoped API key that is shown only once.</p></article>
+            <article><span>STEP 03</span><KeyRound size={20} /><h3>Connect securely</h3><p>Issue a project-scoped API key. Your app only needs the key, never a project ID.</p></article>
           </div>
           <Link className="idb-code-link" to={consolePath}><span><Terminal size={15} /> {isAuthenticated ? 'Open database console' : 'Create your IyonicDB account'}</span><ArrowRight size={16} /></Link>
         </section>
