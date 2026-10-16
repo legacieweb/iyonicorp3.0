@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import PaystackFactory from 'paystack';
 import multer from 'multer';
 import nodemailer from 'nodemailer';
@@ -22,6 +23,14 @@ import { mountIyonicDbRoutes } from './iyonicdbRoutes.js';
 
 const Paystack = PaystackFactory.default || PaystackFactory;
 const VIP_THEME_IDS = THEME_IDS;
+const IYONIC_MAILER_PLANS = {
+  free: { id: 'free', name: 'Free', price: 0, currency: 'USD', apiKeyLimit: 2, monthlyEmailLimit: 1000 },
+  launch: { id: 'launch', name: 'Launch', price: 10, currency: 'USD', apiKeyLimit: 10, monthlyEmailLimit: 10000 },
+  growth: { id: 'growth', name: 'Growth', price: 35, currency: 'USD', apiKeyLimit: 25, monthlyEmailLimit: 100000 },
+  scale: { id: 'scale', name: 'Scale', price: 70, currency: 'USD', apiKeyLimit: 100, monthlyEmailLimit: 500000 },
+};
+const IYONICPAY_RATES_TO_USD = { USD: 1, KES: 125, EUR: 0.92, GBP: 0.79, NGN: 1500, GHS: 13 };
+const hashMailerApiKey = (key) => crypto.createHash('sha256').update(key).digest('hex');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -474,6 +483,64 @@ const toCamel = (obj) => {
   return obj;
 };
 
+const ensureIyonicMailerWorkspace = async (client, user) => {
+  const existing = await client.query(
+    'SELECT id FROM sellers WHERE user_id = $1 ORDER BY created_at ASC LIMIT 1',
+    [user.id]
+  );
+  if (existing.rows[0]) return existing.rows[0].id;
+
+  const subdomain = `mailer-${String(user.id).replace(/-/g, '').slice(0, 20)}`;
+  const created = await client.query(
+    `INSERT INTO sellers (user_id, store_name, subdomain, description, is_live)
+     VALUES ($1, $2, $3, 'Private IyonicMailer workspace', FALSE)
+     RETURNING id`,
+    [user.id, `${user.name || user.email} · IyonicMailer`, subdomain]
+  );
+  return created.rows[0].id;
+};
+
+const getCurrentIyonicMailerPlan = async (client, userId) => {
+  const result = await client.query(
+    `SELECT plan_id, current_period_start, current_period_end, payment_method
+     FROM iyonicmailer_subscriptions
+     WHERE user_id = $1 AND status = 'active' AND current_period_end > CURRENT_TIMESTAMP
+     ORDER BY current_period_end DESC LIMIT 1`,
+    [userId]
+  );
+  return { ...IYONIC_MAILER_PLANS[result.rows[0]?.plan_id || 'free'], subscription: result.rows[0] || null };
+};
+
+const activateIyonicMailerSubscription = async (client, { userId, planId, reference, paymentMethod }) => {
+  const now = new Date();
+  const periodEnd = new Date(now);
+  periodEnd.setUTCDate(periodEnd.getUTCDate() + 30);
+  await client.query(
+    `UPDATE iyonicmailer_subscriptions SET status = 'expired'
+     WHERE user_id = $1 AND status = 'active'`,
+    [userId]
+  );
+  await client.query(
+    `INSERT INTO iyonicmailer_subscriptions
+     (user_id, plan_id, status, current_period_start, current_period_end, payment_reference, payment_method)
+     VALUES ($1, $2, 'active', $3, $4, $5, $6)`,
+    [userId, planId, now, periodEnd, reference, paymentMethod]
+  );
+  return periodEnd;
+};
+
+const migrateLegacyMailerKey = async (client, userId, sellerId) => {
+  const legacy = await client.query('SELECT api_key, is_active FROM api_keys WHERE user_id = $1 FOR UPDATE', [userId]);
+  const oldKey = legacy.rows.find((item) => item.is_active && item.api_key.startsWith('im_sk_'));
+  if (!oldKey) return;
+  await client.query(
+    `INSERT INTO iyonicmailer_api_keys (user_id, seller_id, name, key_prefix, key_hash)
+     VALUES ($1, $2, 'Legacy API key', $3, $4) ON CONFLICT (key_hash) DO NOTHING`,
+    [userId, sellerId, oldKey.api_key.slice(0, 17), hashMailerApiKey(oldKey.api_key)]
+  );
+  await client.query('UPDATE api_keys SET is_active = FALSE WHERE user_id = $1 AND api_key = $2', [userId, oldKey.api_key]);
+};
+
 // --- Authentication Routes ---
 
 // Register
@@ -732,7 +799,7 @@ app.post('/api/auth/link-store', async (req, res) => {
   }
 });
 
-// Activate another IYONICORP product for an existing business account.
+// Activate another IYONICORP product for an existing account.
 app.post('/api/auth/opt-in-product', async (req, res) => {
   const productKeys = new Set(['bizhub', 'iyonicpay', 'iyonicintelligence', 'iyonicdb', 'iyonic-mailer']);
   const username = String(req.body.username || '').trim();
@@ -745,10 +812,8 @@ app.post('/api/auth/opt-in-product', async (req, res) => {
 
   try {
     const userRes = await db.query(
-      `SELECT u.*, s.id AS seller_id, s.store_name, sm.id AS manager_id
+      `SELECT u.*
        FROM users u
-       LEFT JOIN sellers s ON s.user_id = u.id
-       LEFT JOIN seller_managers sm ON sm.user_id = u.id
        WHERE LOWER(u.username) = LOWER($1) OR LOWER(u.email) = LOWER($1)
        LIMIT 1`,
       [username]
@@ -756,17 +821,31 @@ app.post('/api/auth/opt-in-product', async (req, res) => {
     if (!userRes.rows.length) return res.status(404).json({ message: 'We could not find an account with that username.' });
 
     const user = userRes.rows[0];
-    if (user.is_suspended) return res.status(403).json({ message: 'This account is suspended. Please contact support.' });
-    if (!['seller', 'seller_manager'].includes(user.role)) {
-      return res.status(403).json({ message: 'Product access is available for IYONICORP business accounts.' });
-    }
     if (!(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ message: 'That username and password do not match. Please try again.' });
     }
+    if (user.is_suspended) return res.status(403).json({ message: 'This account is suspended. Please contact support.' });
+    if (productKey !== 'iyonic-mailer' && !['seller', 'seller_manager'].includes(user.role)) {
+      const message = 'Product access is available for IYONICORP business accounts.';
+      return res.status(403).json({ message });
+    }
 
     const client = await db.pool.connect();
+    let mailerSellerId = null;
+    let sellerId = null;
+    let managerId = null;
     try {
       await client.query('BEGIN');
+      await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [user.id]);
+      if (productKey === 'iyonic-mailer') {
+        mailerSellerId = await ensureIyonicMailerWorkspace(client, user);
+        sellerId = mailerSellerId;
+      } else {
+        const seller = await client.query('SELECT id FROM sellers WHERE user_id = $1 ORDER BY created_at ASC LIMIT 1', [user.id]);
+        const manager = await client.query('SELECT id FROM seller_managers WHERE user_id = $1 LIMIT 1', [user.id]);
+        sellerId = seller.rows[0]?.id || null;
+        managerId = manager.rows[0]?.id || null;
+      }
       await client.query(
         'INSERT INTO user_product_access (user_id, product_key) VALUES ($1, $2) ON CONFLICT (user_id, product_key) DO NOTHING',
         [user.id, productKey]
@@ -787,12 +866,12 @@ app.post('/api/auth/opt-in-product', async (req, res) => {
       client.release();
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role, sellerId: user.seller_id, managerId: user.manager_id }, JWT_SECRET, { expiresIn: '1d' });
-    const { password_hash, seller_id, manager_id, ...safeUser } = user;
+    const token = jwt.sign({ id: user.id, role: user.role, sellerId, managerId, ...(productKey === 'iyonic-mailer' ? { productKey } : {}) }, JWT_SECRET, { expiresIn: '1d' });
+    const { password_hash, ...safeUser } = user;
     res.json({
       success: true,
       productKey,
-      user: toCamel({ ...safeUser, seller_id, manager_id, iyonicpay_opt_in: productKey === 'iyonicpay' ? true : user.iyonicpay_opt_in }),
+      user: toCamel({ ...safeUser, seller_id: sellerId, manager_id: managerId, product_key: productKey, iyonicpay_opt_in: productKey === 'iyonicpay' ? true : user.iyonicpay_opt_in }),
       token
     });
   } catch (err) {
@@ -804,6 +883,7 @@ app.post('/api/auth/opt-in-product', async (req, res) => {
 // Login
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
+  const requestedProductKey = String(req.body.productKey || '').trim().toLowerCase();
 
   try {
     // Platform Admin check from .env
@@ -883,18 +963,41 @@ app.post('/api/auth/login', async (req, res) => {
       stores = storesRes.rows;
     }
 
-    const currentSellerId = user.role === 'customer' ? user.last_selected_store_id : user.seller_id;
+    let mailerSellerId = null;
+    if (requestedProductKey === 'iyonic-mailer') {
+      const client = await db.pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [user.id]);
+        mailerSellerId = await ensureIyonicMailerWorkspace(client, user);
+        await client.query(
+          'INSERT INTO user_product_access (user_id, product_key) VALUES ($1, $2) ON CONFLICT (user_id, product_key) DO NOTHING',
+          [user.id, 'iyonic-mailer']
+        );
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
+
+    const currentSellerId = requestedProductKey === 'iyonic-mailer'
+      ? mailerSellerId
+      : user.role === 'customer' ? user.last_selected_store_id : user.seller_id;
 
     const token = jwt.sign({ 
       id: user.id, 
       role: user.role, 
       sellerId: currentSellerId, 
-      managerId: user.manager_id 
+      managerId: user.manager_id,
+      ...(requestedProductKey === 'iyonic-mailer' ? { productKey: requestedProductKey } : {})
     }, JWT_SECRET, { expiresIn: '1d' });
 
     const { password_hash, seller_id, manager_id, effective_theme_id, ...userWithoutPassword } = user;
     res.json({ 
-      user: toCamel({ ...userWithoutPassword, selected_theme_id: effective_theme_id || user.selected_theme_id, seller_id: currentSellerId, manager_id, stores }),
+      user: toCamel({ ...userWithoutPassword, selected_theme_id: effective_theme_id || user.selected_theme_id, seller_id: currentSellerId, manager_id, stores, product_key: requestedProductKey === 'iyonic-mailer' ? requestedProductKey : null }),
       token 
     });
   } catch (err) {
@@ -1131,11 +1234,15 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
       stores = storesRes.rows;
     }
 
-    const currentSellerId = user.role === 'customer' ? user.last_selected_store_id : user.seller_id;
+    const currentSellerId = req.user.productKey === 'iyonic-mailer'
+      ? req.user.sellerId
+      : user.role === 'customer' ? user.last_selected_store_id : user.seller_id;
 
     res.json(toCamel({ 
       ...user, 
+      seller_id: currentSellerId,
       sellerId: currentSellerId, 
+      product_key: req.user.productKey || null,
       managerId: user.manager_id, 
       managerSlug: user.manager_slug,
       stores 
@@ -8459,6 +8566,16 @@ const verifyApiKey = async (apiKey) => {
   }
   
   try {
+    if (apiKey.startsWith('im_sk_')) {
+      const mailerKey = await db.query(
+        'SELECT id, user_id, seller_id FROM iyonicmailer_api_keys WHERE key_hash = $1 AND revoked_at IS NULL',
+        [hashMailerApiKey(apiKey)]
+      );
+      if (mailerKey.rows[0]) {
+        await db.query('UPDATE iyonicmailer_api_keys SET last_used_at = CURRENT_TIMESTAMP WHERE id = $1', [mailerKey.rows[0].id]);
+        return { userId: mailerKey.rows[0].user_id, sellerId: mailerKey.rows[0].seller_id };
+      }
+    }
     const keyRes = await db.query(
       'SELECT user_id, api_key, is_active FROM api_keys WHERE api_key = $1',
       [apiKey]
@@ -8478,6 +8595,76 @@ const verifyApiKey = async (apiKey) => {
     return null;
   }
 };
+
+const reserveIyonicMailerEmail = async (userId) => {
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]);
+    const plan = await getCurrentIyonicMailerPlan(client, userId);
+    const reserved = await client.query(
+      `INSERT INTO iyonicmailer_usage (user_id, month_start, sent_count)
+       VALUES ($1, date_trunc('month', CURRENT_DATE)::date, 1)
+       ON CONFLICT (user_id, month_start) DO UPDATE
+       SET sent_count = iyonicmailer_usage.sent_count + 1
+       WHERE iyonicmailer_usage.sent_count < $2
+       RETURNING sent_count`,
+      [userId, plan.monthlyEmailLimit]
+    );
+    if (!reserved.rowCount) {
+      await client.query('ROLLBACK');
+      return { error: { status: 429, message: `Your ${plan.name} plan has reached its ${plan.monthlyEmailLimit.toLocaleString()} email monthly limit. Upgrade your plan to send more.` } };
+    }
+    await client.query('COMMIT');
+    return { plan, sentCount: reserved.rows[0].sent_count };
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally { client.release(); }
+};
+
+const sendIyonicMailerApiEmail = async ({ userId, sellerId, to, subject, html, text }) => {
+  const reservation = await reserveIyonicMailerEmail(userId);
+  if (reservation.error) return { error: reservation.error };
+  let reserved = true;
+  try {
+    const settingsResult = await db.query(
+      `SELECT * FROM email_marketing_settings WHERE seller_id = $1 AND is_active = TRUE AND is_verified = TRUE`,
+      [sellerId]
+    );
+    const settings = settingsResult.rows[0];
+    if (!settings) return { error: { status: 409, message: 'Set up and verify an email provider in your IyonicMailer workspace before sending.' } };
+    const transporter = createTransporterFromSettings(settings);
+    const result = transporter
+      ? await transporter.sendMail({ from: `${settings.from_name} <${settings.from_email}>`, to, subject, html, text, replyTo: settings.reply_to || undefined })
+      : await mailer.sendEmail({ to, subject, html, text, from: `${settings.from_name} <${settings.from_email}>`, replyTo: settings.reply_to || undefined });
+    await db.query('UPDATE email_marketing_settings SET sent_count = sent_count + 1, last_used_at = CURRENT_TIMESTAMP WHERE id = $1', [settings.id]);
+    reserved = false;
+    return { messageId: result?.messageId || null, plan: reservation.plan, sentCount: reservation.sentCount };
+  } finally {
+    if (reserved) await db.query(`UPDATE iyonicmailer_usage SET sent_count = GREATEST(sent_count - 1, 0) WHERE user_id = $1 AND month_start = date_trunc('month', CURRENT_DATE)::date`, [userId]).catch(() => {});
+  }
+};
+
+app.post('/api/mailer/v1/send', async (req, res) => {
+  const apiKey = req.header('x-api-key') || req.header('authorization')?.replace(/^Bearer\s+/i, '');
+  const { to, subject, html, text } = req.body || {};
+  if (typeof to !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim())) return res.status(400).json({ message: 'Provide one valid recipient email in "to".' });
+  if (typeof subject !== 'string' || !subject.trim() || subject.length > 255) return res.status(400).json({ message: 'Subject must contain 1 to 255 characters.' });
+  if ((!html || typeof html !== 'string') && (!text || typeof text !== 'string')) return res.status(400).json({ message: 'Provide an html or text email body.' });
+  const key = await verifyApiKey(apiKey);
+  if (!key?.sellerId) return res.status(401).json({ message: 'Missing, invalid, or revoked IyonicMailer API key.' });
+  try {
+    const user = await db.query('SELECT is_suspended FROM users WHERE id = $1', [key.userId]);
+    if (!user.rows[0] || user.rows[0].is_suspended) return res.status(403).json({ message: 'This account cannot send mail.' });
+    const result = await sendIyonicMailerApiEmail({ userId: key.userId, sellerId: key.sellerId, to: to.trim(), subject: subject.trim(), html, text });
+    if (result.error) return res.status(result.error.status).json({ message: result.error.message });
+    res.status(202).json({ accepted: true, messageId: result.messageId, usage: { sentThisMonth: result.sentCount, monthlyLimit: result.plan.monthlyEmailLimit } });
+  } catch (error) {
+    console.error('IyonicMailer API send failed:', error);
+    res.status(502).json({ message: 'The email could not be sent. Check your verified provider settings and try again.' });
+  }
+});
 
 // Initialize embed checkout
 app.post('/api/embed/checkout', async (req, res) => {
@@ -8832,50 +9019,217 @@ app.delete('/api/social-media/posts/:id', authenticateToken, async (req, res) =>
   }
 });
 
+// --- IyonicMailer billing and API keys ---
+app.get('/api/iyonicmailer/billing', authenticateToken, async (req, res) => {
+  try {
+    const [plan, wallet, usage] = await Promise.all([
+      getCurrentIyonicMailerPlan(db, req.user.id),
+      db.query('SELECT balance, currency FROM wallets WHERE user_id = $1', [req.user.id]),
+      db.query(`SELECT sent_count FROM iyonicmailer_usage WHERE user_id = $1 AND month_start = date_trunc('month', CURRENT_DATE)::date`, [req.user.id])
+    ]);
+    const walletRow = wallet.rows[0] || null;
+    const walletRate = walletRow && IYONICPAY_RATES_TO_USD[String(walletRow.currency || 'USD').toUpperCase()];
+    const plans = Object.values(IYONIC_MAILER_PLANS);
+    res.json({
+      plans,
+      subscription: { ...plan, status: plan.id === 'free' ? 'active' : 'active', currentPeriodEnd: plan.subscription?.current_period_end || null, paymentMethod: plan.subscription?.payment_method || null },
+      usage: { emailsSent: Number(usage.rows[0]?.sent_count || 0), emailLimit: plan.monthlyEmailLimit },
+      wallet: walletRow ? { available: true, balance: Number(walletRow.balance), currency: walletRow.currency, planCharges: walletRate ? Object.fromEntries(plans.map((item) => [item.id, Math.round(item.price * walletRate * 100) / 100])) : {} } : { available: false, balance: 0, currency: 'USD', planCharges: {} }
+    });
+  } catch (error) {
+    console.error('IyonicMailer billing overview failed:', error);
+    res.status(500).json({ message: 'Could not load IyonicMailer billing.' });
+  }
+});
+
+app.post('/api/iyonicmailer/billing/wallet/subscribe', authenticateToken, async (req, res) => {
+  const plan = IYONIC_MAILER_PLANS[req.body?.planId];
+  if (!plan || plan.price <= 0) return res.status(400).json({ message: 'Choose a paid IyonicMailer plan.' });
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
+    const active = await getCurrentIyonicMailerPlan(client, req.user.id);
+    if (active.id === plan.id) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ message: 'This IyonicMailer plan is already active.' });
+    }
+    const walletResult = await client.query('SELECT id, balance, currency FROM wallets WHERE user_id = $1 FOR UPDATE', [req.user.id]);
+    const wallet = walletResult.rows[0];
+    if (!wallet) {
+      await client.query('ROLLBACK');
+      return res.status(402).json({ message: 'No IyonicPay wallet is linked. Add funds in IyonicPay, then try again.' });
+    }
+    const currency = String(wallet.currency || 'USD').toUpperCase();
+    const rate = IYONICPAY_RATES_TO_USD[currency];
+    if (!rate) {
+      await client.query('ROLLBACK');
+      return res.status(422).json({ message: `IyonicPay subscriptions do not support ${currency} wallets yet. Use Paystack or a supported wallet currency.` });
+    }
+    const charge = Math.round(plan.price * rate * 100) / 100;
+    if (Number(wallet.balance) < charge) {
+      await client.query('ROLLBACK');
+      return res.status(402).json({ message: `Your IyonicPay balance is too low. This plan costs ${charge.toFixed(2)} ${currency}.` });
+    }
+    const reference = `im_wallet_${nanoid(24)}`;
+    const periodEnd = await activateIyonicMailerSubscription(client, { userId: req.user.id, planId: plan.id, reference, paymentMethod: 'iyonicpay' });
+    await client.query('UPDATE wallets SET balance = balance - $1 WHERE id = $2', [charge, wallet.id]);
+    await client.query(`INSERT INTO transactions (sender_wallet_id, amount, currency, type, status, description) VALUES ($1, $2, $3, 'invoice_payment', 'completed', $4)`, [wallet.id, charge, currency, `IyonicMailer ${plan.name} subscription`]);
+    await client.query(`INSERT INTO iyonicmailer_payment_attempts (reference, user_id, plan_id, amount, currency, status, payment_method, completed_at) VALUES ($1, $2, $3, $4, $5, 'completed', 'iyonicpay', CURRENT_TIMESTAMP)`, [reference, req.user.id, plan.id, plan.price, plan.currency]);
+    await client.query('COMMIT');
+    res.json({ message: `${plan.name} plan activated with IyonicPay.`, subscription: { ...plan, status: 'active', currentPeriodEnd: periodEnd }, charged: { amount: charge, currency } });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('IyonicMailer IyonicPay subscription failed:', error);
+    res.status(500).json({ message: 'Could not activate the plan with IyonicPay.' });
+  } finally { client.release(); }
+});
+
+app.post('/api/iyonicmailer/billing/paystack/initialize', authenticateToken, async (req, res) => {
+  const plan = IYONIC_MAILER_PLANS[req.body?.planId];
+  if (!plan || plan.price <= 0) return res.status(400).json({ message: 'Choose a paid IyonicMailer plan.' });
+  if (!process.env.PAYSTACK_SECRET_KEY) return res.status(503).json({ message: 'Paystack is not configured right now.' });
+  try {
+    const active = await getCurrentIyonicMailerPlan(db, req.user.id);
+    if (active.id === plan.id) return res.status(409).json({ message: 'This IyonicMailer plan is already active.' });
+    const account = await db.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+    if (!account.rows[0]?.email) return res.status(422).json({ message: 'An account email is required for checkout.' });
+    const reference = `im_${nanoid(24)}`;
+    const callbackBase = (process.env.VITE_APP_URL || process.env.APP_URL || 'http://localhost:4000').replace(/\/$/, '');
+    const gateway = Paystack(process.env.PAYSTACK_SECRET_KEY);
+    const payment = await new Promise((resolve, reject) => gateway.transaction.initialize({
+      email: account.rows[0].email,
+      amount: Math.round(plan.price * 100),
+      currency: plan.currency,
+      channels: ['card', 'mobile_money'],
+      callback_url: `${callbackBase}/#/iyonic-mailer/dashboard?tab=billing&billing=verify`,
+      reference,
+      metadata: { type: 'iyonicmailer_subscription', userId: req.user.id, planId: plan.id }
+    }, (error, body) => error ? reject(error) : resolve(body)));
+    if (!payment?.status || !payment.data?.authorization_url || !payment.data?.reference) return res.status(502).json({ message: 'Paystack did not return a checkout link.' });
+    await db.query(`INSERT INTO iyonicmailer_payment_attempts (reference, user_id, plan_id, amount, currency, payment_method) VALUES ($1, $2, $3, $4, $5, 'paystack')`, [payment.data.reference, req.user.id, plan.id, plan.price, plan.currency]);
+    res.json({ authorizationUrl: payment.data.authorization_url, reference: payment.data.reference });
+  } catch (error) {
+    console.error('IyonicMailer Paystack initialization failed:', error);
+    res.status(500).json({ message: 'Could not start Paystack checkout.' });
+  }
+});
+
+app.post('/api/iyonicmailer/billing/paystack/verify', authenticateToken, async (req, res) => {
+  const reference = String(req.body?.reference || '').trim();
+  if (!reference) return res.status(400).json({ message: 'Payment reference is required.' });
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const attempt = await client.query('SELECT * FROM iyonicmailer_payment_attempts WHERE reference = $1 AND user_id = $2 FOR UPDATE', [reference, req.user.id]);
+    const paymentAttempt = attempt.rows[0];
+    if (!paymentAttempt) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'IyonicMailer payment was not found.' });
+    }
+    if (paymentAttempt.status === 'completed') {
+      await client.query('COMMIT');
+      return res.json({ message: 'Payment already verified.', planId: paymentAttempt.plan_id });
+    }
+    const gateway = Paystack(process.env.PAYSTACK_SECRET_KEY);
+    const payment = await new Promise((resolve, reject) => gateway.transaction.verify(reference, (error, body) => error ? reject(error) : resolve(body)));
+    const data = payment?.data;
+    if (!payment?.status || data?.status !== 'success' || Number(data.amount) < Math.round(Number(paymentAttempt.amount) * 100) || String(data.currency).toUpperCase() !== paymentAttempt.currency) {
+      await client.query('ROLLBACK');
+      return res.status(402).json({ message: 'Payment is incomplete or does not match this plan.' });
+    }
+    const periodEnd = await activateIyonicMailerSubscription(client, { userId: req.user.id, planId: paymentAttempt.plan_id, reference, paymentMethod: 'paystack' });
+    await client.query(`UPDATE iyonicmailer_payment_attempts SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE reference = $1`, [reference]);
+    await client.query('COMMIT');
+    res.json({ message: 'Payment verified. Your IyonicMailer plan is active.', planId: paymentAttempt.plan_id, currentPeriodEnd: periodEnd });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('IyonicMailer Paystack verification failed:', error);
+    res.status(500).json({ message: 'Could not verify this payment.' });
+  } finally { client.release(); }
+});
+
+app.get('/api/iyonicmailer/keys', authenticateToken, async (req, res) => {
+  const sellerId = req.user.sellerId;
+  if (!sellerId) return res.status(409).json({ message: 'Activate IyonicMailer to provision your mailer workspace.' });
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
+    const seller = await client.query('SELECT id FROM sellers WHERE id = $1 AND user_id = $2', [sellerId, req.user.id]);
+    if (!seller.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ message: 'This mailer workspace does not belong to your account.' });
+    }
+    await migrateLegacyMailerKey(client, req.user.id, sellerId);
+    const keys = await client.query(`SELECT id, name, key_prefix, created_at, last_used_at, revoked_at FROM iyonicmailer_api_keys WHERE user_id = $1 ORDER BY created_at DESC`, [req.user.id]);
+    await client.query('COMMIT');
+    res.json(keys.rows);
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('IyonicMailer API key list failed:', error);
+    res.status(500).json({ message: 'Could not load IyonicMailer API keys.' });
+  } finally { client.release(); }
+});
+
+app.post('/api/iyonicmailer/keys', authenticateToken, async (req, res) => {
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  if (!name || name.length > 64) return res.status(400).json({ message: 'Key name must contain 1 to 64 characters.' });
+  const sellerId = req.user.sellerId;
+  if (!sellerId) return res.status(409).json({ message: 'Activate IyonicMailer to provision your mailer workspace.' });
+  const key = `im_sk_${nanoid(40)}`;
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
+    const seller = await client.query('SELECT id FROM sellers WHERE id = $1 AND user_id = $2', [sellerId, req.user.id]);
+    if (!seller.rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ message: 'This mailer workspace does not belong to your account.' });
+    }
+    await migrateLegacyMailerKey(client, req.user.id, sellerId);
+    const plan = await getCurrentIyonicMailerPlan(client, req.user.id);
+    const count = await client.query('SELECT COUNT(*)::int AS count FROM iyonicmailer_api_keys WHERE user_id = $1 AND revoked_at IS NULL', [req.user.id]);
+    if (Number(count.rows[0]?.count || 0) >= plan.apiKeyLimit) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ message: `Your ${plan.name} plan allows ${plan.apiKeyLimit} active API keys. Revoke a key or upgrade your plan.`, activeKeyCount: Number(count.rows[0]?.count || 0), apiKeyLimit: plan.apiKeyLimit });
+    }
+    const created = await client.query(`INSERT INTO iyonicmailer_api_keys (user_id, seller_id, name, key_prefix, key_hash) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, key_prefix, created_at`, [req.user.id, sellerId, name, key.slice(0, 17), hashMailerApiKey(key)]);
+    await client.query('COMMIT');
+    res.status(201).json({ ...created.rows[0], secret: key });
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('IyonicMailer API key creation failed:', error);
+    res.status(500).json({ message: 'Could not create an API key.' });
+  } finally { client.release(); }
+});
+
+app.post('/api/iyonicmailer/keys/:keyId/revoke', authenticateToken, async (req, res) => {
+  try {
+    const result = await db.query(`UPDATE iyonicmailer_api_keys SET revoked_at = CURRENT_TIMESTAMP WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL RETURNING id`, [req.params.keyId, req.user.id]);
+    if (!result.rowCount) return res.status(404).json({ message: 'Active API key not found.' });
+    res.json({ revoked: true, id: result.rows[0].id });
+  } catch (error) {
+    console.error('IyonicMailer API key revoke failed:', error);
+    res.status(500).json({ message: 'Could not revoke this API key.' });
+  }
+});
+
 // --- API Key Management Routes ---
 
-// Get or create API key for authenticated user (works for all roles)
+// Retired legacy single-key routes; use the plan-aware IyonicMailer key manager.
 app.get('/api/user/api-key', authenticateToken, async (req, res) => {
-  try {
-    let keyRes = await db.query('SELECT api_key, is_active, created_at FROM api_keys WHERE user_id = $1', [req.user.id]);
-    if (keyRes.rows.length === 0) {
-      const newKey = `im_sk_${nanoid(32)}`;
-      keyRes = await db.query('INSERT INTO api_keys (user_id, api_key, is_active) VALUES ($1, $2, TRUE) RETURNING api_key, is_active, created_at', [req.user.id, newKey]);
-    }
-    res.json({ apiKey: keyRes.rows[0].api_key, isActive: keyRes.rows[0].is_active, createdAt: keyRes.rows[0].created_at });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
+  res.status(410).json({ message: 'Use the IyonicMailer API keys section to create and manage keys.', endpoint: '/api/iyonicmailer/keys' });
 });
 
-// Regenerate API key
 app.post('/api/user/api-key/regenerate', authenticateToken, async (req, res) => {
-  try {
-    const newKey = `im_sk_${nanoid(32)}`;
-    const result = await db.query(
-      'UPDATE api_keys SET api_key = $1, is_active = TRUE WHERE user_id = $2 RETURNING api_key, is_active, created_at',
-      [newKey, req.user.id]
-    );
-    if (result.rows.length === 0) {
-      const insertRes = await db.query(
-        'INSERT INTO api_keys (user_id, api_key, is_active) VALUES ($1, $2, TRUE) RETURNING api_key, is_active, created_at',
-        [req.user.id, newKey]
-      );
-      res.json({ apiKey: insertRes.rows[0].api_key, isActive: insertRes.rows[0].is_active, createdAt: insertRes.rows[0].created_at });
-    } else {
-      res.json({ apiKey: result.rows[0].api_key, isActive: result.rows[0].is_active, createdAt: result.rows[0].created_at });
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error regenerating API key' });
-  }
+  res.status(410).json({ message: 'Use the IyonicMailer API keys section to create and manage keys.', endpoint: '/api/iyonicmailer/keys' });
 });
 
-// Revoke API key
 app.post('/api/user/api-key/revoke', authenticateToken, async (req, res) => {
   try {
     await db.query('UPDATE api_keys SET is_active = FALSE WHERE user_id = $1', [req.user.id]);
+    await db.query('UPDATE iyonicmailer_api_keys SET revoked_at = CURRENT_TIMESTAMP WHERE user_id = $1 AND revoked_at IS NULL', [req.user.id]);
     res.json({ message: 'API key revoked successfully' });
   } catch (err) {
     console.error(err);

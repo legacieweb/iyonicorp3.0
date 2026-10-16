@@ -20,11 +20,19 @@ export const getAuthErrorDetails = (error: any, fallback = 'Something went wrong
     };
   }
 
-  if (code === 'ACCOUNT_SUSPENDED' || status === 403 || /suspend/i.test(message)) {
+  if (code === 'ACCOUNT_SUSPENDED' || /suspend/i.test(message)) {
     return {
       type: 'suspended',
       title: 'Account suspended',
       message: 'Your account is suspended. You cannot sign in until support restores access.'
+    };
+  }
+
+  if (status === 403) {
+    return {
+      type: 'unknown',
+      title: 'This account cannot activate the product',
+      message: message || 'This account does not have access to this product. Contact support if you think this is a mistake.'
     };
   }
 

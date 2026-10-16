@@ -104,7 +104,7 @@ export const IyonicMailerAuth: React.FC<IyonicMailerAuthProps> = ({
     setIsSubmitting(true);
     try {
       if (mode === 'login') {
-        await login(formData.email.trim(), formData.password);
+        await login(formData.email.trim(), formData.password, 'iyonic-mailer');
       } else {
         await register({
           email: formData.email.trim(),

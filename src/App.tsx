@@ -128,9 +128,10 @@ const getUserRedirectPath = (user: any, shopSubdomain?: string | null, themeId?:
 const ProtectedRoute: React.FC<{
   children: React.ReactNode;
   allowedRoles: string[];
+  allowedProductKey?: string;
   unauthorizedRedirectPath?: string;
   unauthenticatedRedirectPath?: string;
-}> = ({ children, allowedRoles, unauthorizedRedirectPath, unauthenticatedRedirectPath }) => {
+}> = ({ children, allowedRoles, allowedProductKey, unauthorizedRedirectPath, unauthenticatedRedirectPath }) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const shopSubdomain = searchParams.get('subdomain');
@@ -144,7 +145,7 @@ const ProtectedRoute: React.FC<{
     return <Navigate to={unauthenticatedRedirectPath || '/login'} replace />;
   }
   
-  if (user && !allowedRoles.includes(user.role)) {
+  if (user && !allowedRoles.includes(user.role) && (!allowedProductKey || user.productKey !== allowedProductKey)) {
     return <Navigate to={unauthorizedRedirectPath || getUserRedirectPath(user, shopSubdomain, themeId)} replace />;
   }
   
@@ -611,6 +612,7 @@ const AppContent: React.FC = () => {
       <Route path="/iyonic-mailer/dashboard" element={
         <ProtectedRoute
           allowedRoles={['seller']}
+          allowedProductKey="iyonic-mailer"
           unauthorizedRedirectPath="/iyonic-mailer/login"
           unauthenticatedRedirectPath="/iyonic-mailer/login"
         >

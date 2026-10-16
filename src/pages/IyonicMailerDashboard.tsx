@@ -8,9 +8,11 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  CreditCard,
   FileText,
   HelpCircle,
   LayoutDashboard,
+  KeyRound,
   Loader2,
   LogOut,
   Mail,
@@ -27,15 +29,18 @@ import { useData } from '../context/DataContext';
 import { EmailCampaignManager } from '../components/marketing/EmailCampaignManager';
 import { EmailSettingsManager } from '../components/marketing/EmailSettingsManager';
 import { EmailTemplateEditor } from '../components/marketing/EmailTemplateEditor';
+import { MailerApiKeysPanel, MailerBillingPanel } from '../components/marketing/MailerAccountSections';
 import './iyonic-mailer-dashboard.css';
 
-type DashboardTab = 'overview' | 'email-settings' | 'campaigns' | 'templates' | 'account';
+type DashboardTab = 'overview' | 'email-settings' | 'campaigns' | 'templates' | 'api-keys' | 'billing' | 'account';
 
 const tabs: Array<{ id: DashboardTab; label: string; icon: React.ElementType }> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'email-settings', label: 'Email account', icon: Settings2 },
   { id: 'campaigns', label: 'Campaigns', icon: Send },
   { id: 'templates', label: 'Templates', icon: FileText },
+  { id: 'api-keys', label: 'API keys', icon: KeyRound },
+  { id: 'billing', label: 'Plans & billing', icon: CreditCard },
 ];
 
 export const IyonicMailerDashboard: React.FC = () => {
@@ -66,6 +71,8 @@ export const IyonicMailerDashboard: React.FC = () => {
     requestedTab === 'email-settings' ||
     requestedTab === 'campaigns' ||
     requestedTab === 'templates' ||
+    requestedTab === 'api-keys' ||
+    requestedTab === 'billing' ||
     requestedTab === 'account'
   ) ? requestedTab : 'overview';
 
@@ -142,6 +149,8 @@ export const IyonicMailerDashboard: React.FC = () => {
   };
 
   const renderSection = () => {
+    if (activeTab === 'billing') return <MailerBillingPanel />;
+    if (activeTab === 'api-keys') return <MailerApiKeysPanel />;
     if (activeTab === 'account') {
       return (
         <section className="mailer-panel mailer-account-panel">
@@ -352,6 +361,10 @@ export const IyonicMailerDashboard: React.FC = () => {
         ? 'Campaigns'
         : activeTab === 'templates'
           ? 'Templates'
+        : activeTab === 'api-keys'
+          ? 'API keys'
+          : activeTab === 'billing'
+            ? 'Plans & billing'
           : 'Account settings';
 
   return (
@@ -427,6 +440,8 @@ export const IyonicMailerDashboard: React.FC = () => {
                       {activeTab === 'email-settings' && 'Connect the email service you use to send campaigns.'}
                       {activeTab === 'campaigns' && 'Create, organize, and send email campaigns.'}
                       {activeTab === 'templates' && 'Build reusable email layouts for your campaigns.'}
+                      {activeTab === 'api-keys' && 'Create credentials for server-side email integrations.'}
+                      {activeTab === 'billing' && 'Review usage, choose a plan, and manage payment.'}
                     </p>
                   </div>
                   <div className={`mailer-header-status ${configured ? 'is-ready' : ''}`}>

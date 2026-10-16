@@ -11,7 +11,7 @@ interface AuthContextType {
   /** True only while the saved session is being restored on app startup. */
   isInitializing: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, productKey?: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   updateProfile: (updates: ProfileUpdates) => Promise<User>;
   linkStore: (data: any) => Promise<void>;
@@ -88,10 +88,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.clearInterval(sessionCheck);
   }, [user]);
 
-  const login = async (email: string, password: string): Promise<void> => {
+  const login = async (email: string, password: string, productKey?: string): Promise<void> => {
     setIsLoading(true);
     try {
-      const loggedInUser = await authAPI.login(email, password);
+      const loggedInUser = await authAPI.login(email, password, productKey);
       setUser(loggedInUser);
     } catch (error) {
       console.error('Login error:', error);

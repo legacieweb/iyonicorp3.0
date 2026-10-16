@@ -39,6 +39,7 @@ export interface User {
   phoneNumber?: string;
   username?: string;
    role: 'seller' | 'seller_manager' | 'manager_admin' | 'customer' | 'school_staff' | 'teacher';
+  productKey?: string;
   avatar?: string;
   createdAt: string;
   sellerId?: string;
@@ -393,8 +394,8 @@ export const authAPI = {
     return response.data;
   },
 
-  async login(email: string, password: string): Promise<User> {
-    const response = await api.post('/auth/login', { email, password });
+  async login(email: string, password: string, productKey?: string): Promise<User> {
+    const response = await api.post('/auth/login', { email, password, productKey });
     const { user, token } = response.data;
     if (token) localStorage.setItem('iyonicorp_token', token);
     return user;

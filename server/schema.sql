@@ -343,6 +343,54 @@ CREATE TABLE IF NOT EXISTS api_keys (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- IyonicMailer subscription, API credential, and monthly send usage.
+CREATE TABLE IF NOT EXISTS iyonicmailer_subscriptions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan_id VARCHAR(16) NOT NULL CHECK (plan_id IN ('launch', 'growth', 'scale')),
+    status VARCHAR(16) NOT NULL CHECK (status IN ('active', 'expired', 'canceled')),
+    current_period_start TIMESTAMPTZ NOT NULL,
+    current_period_end TIMESTAMPTZ NOT NULL,
+    payment_reference VARCHAR(255) NOT NULL UNIQUE,
+    payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('iyonicpay', 'paystack')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_iyonicmailer_subscriptions_user_period
+  ON iyonicmailer_subscriptions(user_id, current_period_end DESC);
+
+CREATE TABLE IF NOT EXISTS iyonicmailer_payment_attempts (
+    reference VARCHAR(255) PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan_id VARCHAR(16) NOT NULL CHECK (plan_id IN ('launch', 'growth', 'scale')),
+    amount NUMERIC(10, 2) NOT NULL CHECK (amount > 0),
+    currency VARCHAR(3) NOT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed')),
+    payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('iyonicpay', 'paystack')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS iyonicmailer_api_keys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    seller_id UUID NOT NULL REFERENCES sellers(id) ON DELETE CASCADE,
+    name VARCHAR(64) NOT NULL,
+    key_prefix VARCHAR(20) NOT NULL,
+    key_hash CHAR(64) NOT NULL UNIQUE,
+    last_used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    revoked_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_iyonicmailer_api_keys_user
+  ON iyonicmailer_api_keys(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS iyonicmailer_usage (
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    month_start DATE NOT NULL,
+    sent_count INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, month_start)
+);
+
 -- IyonicBots table
 CREATE TABLE IF NOT EXISTS bots (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
