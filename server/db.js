@@ -787,7 +787,7 @@ CREATE INDEX IF NOT EXISTS idx_sellers_manager_id ON sellers(manager_id);
             file_size INTEGER,
             mime_type VARCHAR(100),
             status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-            reviewed_by UUID REFERENCES users(id),
+            reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
             reviewed_at TIMESTAMP WITH TIME ZONE,
             rejection_reason TEXT,
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

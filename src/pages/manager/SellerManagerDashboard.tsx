@@ -494,7 +494,7 @@ export const SellerManagerDashboard: React.FC = () => {
         <div className="p-6 border-b border-gray-100">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center border border-gray-100 shadow-sm">
-              <img src="/iyonicorp logo.png" alt="Iyonicorp" className="w-7 h-7 object-contain" />
+              <img src="/logo.png" alt="Iyonicorp" className="w-7 h-7 object-contain" />
             </div>
             <div>
               <h1 className="font-bold text-gray-900">Iyonicorp</h1>

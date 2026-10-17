@@ -656,7 +656,7 @@ CREATE TABLE IF NOT EXISTS sms_school_invites (
     expires_at TIMESTAMP WITH TIME ZONE,
     max_uses INTEGER DEFAULT 0,
     used_count INTEGER NOT NULL DEFAULT 0,
-    created_by UUID REFERENCES users(id),
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

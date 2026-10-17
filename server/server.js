@@ -1389,7 +1389,26 @@ app.delete('/api/users/:id', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Cannot delete the platform admin account' });
     }
 
-    await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+    // These nullable audit/reviewer references intentionally survive user deletion.
+    // Their legacy foreign keys do not have ON DELETE SET NULL, so clear them first.
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const userRes = await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [req.params.id]);
+      if (userRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: 'User not found' });
+      }
+      await client.query('UPDATE tspp_documents SET reviewed_by = NULL WHERE reviewed_by = $1', [req.params.id]);
+      await client.query('UPDATE sms_school_invites SET created_by = NULL WHERE created_by = $1', [req.params.id]);
+      await client.query('DELETE FROM users WHERE id = $1', [req.params.id]);
+      await client.query('COMMIT');
+    } catch (deleteError) {
+      await client.query('ROLLBACK');
+      throw deleteError;
+    } finally {
+      client.release();
+    }
     res.json({ message: 'User deleted successfully' });
   } catch (err) {
     console.error('Delete User Error:', err);
