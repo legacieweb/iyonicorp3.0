@@ -714,8 +714,8 @@ const insertSqlRow = async (db, userId, projectId, tableName, row, subscription)
     throw Object.assign(new Error('Provide a valid table and JSON object row.'), { status: 400 });
   }
   const values = Object.entries(row);
-  if (!values.length || values.length > 25 || values.some(([name]) => !identifierPattern.test(name) || ['id', 'created_at'].includes(name))) {
-    throw Object.assign(new Error('Provide 1 to 25 writable columns. The id and created_at columns are generated.'), { status: 400 });
+  if (!values.length || values.length > 25 || values.some(([name]) => !identifierPattern.test(name) || name === 'created_at')) {
+    throw Object.assign(new Error('Provide 1 to 25 writable columns. The created_at column is generated.'), { status: 400 });
   }
   const size = Buffer.byteLength(JSON.stringify(row), 'utf8');
   if (size > 1024 * 1024) throw Object.assign(new Error('Rows are limited to 1 MB.'), { status: 413 });
@@ -742,6 +742,11 @@ const insertSqlRow = async (db, userId, projectId, tableName, row, subscription)
     if (values.some(([name]) => !columns.has(name))) {
       await client.query('ROLLBACK');
       throw Object.assign(new Error('A supplied field does not exist in this table.'), { status: 400 });
+    }
+    const suppliedId = values.find(([name]) => name === 'id');
+    if (suppliedId && !['text', 'character varying', 'character'].includes(columns.get('id')?.data_type)) {
+      await client.query('ROLLBACK');
+      throw Object.assign(new Error('Explicit IDs are only allowed for tables with text-based IDs.'), { status: 400 });
     }
     const required = table.rows.filter((column) => column.is_nullable === 'NO' && !['id', 'created_at'].includes(column.column_name));
     if (required.some((column) => !Object.hasOwn(row, column.column_name))) {
@@ -1907,6 +1912,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
          FROM public.iyonicdb_migrations WHERE project_id = $1 ORDER BY applied_at, name`,
         [req.params.projectId]
       );
+      res.set('X-IyonicDB-Migration-Features', 'dry-run,statements,filename,auto-name');
       res.json(result.rows);
     } catch (error) {
       console.error('IyonicDB migration history failed:', error);

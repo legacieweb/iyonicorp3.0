@@ -147,7 +147,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!isAuthenticated || !user) return;
 
     try {
-      if (user.role === 'seller' && user.sellerId) {
+      if (user.productKey === 'iyonic-mailer' && user.sellerId) {
+        // Mailer accounts can belong to any platform role. Load their dedicated
+        // workspace directly instead of relying on the seller-only data path.
+        const seller = await sellersAPI.getMe();
+        setSellers([seller]);
+        try {
+          const [workspaceCustomers, emailSettingsData, campaigns, templates] = await Promise.all([
+            customersAPI.getBySellerId(user.sellerId),
+            emailMarketingAPI.getSettings(user.sellerId),
+            emailMarketingAPI.getCampaigns(user.sellerId),
+            emailMarketingAPI.getTemplates(user.sellerId),
+          ]);
+          setCustomers(workspaceCustomers);
+          setEmailSettings(emailSettingsData);
+          setEmailCampaigns(campaigns);
+          setEmailTemplates(templates);
+        } catch (marketingError) {
+          console.error('Error fetching IyonicMailer workspace data:', marketingError);
+        }
+      } else if (user.role === 'seller' && user.sellerId) {
         const [p, o, c, s, m, r, d] = await Promise.all([
           productsAPI.getBySellerId(user.sellerId),
           ordersAPI.getBySellerId(user.sellerId).then(orders => orders.filter(order => order.status !== 'pending')),
