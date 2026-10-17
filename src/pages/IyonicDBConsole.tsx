@@ -300,7 +300,7 @@ export const IyonicDBConsole: React.FC = () => {
     return () => { active = false; };
   }, [section, showAccountData, dataMode, project, selectedTable]);
 
-  const runAction = async (action: () => Promise<void>) => {
+  const runAction = async (action: () => Promise<void>, rethrow = false) => {
     setError('');
     setNotice('');
     setBusy(true);
@@ -308,6 +308,7 @@ export const IyonicDBConsole: React.FC = () => {
       await action();
     } catch (requestError) {
       setError(errorMessage(requestError));
+      if (rethrow) throw requestError;
     } finally {
       setBusy(false);
     }
@@ -346,14 +347,31 @@ export const IyonicDBConsole: React.FC = () => {
     await refreshOverview();
   });
 
-  const executeQuery = () => runAction(async () => {
+  const executeQuery = () => {
+    let resultCount = 0;
+    return runAction(async () => {
     if (!project) throw new Error('Create a project before running SQL.');
     const params = JSON.parse(sqlParams);
     if (!Array.isArray(params)) throw new Error('SQL parameters must be a JSON array.');
     const { data } = await api.post<{ rows: Record<string, unknown>[]; rowCount: number }>(`/iyonicdb/projects/${project.id}/query`, { sql, params });
     setSqlResults(data.rows);
+    resultCount = data.rowCount;
     setNotice(`${data.rowCount} row(s) returned from PostgreSQL.`);
-  });
+    }, true).then(() => resultCount);
+  };
+
+  const refreshTablesAfterMigration = async () => {
+    if (!project) return;
+    try {
+      const { data } = await api.get<TableInfo[]>(`/iyonicdb/projects/${encodeURIComponent(project.id)}/tables`);
+      setTables(data);
+      setSelectedTable((current) => data.some((table) => table.name === current) ? current : data[0]?.name || '');
+      await refreshOverview();
+    } catch (requestError) {
+      setError('Migration applied, but the explorer refresh failed. Refresh the explorer and try again.');
+      throw requestError;
+    }
+  };
 
   const createDocument = () => runAction(async () => {
     if (!project) throw new Error('Create a project before saving documents.');
@@ -506,13 +524,13 @@ export const IyonicDBConsole: React.FC = () => {
           <div className="idb-data-tabs" role="tablist" aria-label="Additional workspace data"><button type="button" role="tab" aria-selected={showAccountData} className={showAccountData ? 'active' : ''} onClick={() => setShowAccountData((active) => !active)}> {showAccountData ? 'Back to database' : `Account data (${overview?.accountWorkspaces?.length || 0})`}</button></div>
           {showAccountData ? <ProductAccountDataPanel data={accountData} syncSummary={platformSyncSummary} loading={!platformSyncReady || accountDataLoading} error={platformSyncError || accountDataError} onRetry={() => { setPlatformSyncReady(false); setPlatformSyncError(''); setAccountDataReload((revision) => revision + 1); if (defaultProject) syncedProjects.current.delete(defaultProject.id); setPlatformSyncRevision((revision) => revision + 1); }} onOpenStoredData={() => { setShowAccountData(false); setDataMode('Documents'); setCollection('platform_data'); }} /> : overview?.subscription && <DataPanel
           mode={dataMode} setMode={setDataMode} tables={tables} tableLimit={overview.subscription.tableLimit} selectedTable={selectedTable} setSelectedTable={setSelectedTable}
-          projectName={project.name} storageBytes={overview.usage.storageBytes} storageLimitBytes={overview.usage.storageLimitBytes} documentCollections={documentCollections}
+          projectId={project.id} projectName={project.name} storageBytes={overview.usage.storageBytes} storageLimitBytes={overview.usage.storageLimitBytes} documentCollections={documentCollections}
           rows={rows} documents={documents} collection={collection} setCollection={setCollection}
           sql={sql} setSql={setSql} sqlParams={sqlParams} setSqlParams={setSqlParams} sqlResults={sqlResults}
           newTableName={newTableName} setNewTableName={setNewTableName} columnDefinitions={columnDefinitions} setColumnDefinitions={setColumnDefinitions}
           rowJson={rowJson} setRowJson={setRowJson} documentJson={documentJson} setDocumentJson={setDocumentJson}
           busy={busy} loading={dataLoading || rowsLoading} onCreateTable={createTable} onCreateRow={createRow} onRunQuery={executeQuery} onCreateDocument={createDocument}
-          onDeleteRow={deleteRow} onDeleteDocument={deleteDocument}
+          onDeleteRow={deleteRow} onDeleteDocument={deleteDocument} onMigrationApplied={refreshTablesAfterMigration}
           />}
         </>}
         {section === 'data' && !project && <section className="idb-console-panel idb-empty-workspace"><Database size={22} /><h2>Create your first database project</h2><p>Projects give your SQL tables, documents, and API keys an isolated home.</p><button type="button" onClick={() => switchSection('projects')}>Go to projects <ArrowRight size={14} /></button></section>}
@@ -642,17 +660,77 @@ const renderAccountValue = (value: unknown): React.ReactNode => {
   return String(value);
 };
 
-const DataPanel = ({ mode, setMode, tables, tableLimit, selectedTable, setSelectedTable, rows, documents, collection, setCollection, projectName, storageBytes, storageLimitBytes, documentCollections, sql, setSql, sqlParams, setSqlParams, sqlResults, newTableName, setNewTableName, columnDefinitions, setColumnDefinitions, rowJson, setRowJson, documentJson, setDocumentJson, busy, loading, onCreateTable, onCreateRow, onRunQuery, onCreateDocument, onDeleteRow, onDeleteDocument }: {
+type MigrationRecord = { name: string; statementCount: number; appliedAt: string; alreadyApplied: boolean };
+type ConsoleLogEntry = { id: number; timestamp: string; kind: 'SELECT' | 'MIGRATION'; status: 'success' | 'error' | 'warning'; code?: string; message: string };
+
+const getDatabaseError = (error: unknown) => {
+  const responseData = typeof error === 'object' && error !== null && 'response' in error
+    ? (error as { response?: { data?: { message?: string; code?: string; sqlstate?: string; sqlState?: string } } }).response?.data
+    : undefined;
+  const rawMessage = responseData?.message || (error instanceof Error ? error.message : 'The request could not be completed.');
+  const candidateCode = responseData?.code || responseData?.sqlstate || responseData?.sqlState || rawMessage.match(/\b[0-9A-Z]{5}\b/)?.[0];
+  return { message: rawMessage, code: candidateCode && /^[0-9A-Z]{5}$/.test(candidateCode) ? candidateCode : undefined };
+};
+
+const DataPanel = ({ mode, setMode, tables, tableLimit, selectedTable, setSelectedTable, rows, documents, collection, setCollection, projectId, projectName, storageBytes, storageLimitBytes, documentCollections, sql, setSql, sqlParams, setSqlParams, sqlResults, newTableName, setNewTableName, columnDefinitions, setColumnDefinitions, rowJson, setRowJson, documentJson, setDocumentJson, busy, loading, onCreateTable, onCreateRow, onRunQuery, onCreateDocument, onDeleteRow, onDeleteDocument, onMigrationApplied }: {
   mode: Mode; setMode: (mode: Mode) => void; tables: TableInfo[]; tableLimit: number; selectedTable: string; setSelectedTable: (name: string) => void; rows: Record<string, unknown>[]; documents: DocumentRecord[]; collection: string; setCollection: (name: string) => void;
-  projectName: string; storageBytes: number; storageLimitBytes: number; documentCollections: DocumentCollection[];
+  projectId: string; projectName: string; storageBytes: number; storageLimitBytes: number; documentCollections: DocumentCollection[];
   sql: string; setSql: (query: string) => void; sqlParams: string; setSqlParams: (params: string) => void; sqlResults: Record<string, unknown>[] | null;
   newTableName: string; setNewTableName: (name: string) => void; columnDefinitions: string; setColumnDefinitions: (value: string) => void;
   rowJson: string; setRowJson: (value: string) => void; documentJson: string; setDocumentJson: (value: string) => void; busy: boolean; loading: boolean;
-  onCreateTable: () => void; onCreateRow: () => void; onRunQuery: () => void; onCreateDocument: () => void; onDeleteRow: (id: unknown) => void; onDeleteDocument: (id: string) => void;
+  onCreateTable: () => void; onCreateRow: () => void; onRunQuery: () => Promise<number>; onCreateDocument: () => void; onDeleteRow: (id: unknown) => void; onDeleteDocument: (id: string) => void; onMigrationApplied: () => Promise<void>;
 }) => {
   const [showCreateTable, setShowCreateTable] = useState(false);
   const [showCreateRecord, setShowCreateRecord] = useState(false);
   const [showQuery, setShowQuery] = useState(false);
+  const [migrationName, setMigrationName] = useState('');
+  const [migrationSql, setMigrationSql] = useState('');
+  const [migrationBusy, setMigrationBusy] = useState(false);
+  const [migrationLoading, setMigrationLoading] = useState(false);
+  const [migrations, setMigrations] = useState<MigrationRecord[]>([]);
+  const [consoleLogs, setConsoleLogs] = useState<ConsoleLogEntry[]>([]);
+  const logId = useRef(0);
+  const appendLog = useCallback((entry: Omit<ConsoleLogEntry, 'id' | 'timestamp'>) => {
+    setConsoleLogs((current) => [...current, { ...entry, id: ++logId.current, timestamp: new Date().toLocaleTimeString([], { hour12: false }) }].slice(-100));
+  }, []);
+  useEffect(() => {
+    let active = true;
+    setMigrations([]);
+    setConsoleLogs([]);
+    setMigrationLoading(true);
+    api.get<MigrationRecord[]>(`/iyonicdb/projects/${encodeURIComponent(projectId)}/migrations`)
+      .then(({ data }) => { if (active) setMigrations(data); })
+      .catch((requestError: unknown) => { if (active) { const { code } = getDatabaseError(requestError); appendLog({ kind: 'MIGRATION', status: 'error', code, message: 'Could not load migration history.' }); } })
+      .finally(() => { if (active) setMigrationLoading(false); });
+    return () => { active = false; };
+  }, [projectId, appendLog]);
+  const runLoggedQuery = async () => {
+    try {
+      const count = await onRunQuery();
+      appendLog({ kind: 'SELECT', status: 'success', message: `Query completed · ${count} row${count === 1 ? '' : 's'} returned.` });
+    } catch (requestError) {
+      const { code } = getDatabaseError(requestError);
+      appendLog({ kind: 'SELECT', status: 'error', code, message: code ? 'Query failed; see code.' : 'Query failed validation or could not be completed.' });
+    }
+  };
+  const applyMigration = async () => {
+    const name = migrationName.trim();
+    if (!name || !migrationSql.trim()) return;
+    setMigrationBusy(true);
+    try {
+      const { data } = await api.post<MigrationRecord>(`/iyonicdb/projects/${encodeURIComponent(projectId)}/migrations`, { name, sql: migrationSql });
+      setMigrations((current) => [data, ...current.filter((item) => item.name !== data.name)]);
+      appendLog({ kind: 'MIGRATION', status: data.alreadyApplied ? 'warning' : 'success', message: data.alreadyApplied ? `Migration “${name}” was already applied; no changes made.` : `Migration “${name}” applied · ${data.statementCount} statement${data.statementCount === 1 ? '' : 's'}.` });
+      if (!data.alreadyApplied) {
+        setMigrationSql('');
+        try { await onMigrationApplied(); }
+        catch { appendLog({ kind: 'MIGRATION', status: 'warning', message: 'Migration applied, but refreshing the explorer failed.' }); }
+      }
+    } catch (requestError) {
+      const { code } = getDatabaseError(requestError);
+      appendLog({ kind: 'MIGRATION', status: 'error', code, message: code ? 'Migration failed; see code.' : 'Migration failed validation or could not be applied.' });
+    } finally { setMigrationBusy(false); }
+  };
   const resultRows = sqlResults === null ? rows : sqlResults;
   const columns = resultRows.length ? Object.keys(resultRows[0]) : tables.find((item) => item.name === selectedTable)?.columns.map((column) => column.name) || [];
   const rowCount = tables.reduce((total, item) => total + (item.rowCount || 0), 0);
@@ -680,7 +758,9 @@ const DataPanel = ({ mode, setMode, tables, tableLimit, selectedTable, setSelect
         {showCreateRecord && mode === 'SQL' && selectedTable && <form className="idb-db-form idb-explorer-form" onSubmit={(event) => { event.preventDefault(); onCreateRow(); setShowCreateRecord(false); }}><label>Row data <small>JSON object</small><textarea value={rowJson} onChange={(event) => setRowJson(event.target.value)} rows={3} /></label><button disabled={busy}>Insert row</button></form>}
         {showCreateRecord && mode === 'Documents' && <form className="idb-db-form idb-explorer-form" onSubmit={(event) => { event.preventDefault(); onCreateDocument(); setShowCreateRecord(false); }}><label>Document body <small>Valid JSON</small><textarea value={documentJson} onChange={(event) => setDocumentJson(event.target.value)} rows={4} /></label><button disabled={busy || !collection.trim()}>Save document</button></form>}
         {mode === 'SQL' ? <>
-          <details className="idb-query-details" open={showQuery} onToggle={(event) => setShowQuery(event.currentTarget.open)}><summary><span><Activity size={14} /> SQL query editor</span><small>Read-only SELECT · parameterized</small></summary><div className="idb-query-editor"><div><span>POSTGRESQL SELECT</span><span>Project scoped · parameterized</span></div><label className="idb-visually-hidden" htmlFor="idb-query">SQL query</label><textarea id="idb-query" value={sql} onChange={(event) => setSql(event.target.value)} placeholder="SELECT * FROM your_table LIMIT 50" rows={4} /><label className="idb-db-params" htmlFor="idb-sql-params">Parameters (JSON array)<input id="idb-sql-params" value={sqlParams} onChange={(event) => setSqlParams(event.target.value)} /></label><div className="idb-editor-bottom"><span><LockKeyhole size={12} /> Read-only SELECT statements, isolated to this project</span><button type="button" onClick={onRunQuery} disabled={busy || !sql.trim()}>Run query <ArrowRight size={13} /></button></div></div></details>
+          <details className="idb-query-details" open={showQuery} onToggle={(event) => setShowQuery(event.currentTarget.open)}><summary><span><Activity size={14} /> SQL query editor</span><small>Read-only SELECT · parameterized</small></summary><div className="idb-query-editor"><div><span>POSTGRESQL SELECT</span><span>Project scoped · parameterized</span></div><label className="idb-visually-hidden" htmlFor="idb-query">SQL query</label><textarea id="idb-query" value={sql} onChange={(event) => setSql(event.target.value)} placeholder="SELECT * FROM your_table LIMIT 50" rows={4} /><label className="idb-db-params" htmlFor="idb-sql-params">Parameters (JSON array)<input id="idb-sql-params" value={sqlParams} onChange={(event) => setSqlParams(event.target.value)} /></label><div className="idb-editor-bottom"><span><LockKeyhole size={12} /> Read-only SELECT statements, isolated to this project</span><button type="button" onClick={runLoggedQuery} disabled={busy || !sql.trim()}>Run query <ArrowRight size={13} /></button></div></div></details>
+          <details className="idb-query-details idb-migration-details"><summary><span><Database size={14} /> Schema migration</span><small>Transactional · project scoped</small></summary><div className="idb-migration-editor"><label htmlFor="idb-migration-name">Migration name<input id="idb-migration-name" value={migrationName} onChange={(event) => setMigrationName(event.target.value)} maxLength={120} placeholder="0002_create_users" /></label><label htmlFor="idb-migration-sql">Schema SQL<textarea id="idb-migration-sql" value={migrationSql} onChange={(event) => setMigrationSql(event.target.value)} placeholder={'CREATE TABLE users (\n  id uuid PRIMARY KEY,\n  email text NOT NULL UNIQUE\n);'} rows={7} /></label><div className="idb-migration-controls"><span><LockKeyhole size={12} /> Validated and applied as one migration</span><button type="button" onClick={applyMigration} disabled={busy || migrationBusy || !migrationName.trim() || !migrationSql.trim()}><ArrowRight size={13} />{migrationBusy ? 'Applying…' : 'Apply migration'}</button></div><div className="idb-migration-history"><div><b>APPLIED MIGRATIONS</b><span>{migrationLoading ? 'Loading…' : `${migrations.length} recorded`}</span></div>{migrations.length ? migrations.map((item) => <article key={item.name}><code>{item.name}</code><span>{item.statementCount} statements</span><time dateTime={item.appliedAt}>{new Date(item.appliedAt).toLocaleString()}</time></article>) : !migrationLoading && <p>No migrations recorded for this project yet.</p>}</div></div></details>
+          <section className="idb-mini-terminal" aria-label="Query and migration log"><header><span><i /> TERMINAL LOG <small>{consoleLogs.length} / 100</small></span><button type="button" onClick={() => setConsoleLogs([])} disabled={!consoleLogs.length}><Trash2 size={12} /> Clear logs</button></header><div className="idb-terminal-output" role="log" aria-live="polite" aria-relevant="additions text">{consoleLogs.length ? consoleLogs.map((entry) => <article className={`idb-terminal-entry ${entry.status}`} key={entry.id}><time>{entry.timestamp}</time><strong className="idb-terminal-status">{entry.status.toUpperCase()}</strong><b>{entry.kind}</b>{entry.code ? <code>{entry.code}</code> : <code aria-hidden="true" className="idb-terminal-code-placeholder" />}<span>{entry.message}</span></article>) : <p>Ready. Query and migration results will appear here.</p>}</div></section>
           {!selectedTable ? <div className="idb-explorer-empty"><Table2 size={20} /><b>Your tables live here</b><span>Select a table to inspect its rows, or create one to begin.</span></div> : <div className="idb-explorer-results"><div className="idb-result-label"><span>{sqlResults === null ? 'TABLE ROWS' : 'QUERY RESULTS'}</span><b>{resultRows.length.toLocaleString()} {resultRows.length === 1 ? 'record' : 'records'}</b></div><ResultTable rows={resultRows} columns={columns} onDelete={sqlResults === null ? onDeleteRow : undefined} />{sqlResults !== null && <button type="button" className="idb-query-reset" onClick={() => setShowQuery(true)}>Edit query <ArrowRight size={13} /></button>}</div>}
         </> : <div className="idb-explorer-results"><div className="idb-result-label"><span>DOCUMENTS IN {collection || 'COLLECTION'}</span><b>{documents.length.toLocaleString()} {documents.length === 1 ? 'document' : 'documents'}</b></div><div className="idb-document-list">{documents.map((item) => <article key={item.id}><Braces size={15} /><div><b>{item.id}</b><code>{JSON.stringify(item.document)}</code><small>Created {new Date(item.created_at).toLocaleString()}</small></div><button type="button" aria-label={`Delete document ${item.id}`} onClick={() => onDeleteDocument(item.id)}><Trash2 size={14} /></button></article>)}{!documents.length && <p className="idb-empty-state">No documents in this collection yet. Add a JSON document to get started.</p>}</div></div>}
       </div>

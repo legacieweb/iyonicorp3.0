@@ -1354,7 +1354,112 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
       const result = await runSqlSelect(db, project.id, req.body?.sql, req.body?.params || []);
       res.json(result);
     } catch (error) {
-      res.status(error.status || 500).json({ message: error.status ? error.message : 'The SQL query could not be executed.' });
+      res.status(error.status || 500).json({ message: error.status ? error.message : 'The SQL query could not be executed.', code: error.code || undefined });
+    }
+  });
+
+  app.get('/api/iyonicdb/projects/:projectId/migrations', authenticateToken, async (req, res) => {
+    if (!await requirePlan(db, req, res)) return;
+    const project = await getProject(db, req.user.id, req.params.projectId);
+    if (!project) return res.status(404).json({ message: 'Project not found.' });
+    try {
+      const result = await db.query(
+        `SELECT name, checksum, statement_count AS "statementCount", applied_at AS "appliedAt"
+         FROM public.iyonicdb_migrations WHERE project_id = $1 ORDER BY applied_at DESC, name`,
+        [project.id]
+      );
+      res.json(result.rows);
+    } catch (error) {
+      console.error('IyonicDB console migration history failed:', error);
+      res.status(500).json({ message: 'Could not load migration history.', code: error.code || undefined });
+    }
+  });
+
+  app.post('/api/iyonicdb/projects/:projectId/migrations', authenticateToken, async (req, res) => {
+    const subscription = await requirePlan(db, req, res);
+    if (!subscription) return;
+    const project = await getProject(db, req.user.id, req.params.projectId);
+    if (!project) return res.status(404).json({ message: 'Project not found.' });
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    const sql = typeof req.body?.sql === 'string' ? req.body.sql.trim() : '';
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(name)) {
+      return res.status(400).json({ message: 'Migration name must be 1 to 128 letters, numbers, dots, underscores, or hyphens.' });
+    }
+    if (!sql) return res.status(400).json({ message: 'Provide the migration SQL.' });
+    if (Buffer.byteLength(sql, 'utf8') > 256 * 1024) return res.status(413).json({ message: 'A migration is limited to 256 KB.' });
+
+    let statements;
+    try {
+      statements = splitMigrationSql(sql);
+      validateMigrationStatements(statements);
+    } catch (error) {
+      return res.status(error.status || 400).json({ message: error.message || 'The migration is invalid.', code: error.code || undefined });
+    }
+
+    const checksum = crypto.createHash('sha256').update(sql).digest('hex');
+    const schema = schemaForProject(project.id);
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1)::bigint)', [project.id]);
+      await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
+      await client.query('SELECT id FROM iyonicdb_projects WHERE id = $1 FOR UPDATE', [project.id]);
+
+      const existing = await client.query(
+        'SELECT checksum, statement_count, applied_at FROM public.iyonicdb_migrations WHERE project_id = $1 AND name = $2',
+        [project.id, name]
+      );
+      if (existing.rowCount) {
+        if (existing.rows[0].checksum !== checksum) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ message: 'This migration name was already applied with different SQL. Use a new migration name.', code: 'MIGRATION_NAME_CONFLICT' });
+        }
+        await client.query('COMMIT');
+        return res.json({ name, checksum, statementCount: existing.rows[0].statement_count, appliedAt: existing.rows[0].applied_at, alreadyApplied: true });
+      }
+
+      await client.query(`SET LOCAL search_path TO ${quoteIdentifier(schema)}, pg_catalog`);
+      await client.query("SET LOCAL statement_timeout = '30s'");
+      await client.query("SET LOCAL lock_timeout = '5s'");
+      for (const statement of statements) await client.query(statement);
+
+      const tableCount = await client.query(
+        `SELECT count(*)::int AS count FROM information_schema.tables
+         WHERE table_schema = $1 AND table_type = 'BASE TABLE' AND table_name <> 'iyonicdb_documents'`,
+        [schema]
+      );
+      if (Number(tableCount.rows[0]?.count || 0) > subscription.tableLimit) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ message: `This migration would exceed your ${subscription.name} plan limit of ${subscription.tableLimit} tables.`, code: 'TABLE_LIMIT_EXCEEDED' });
+      }
+      if (await getUserStorageBytes(client, req.user.id) > subscription.storageBytes) {
+        await client.query('ROLLBACK');
+        return res.status(413).json({ message: 'This migration would exceed your account storage limit.', code: 'STORAGE_LIMIT_EXCEEDED' });
+      }
+
+      const applied = await client.query(
+        `INSERT INTO public.iyonicdb_migrations (project_id, name, checksum, statement_count)
+         VALUES ($1, $2, $3, $4) RETURNING applied_at AS "appliedAt"`,
+        [project.id, name, checksum, statements.length]
+      );
+      await client.query('COMMIT');
+      res.status(201).json({ name, checksum, statementCount: statements.length, appliedAt: applied.rows[0].appliedAt, alreadyApplied: false });
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      if (['42P07', '42701', '42710'].includes(error.code)) {
+        return res.status(409).json({ message: 'The migration conflicts with an existing database object. No changes were applied.', code: error.code });
+      }
+      if (['57014', '55P03'].includes(error.code)) {
+        return res.status(409).json({ message: 'The migration timed out or could not obtain a database lock. No changes were applied.', code: error.code });
+      }
+      console.error('IyonicDB console migration failed:', error);
+      const userSqlError = ['42601', '42P01', '42703', '42804', '42P16', '23502', '23503', '23505', '23514'].includes(error.code);
+      res.status(error.status || (userSqlError ? 400 : 500)).json({
+        message: error.status ? error.message : 'The migration failed. No changes were applied.',
+        code: error.code || undefined,
+      });
+    } finally {
+      client.release();
     }
   });
 
