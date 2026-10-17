@@ -199,6 +199,24 @@ const validateMigrationStatements = (statements) => {
     }
   }
 };
+
+const normalizeMigrationRequest = (body) => {
+  const source = body?.migration && typeof body.migration === 'object' && !Array.isArray(body.migration)
+    ? body.migration
+    : body;
+  const rawStatements = source?.statements;
+  const sql = typeof source?.sql === 'string'
+    ? source.sql.trim()
+    : Array.isArray(rawStatements) && rawStatements.every((statement) => typeof statement === 'string')
+      ? rawStatements.join(';\n').trim()
+      : '';
+  const rawName = source?.name || source?.filename || source?.fileName || body?.name || body?.filename;
+  const name = typeof rawName === 'string'
+    ? rawName.trim().split(/[\\/]/).pop().replace(/\.sql$/i, '')
+    : '';
+  return { name, sql, dryRun: source?.dryRun === true || source?.dry_run === true || body?.dryRun === true || body?.dry_run === true };
+};
+
 const safePlan = (plan) => plan ? {
   ...plan,
   storageGb: plan.storageBytes / 1024 ** 3,
@@ -1386,7 +1404,7 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
       return res.status(400).json({ message: 'Migration name must be 1 to 128 letters, numbers, dots, underscores, or hyphens.' });
     }
     if (!sql) return res.status(400).json({ message: 'Provide the migration SQL.' });
-    if (Buffer.byteLength(sql, 'utf8') > 256 * 1024) return res.status(413).json({ message: 'A migration is limited to 256 KB.' });
+    if (Buffer.byteLength(sql, 'utf8') > 256 * 1024) return res.status(413).json({ message: 'A migration is limited to 256 KB.', code: 'MIGRATION_TOO_LARGE' });
 
     let statements;
     try {
@@ -1892,29 +1910,29 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
       res.json(result.rows);
     } catch (error) {
       console.error('IyonicDB migration history failed:', error);
-      res.status(500).json({ message: 'Could not load migration history.' });
+      res.status(500).json({ message: 'Could not load migration history.', code: error.code || undefined });
     }
   });
 
   app.post('/api/iyonicdb/v1/projects/:projectId/migrations', async (req, res) => {
     if (req.params.projectId !== req.iyonicDbKey.projectId) return res.status(403).json({ message: 'This key cannot access the requested project.' });
-    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
-    const sql = typeof req.body?.sql === 'string' ? req.body.sql.trim() : '';
-    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(name)) {
-      return res.status(400).json({ message: 'Migration name must be 1 to 128 letters, numbers, dots, underscores, or hyphens.' });
-    }
-    if (!sql) return res.status(400).json({ message: 'Provide the migration SQL.' });
-    if (Buffer.byteLength(sql, 'utf8') > 256 * 1024) return res.status(413).json({ message: 'A migration is limited to 256 KB.' });
+    const { name: requestedName, sql, dryRun } = normalizeMigrationRequest(req.body);
+    if (!sql) return res.status(400).json({ message: 'Provide migration SQL as "sql" or as a string array in "statements".', code: 'MIGRATION_SQL_REQUIRED' });
+    if (Buffer.byteLength(sql, 'utf8') > 256 * 1024) return res.status(413).json({ message: 'A migration is limited to 256 KB.', code: 'MIGRATION_TOO_LARGE' });
 
     let statements;
     try {
       statements = splitMigrationSql(sql);
       validateMigrationStatements(statements);
     } catch (error) {
-      return res.status(error.status || 400).json({ message: error.message || 'The migration is invalid.' });
+      return res.status(error.status || 400).json({ message: error.message || 'The migration is invalid.', code: error.code || 'INVALID_MIGRATION' });
     }
 
     const checksum = crypto.createHash('sha256').update(sql).digest('hex');
+    const name = requestedName || `auto_${checksum.slice(0, 16)}`;
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(name)) {
+      return res.status(400).json({ message: 'Migration name must be 1 to 128 letters, numbers, dots, underscores, or hyphens.', code: 'INVALID_MIGRATION_NAME' });
+    }
     const projectId = req.params.projectId;
     const schema = schemaForProject(projectId);
     const client = await db.pool.connect();
@@ -1931,10 +1949,10 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
       if (existing.rowCount) {
         if (existing.rows[0].checksum !== checksum) {
           await client.query('ROLLBACK');
-          return res.status(409).json({ message: 'This migration name was already applied with different SQL. Use a new migration name.' });
+          return res.status(409).json({ message: 'This migration name was already applied with different SQL. Use a new migration name.', code: 'MIGRATION_NAME_CONFLICT' });
         }
         await client.query('COMMIT');
-        return res.json({ name, checksum, statementCount: existing.rows[0].statement_count, appliedAt: existing.rows[0].applied_at, alreadyApplied: true });
+        return res.json({ name, checksum, statementCount: existing.rows[0].statement_count, appliedAt: existing.rows[0].applied_at, alreadyApplied: true, dryRun });
       }
 
       await client.query(`SET LOCAL search_path TO ${quoteIdentifier(schema)}, pg_catalog`);
@@ -1949,11 +1967,16 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
       );
       if (Number(tableCount.rows[0]?.count || 0) > req.iyonicDbKey.subscription.tableLimit) {
         await client.query('ROLLBACK');
-        return res.status(409).json({ message: `This migration would exceed your ${req.iyonicDbKey.subscription.name} plan limit of ${req.iyonicDbKey.subscription.tableLimit} tables.` });
+        return res.status(409).json({ message: `This migration would exceed your ${req.iyonicDbKey.subscription.name} plan limit of ${req.iyonicDbKey.subscription.tableLimit} tables.`, code: 'TABLE_LIMIT_EXCEEDED' });
       }
       if (await getUserStorageBytes(client, req.iyonicDbKey.userId) > req.iyonicDbKey.subscription.storageBytes) {
         await client.query('ROLLBACK');
-        return res.status(413).json({ message: 'This migration would exceed your account storage limit.' });
+        return res.status(413).json({ message: 'This migration would exceed your account storage limit.', code: 'STORAGE_LIMIT_EXCEEDED' });
+      }
+
+      if (dryRun) {
+        await client.query('ROLLBACK');
+        return res.json({ name, checksum, statementCount: statements.length, dryRun: true, validated: true, tableCount: Number(tableCount.rows[0]?.count || 0), alreadyApplied: false });
       }
 
       const applied = await client.query(
@@ -1966,14 +1989,14 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     } catch (error) {
       await client.query('ROLLBACK').catch(() => {});
       if (['42P07', '42701', '42710'].includes(error.code)) {
-        return res.status(409).json({ message: 'The migration conflicts with an existing database object. No changes were applied.' });
+        return res.status(409).json({ message: 'The migration conflicts with an existing database object. No changes were applied.', code: error.code });
       }
       if (['57014', '55P03'].includes(error.code)) {
-        return res.status(409).json({ message: 'The migration timed out or could not obtain a database lock. No changes were applied.' });
+        return res.status(409).json({ message: 'The migration timed out or could not obtain a database lock. No changes were applied.', code: error.code });
       }
       console.error('IyonicDB migration failed:', error);
       const userSqlError = ['42601', '42P01', '42703', '42804', '42P16', '23502', '23503', '23505', '23514'].includes(error.code);
-      res.status(error.status || (userSqlError ? 400 : 500)).json({ message: (error.status || userSqlError) ? error.message : 'The migration failed. No changes were applied.', code: error.code || undefined });
+      res.status(error.status || (userSqlError ? 400 : 500)).json({ message: error.status ? error.message : 'The migration failed. No changes were applied.', code: error.code || 'MIGRATION_FAILED' });
     } finally {
       client.release();
     }
