@@ -197,6 +197,8 @@ const corsOptions = {
 app.options(/.*/, cors(corsOptions));
 app.use(cors(corsOptions));
 
+// IyonicDB accepts larger file and document payloads; its route layer enforces plan limits.
+app.use('/api/iyonicdb', express.json({ limit: '100mb', verify: (req, _res, buffer) => { req.rawBodyBytes = buffer.length; } }));
 app.use(express.json());
 
 // Special CORS for embed endpoints
@@ -8667,12 +8669,12 @@ const sendIyonicMailerApiEmail = async ({ userId, sellerId, to, subject, html, t
 
 app.post('/api/mailer/v1/send', async (req, res) => {
   const apiKey = req.header('x-api-key') || req.header('authorization')?.replace(/^Bearer\s+/i, '');
+  const key = await verifyApiKey(apiKey);
+  if (!key?.sellerId) return res.status(401).json({ message: 'Missing, invalid, or revoked IyonicMailer API key.' });
   const { to, subject, html, text } = req.body || {};
   if (typeof to !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim())) return res.status(400).json({ message: 'Provide one valid recipient email in "to".' });
   if (typeof subject !== 'string' || !subject.trim() || subject.length > 255) return res.status(400).json({ message: 'Subject must contain 1 to 255 characters.' });
   if ((!html || typeof html !== 'string') && (!text || typeof text !== 'string')) return res.status(400).json({ message: 'Provide an html or text email body.' });
-  const key = await verifyApiKey(apiKey);
-  if (!key?.sellerId) return res.status(401).json({ message: 'Missing, invalid, or revoked IyonicMailer API key.' });
   try {
     const user = await db.query('SELECT is_suspended FROM users WHERE id = $1', [key.userId]);
     if (!user.rows[0] || user.rows[0].is_suspended) return res.status(403).json({ message: 'This account cannot send mail.' });

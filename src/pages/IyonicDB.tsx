@@ -32,6 +32,7 @@ type Plan = {
   projectLimit: number;
   storageBytes: number;
   storageGb: number;
+  maxPayloadBytes: number;
   requestsPerMonth: number;
   tableLimit: number;
   apiKeyLimit: number;
@@ -234,7 +235,7 @@ export const IyonicDB: React.FC = () => {
               <div className="idb-plan-name">{plan.name}{plan.id === 'growth' && <span>POPULAR</span>}</div>
               <p className="idb-plan-price">{plan.price === 0 ? 'Free' : formatPlanPrice(plan)}<small>{plan.price === 0 ? ' forever' : ' / 30 days'}</small></p>
               <p className="idb-plan-intro">{plan.projectLimit} projects · {plan.tableLimit} tables per project</p>
-              <ul><li><ShieldCheck size={14} />{plan.apiKeyLimit} active API keys</li><li><ShieldCheck size={14} />{plan.storageGb} GB storage</li><li><ShieldCheck size={14} />{new Intl.NumberFormat('en-US').format(plan.requestsPerMonth)} requests/month</li><li><ShieldCheck size={14} />Hard cap · no surprise overages</li></ul>
+              <ul><li><ShieldCheck size={14} />{plan.apiKeyLimit} active API keys</li><li><ShieldCheck size={14} />{plan.storageGb} GB storage</li><li><ShieldCheck size={14} />Up to {Math.round(plan.maxPayloadBytes / 1024 ** 2)} MB per request</li><li><ShieldCheck size={14} />{new Intl.NumberFormat('en-US').format(plan.requestsPerMonth)} requests/month</li><li><ShieldCheck size={14} />Hard cap · no surprise overages</li></ul>
               <Link to={isAuthenticated ? (plan.id === 'free' ? '/iyonicdb/console?section=overview' : '/iyonicdb/console?section=billing') : '/iyonicdb/register'} className={plan.id === 'growth' ? 'idb-plan-cta idb-plan-cta-dark' : 'idb-plan-cta'}>{isAuthenticated ? (plan.id === 'free' ? 'Open console' : `Choose ${plan.name}`) : 'Sign up to get started'} <ArrowUpRight size={14} /></Link>
             </article>)}
           </div>

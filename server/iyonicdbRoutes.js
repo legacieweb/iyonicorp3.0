@@ -9,6 +9,7 @@ const PLANS = {
     currency: 'USD',
     projectLimit: 3,
     storageBytes: 10 * 1024 ** 3,
+    maxPayloadBytes: 25 * 1024 ** 2,
     requestsPerMonth: 2_000_000,
     tableLimit: 25,
     apiKeyLimit: 10,
@@ -20,6 +21,7 @@ const PLANS = {
     currency: 'USD',
     projectLimit: 5,
     storageBytes: 10 * 1024 ** 3,
+    maxPayloadBytes: 50 * 1024 ** 2,
     requestsPerMonth: 10_000_000,
     tableLimit: 50,
     apiKeyLimit: 25,
@@ -31,6 +33,7 @@ const PLANS = {
     currency: 'USD',
     projectLimit: 20,
     storageBytes: 50 * 1024 ** 3,
+    maxPayloadBytes: 100 * 1024 ** 2,
     requestsPerMonth: 50_000_000,
     tableLimit: 200,
     apiKeyLimit: 100,
@@ -46,6 +49,7 @@ const FREE_PLAN = {
   currency: 'USD',
   projectLimit: 1,
   storageBytes: 5 * 1024 ** 3,
+  maxPayloadBytes: 10 * 1024 ** 2,
   requestsPerMonth: 100_000,
   tableLimit: 10,
   apiKeyLimit: 2,
@@ -627,6 +631,9 @@ const authenticateIyonicDbKey = (db) => async (req, res, next) => {
     if (!matched) return res.status(401).json({ message: 'Invalid or revoked IyonicDB API key.' });
     const subscription = await getCurrentSubscription(db, matched.user_id);
     if (!subscription) return res.status(402).json({ message: 'The IyonicDB subscription for this key is inactive.' });
+    if ((req.rawBodyBytes || 0) > subscription.maxPayloadBytes) {
+      return res.status(413).json({ message: `Your ${subscription.name} plan allows request payloads up to ${Math.round(subscription.maxPayloadBytes / 1024 ** 2)} MB. Upgrade your plan to upload larger files.`, code: 'PAYLOAD_TOO_LARGE', maxPayloadBytes: subscription.maxPayloadBytes });
+    }
     const isWrite = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
     const usage = await db.query(
       `INSERT INTO iyonicdb_usage (user_id, month_start, request_count, write_count)
@@ -911,6 +918,23 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
   app.use('/api/iyonicdb', async (req, res, next) => {
     if (!await databaseReady) return res.status(503).json({ message: 'IyonicDB is unavailable because database initialization failed.' });
     return next();
+  });
+
+  // Apply the same plan-based request ceiling to authenticated console uploads and writes.
+  app.use('/api/iyonicdb', (req, res, next) => {
+    if (req.path.startsWith('/v1') || ['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+    return authenticateToken(req, res, async () => {
+      try {
+        const subscription = await getCurrentSubscription(db, req.user.id);
+        if ((req.rawBodyBytes || 0) > subscription.maxPayloadBytes) {
+          return res.status(413).json({ message: `Your ${subscription.name} plan allows request payloads up to ${Math.round(subscription.maxPayloadBytes / 1024 ** 2)} MB. Upgrade your plan to upload larger files.`, code: 'PAYLOAD_TOO_LARGE', maxPayloadBytes: subscription.maxPayloadBytes });
+        }
+        return next();
+      } catch (error) {
+        console.error('IyonicDB payload limit lookup failed:', error);
+        return res.status(500).json({ message: 'Could not verify the IyonicDB plan payload limit.' });
+      }
+    });
   });
 
   app.get('/api/iyonicdb/plans', (req, res) => res.json([safePlan(FREE_PLAN), ...Object.values(PLANS).map(safePlan)]));

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Activity,
   ArrowDownRight,
@@ -393,7 +393,7 @@ export const IyonicMailerDashboard: React.FC = () => {
         <div className="mailer-sidebar-spacer" />
         <div className="mailer-sidebar-help">
           <div className="mailer-help-icon"><HelpCircle size={17} /></div>
-          <div><strong>Need a hand?</strong><a href="/iyonic-mailer/docs">Read the docs <ArrowRight size={12} /></a></div>
+          <div><strong>Need a hand?</strong><Link to="/iyonic-mailer/docs">Read the docs <ArrowRight size={12} /></Link></div>
         </div>
         <div className="mailer-sidebar-foot"><span className="mailer-live-dot" /> Service status <span>Operational</span></div>
       </aside>

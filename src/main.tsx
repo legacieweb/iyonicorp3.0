@@ -4,11 +4,11 @@ import { HashRouter } from 'react-router-dom'
 import App from './App'
 import './index.css'
 
-if (/^\/iyonic-mailer\/dashboard\/?$/.test(window.location.pathname)) {
+if (/^\/iyonic-mailer(?:\/|$)/.test(window.location.pathname) && !window.location.hash.startsWith('#/')) {
   window.history.replaceState(
     null,
     '',
-    `/#/iyonic-mailer/dashboard${window.location.search}`,
+    `/#${window.location.pathname}${window.location.search}${window.location.hash}`,
   )
 }
 

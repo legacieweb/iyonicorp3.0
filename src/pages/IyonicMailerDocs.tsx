@@ -11,7 +11,7 @@ import {
   Lock,
   Globe,
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { useToast } from '../context/ToastContext';
 import './iyonic-mailer-docs.css';
@@ -114,13 +114,14 @@ const tocItems: Array<{ id: SectionId; label: string }> = [
 
 export const IyonicMailerDocs: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileTocOpen, setMobileTocOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<SectionId>('overview');
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({});
 
   useEffect(() => {
     const handleHash = () => {
-      const hash = window.location.hash.replace(/^#/, '');
+      const hash = location.hash.replace(/^#/, '');
       if (hash && sectionRefs.current[hash as SectionId]) {
         setMobileTocOpen(false);
         sectionRefs.current[hash as SectionId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -129,7 +130,13 @@ export const IyonicMailerDocs: React.FC = () => {
     handleHash();
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
+  }, [location.hash]);
+
+  const navigateToSection = (event: React.MouseEvent<HTMLAnchorElement>, id: SectionId) => {
+    event.preventDefault();
+    setMobileTocOpen(false);
+    navigate({ pathname: '/iyonic-mailer/docs', hash: `#${id}` });
+  };
 
   useEffect(() => {
     const elements = tocItems
@@ -170,7 +177,7 @@ export const IyonicMailerDocs: React.FC = () => {
           </Link>
           <nav className="im-docs-nav-center" aria-label="Documentation">
             {tocItems.map((item) => (
-              <a key={item.id} href={`#${item.id}`}>{item.label}</a>
+              <a key={item.id} href={`#/iyonic-mailer/docs#${item.id}`} onClick={(event) => navigateToSection(event, item.id)}>{item.label}</a>
             ))}
           </nav>
           <div className="im-docs-nav-actions">
@@ -202,7 +209,7 @@ export const IyonicMailerDocs: React.FC = () => {
             <nav className="im-toc-list" role="tablist">
               {tocItems.map((item) => (
                 <span className={`im-toc-item ${activeSection === item.id ? 'is-active' : ''}`} key={item.id}>
-                  <a href={`#${item.id}`} onClick={() => setMobileTocOpen(false)}>{item.label}</a>
+                  <a href={`#/iyonic-mailer/docs#${item.id}`} onClick={(event) => navigateToSection(event, item.id)}>{item.label}</a>
                 </span>
               ))}
             </nav>
@@ -500,9 +507,9 @@ Authorization: Bearer im_sk_your_secret_key`}
                 <b>Ready to send?</b>
                 <span>Open your IyonicMailer console to create a key and verify a provider.</span>
               </div>
-              <a href="/iyonic-mailer/dashboard">
+              <Link to="/iyonic-mailer/dashboard">
                 Open console <ArrowRight size={15} />
-              </a>
+              </Link>
             </div>
           </main>
         </div>

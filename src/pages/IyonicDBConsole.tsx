@@ -9,7 +9,7 @@ import './iyonicdb.css';
 
 type Section = 'overview' | 'projects' | 'data' | 'keys' | 'usage' | 'billing';
 type Mode = 'SQL' | 'Documents';
-type Plan = { id: string; name: string; price: number; currency: string; projectLimit: number; storageBytes: number; storageGb: number; requestsPerMonth: number; tableLimit: number; apiKeyLimit: number; status?: string; currentPeriodEnd?: string };
+type Plan = { id: string; name: string; price: number; currency: string; projectLimit: number; storageBytes: number; storageGb: number; maxPayloadBytes: number; requestsPerMonth: number; tableLimit: number; apiKeyLimit: number; status?: string; currentPeriodEnd?: string };
 type Project = { id: string; name: string; createdAt: string | null; tablesCount: number; recordsCount: number; mediaCount?: number; storageBytes: number; isDefault?: boolean };
 type TableInfo = { name: string; rowCount: number; columns: { name: string; type: string; nullable: boolean }[] };
 type ApiKey = { id: string; project_id: string; project_name: string; name: string; key_prefix: string; created_at: string; last_used_at: string | null; revoked_at: string | null };
@@ -806,7 +806,7 @@ const BillingPanel = ({ overview, plans, busy, onChoose, onWalletPay }: { overvi
         return <article className={`idb-console-plan${isCurrent ? ' selected' : ''}`} key={plan.id}>
           <span>{plan.name}{isCurrent && <Check size={14} />}</span>
           <b>{plan.price === 0 ? 'Free' : formatPlanPrice(plan)}<small>{plan.price === 0 ? ' forever' : ' / 30 days'}</small></b>
-          <small>{plan.projectLimit} projects · {plan.tableLimit} tables/project · {plan.apiKeyLimit} active API keys · {plan.storageGb} GB storage · {new Intl.NumberFormat('en-US').format(plan.requestsPerMonth)} API requests/month</small>
+          <small>{plan.projectLimit} projects · {plan.tableLimit} tables/project · {plan.apiKeyLimit} active API keys · {plan.storageGb} GB storage · {Math.round(plan.maxPayloadBytes / 1024 ** 2)} MB max request · {new Intl.NumberFormat('en-US').format(plan.requestsPerMonth)} API requests/month</small>
           {plan.price > 0 && <small className="idb-wallet-quote">{walletCharge !== undefined ? `Wallet charge: ${formatCurrencyAmount(walletCharge, wallet?.currency || 'USD')} · ${walletCanPay ? 'balance covers it' : 'balance too low'}` : wallet?.available ? `IyonicPay does not support ${wallet.currency} yet.` : 'Link an IyonicPay wallet to see its charge.'}</small>}
           {plan.price === 0 ? <button type="button" disabled>{isCurrent ? 'Included with your account' : 'Free plan'}</button> : <div className="idb-plan-payment-actions"><button type="button" onClick={() => onWalletPay(plan.id)} disabled={busy || isCurrent || !walletCanPay}>{walletLabel}</button><button type="button" onClick={() => onChoose(plan.id)} disabled={busy || isCurrent}>{isCurrent ? 'Active' : 'Pay with Paystack'}</button></div>}
         </article>;
