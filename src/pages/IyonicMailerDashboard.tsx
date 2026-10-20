@@ -37,8 +37,8 @@ type DashboardTab = 'overview' | 'email-settings' | 'campaigns' | 'templates' | 
 const tabs: Array<{ id: DashboardTab; label: string; icon: React.ElementType }> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'email-settings', label: 'Email account', icon: Settings2 },
-  { id: 'campaigns', label: 'Campaigns', icon: Send },
-  { id: 'templates', label: 'Templates', icon: FileText },
+  { id: 'campaigns', label: 'Mailings', icon: Send },
+  { id: 'templates', label: 'Message templates', icon: FileText },
   { id: 'api-keys', label: 'API keys', icon: KeyRound },
   { id: 'billing', label: 'Plans & billing', icon: CreditCard },
 ];
@@ -219,7 +219,7 @@ export const IyonicMailerDashboard: React.FC = () => {
             <h2>Mailer workspace unavailable</h2>
             <p>
               Email tools are connected to a seller workspace on this account. No workspace is linked yet,
-              so campaign and email-account changes cannot be loaded or saved here.
+              so mailing and email-account changes cannot be loaded or saved here.
             </p>
           </div>
         </section>
@@ -236,7 +236,7 @@ export const IyonicMailerDashboard: React.FC = () => {
           <div>
             <div className="mailer-eyebrow"><span className="mailer-eyebrow-dot" /> MAILER WORKSPACE</div>
             <h1>Good to have you back{user?.firstName ? `, ${user.firstName}` : ''}.</h1>
-            <p>Get your email program ready, then build your next campaign.</p>
+            <p>Get your sending service ready and keep every message moving.</p>
           </div>
           <button className="mailer-refresh-button" onClick={handleRefresh} disabled={isRefreshing}>
             <RefreshCw size={16} className={isRefreshing ? 'mailer-spin' : ''} />
@@ -260,29 +260,29 @@ export const IyonicMailerDashboard: React.FC = () => {
           </article>
           <article className="mailer-metric-card">
             <div className="mailer-metric-top">
-              <span>Campaigns sent</span>
+              <span>Messages sent</span>
               <span className="mailer-metric-icon"><Send size={17} /></span>
             </div>
             <strong>{isRefreshing ? '—' : sentCampaigns}</strong>
-            <p>Campaigns marked as sent</p>
-            <button onClick={() => chooseTab('campaigns')}>View campaigns <ArrowRight size={14} /></button>
+            <p>Mailings marked as sent</p>
+            <button onClick={() => chooseTab('campaigns')}>View mailings <ArrowRight size={14} /></button>
           </article>
           <article className="mailer-metric-card">
             <div className="mailer-metric-top">
-              <span>Campaign drafts</span>
+              <span>Mailing drafts</span>
               <span className="mailer-metric-icon"><FileText size={17} /></span>
             </div>
             <strong>{isRefreshing ? '—' : drafts}</strong>
-            <p>{emailCampaigns.length} total campaign{emailCampaigns.length === 1 ? '' : 's'}</p>
-            <button onClick={() => chooseTab('campaigns')}>Continue a draft <ArrowRight size={14} /></button>
+            <p>{emailCampaigns.length} total mailing{emailCampaigns.length === 1 ? '' : 's'}</p>
+            <button onClick={() => chooseTab('campaigns')}>Continue a mailing <ArrowRight size={14} /></button>
           </article>
           <article className="mailer-metric-card">
             <div className="mailer-metric-top">
-              <span>Saved templates</span>
+              <span>Saved message templates</span>
               <span className="mailer-metric-icon"><BarChart3 size={17} /></span>
             </div>
             <strong>{isRefreshing ? '—' : emailTemplates.length}</strong>
-            <p>Ready to use in a campaign</p>
+            <p>Ready for your next mailing</p>
             <button onClick={() => chooseTab('templates')}>Browse templates <ArrowRight size={14} /></button>
           </article>
         </section>
@@ -291,17 +291,17 @@ export const IyonicMailerDashboard: React.FC = () => {
           <section className="mailer-next-step">
             <div className="mailer-next-copy">
               <div className="mailer-next-label">YOUR NEXT STEP</div>
-              <h2>{configured ? 'Create a campaign that feels personal.' : 'Connect your email provider.'}</h2>
+              <h2>{configured ? 'Send the right message at the right moment.' : 'Connect your email provider.'}</h2>
               <p>
                 {configured
-                  ? 'Choose a saved template or start with a blank campaign. Your campaign activity will appear here.'
-                  : 'Add your sending details and verify them before preparing a campaign.'}
+                  ? 'Prepare a service update, receipt, or account message. Your sending activity will appear here.'
+                  : 'Add your sending details and verify them before sending a message.'}
               </p>
               <button
                 className="mailer-primary-button"
                 onClick={() => chooseTab(configured ? 'campaigns' : 'email-settings')}
               >
-                {configured ? 'Open campaigns' : 'Configure email'}
+                {configured ? 'Open mailings' : 'Configure email'}
                 <ArrowRight size={16} />
               </button>
             </div>
@@ -337,15 +337,15 @@ export const IyonicMailerDashboard: React.FC = () => {
               <span className={`mailer-check-icon ${emailTemplates.length ? 'is-ready' : ''}`}>
                 {emailTemplates.length ? <Check size={15} /> : <FileText size={15} />}
               </span>
-              <div><strong>Campaign templates</strong><small>{emailTemplates.length ? `${emailTemplates.length} available` : 'No saved templates yet'}</small></div>
+              <div><strong>Message templates</strong><small>{emailTemplates.length ? `${emailTemplates.length} available` : 'No saved templates yet'}</small></div>
               <button aria-label="Open templates" onClick={() => chooseTab('templates')}><ArrowRight size={16} /></button>
             </div>
             <div className="mailer-check-row">
               <span className={`mailer-check-icon ${emailCampaigns.length ? 'is-ready' : ''}`}>
                 {emailCampaigns.length ? <Check size={15} /> : <Send size={15} />}
               </span>
-              <div><strong>First campaign</strong><small>{emailCampaigns.length ? `${emailCampaigns.length} in your workspace` : 'Create a campaign to begin'}</small></div>
-              <button aria-label="Open campaigns" onClick={() => chooseTab('campaigns')}><ArrowRight size={16} /></button>
+              <div><strong>First mailing</strong><small>{emailCampaigns.length ? `${emailCampaigns.length} in your workspace` : 'Create a mailing to begin'}</small></div>
+              <button aria-label="Open mailings" onClick={() => chooseTab('campaigns')}><ArrowRight size={16} /></button>
             </div>
           </section>
         </div>
@@ -358,9 +358,9 @@ export const IyonicMailerDashboard: React.FC = () => {
     : activeTab === 'email-settings'
       ? 'Email account'
       : activeTab === 'campaigns'
-        ? 'Campaigns'
+        ? 'Mailings'
         : activeTab === 'templates'
-          ? 'Templates'
+          ? 'Message templates'
         : activeTab === 'api-keys'
           ? 'API keys'
           : activeTab === 'billing'
@@ -437,9 +437,9 @@ export const IyonicMailerDashboard: React.FC = () => {
                     <div className="mailer-eyebrow"><span className="mailer-eyebrow-dot" /> IYONIC MAILER</div>
                     <h1>{pageTitle}</h1>
                     <p>
-                      {activeTab === 'email-settings' && 'Connect the email service you use to send campaigns.'}
-                      {activeTab === 'campaigns' && 'Create, organize, and send email campaigns.'}
-                      {activeTab === 'templates' && 'Build reusable email layouts for your campaigns.'}
+                      {activeTab === 'email-settings' && 'Connect and verify your outgoing email service.'}
+                      {activeTab === 'campaigns' && 'Prepare and send transactional or service email.'}
+                      {activeTab === 'templates' && 'Create reusable layouts for receipts, alerts, and account messages.'}
                       {activeTab === 'api-keys' && 'Create credentials for server-side email integrations.'}
                       {activeTab === 'billing' && 'Review usage, choose a plan, and manage payment.'}
                     </p>

@@ -57,7 +57,7 @@
 
 /* Documentation workbench */
 .im-docs-layout { display: grid; grid-template-columns: 225px minmax(0, 1fr); gap: clamp(42px, 6vw, 94px); max-width: 1320px; margin: 0 auto; padding: 42px max(5vw, calc((100vw - 1320px) / 2)) 100px; }
-.im-docs-toc { position: sticky; top: 92px; align-self: start; height: max-content; padding: 4px 0 0; }
+.im-docs-toc { position: fixed; z-index: 20; top: 92px; bottom: 24px; left: max(5vw, calc((100vw - 1320px) / 2)); width: 225px; height: max-content; max-height: calc(100vh - 116px); overflow-y: auto; padding: 14px 12px 16px 0; align-self: start; border-radius: 0 14px 14px 0; scrollbar-width: thin; }
 .im-toc-eyebrow { margin: 0 0 15px 12px; color: #9aa39e; font-size: 9px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
 .im-toc-list { display: flex; flex-direction: column; gap: 3px; border-left: 1px solid #e1e5df; }
 .im-toc-item { position: relative; }
@@ -189,6 +189,7 @@
 
 @media (max-width: 1020px) {
   .im-docs-layout { grid-template-columns: 190px minmax(0, 1fr); gap: 34px; }
+  .im-docs-toc { width: 190px; }
   .im-hero { grid-template-columns: 1fr; }
   .im-delivery-card { max-width: none; }
 }
@@ -198,7 +199,7 @@
   .im-console-btn { padding: 8px 10px; font-size: 10px; }
   .im-mobile-menu-btn { display: grid; }
   .im-docs-layout { display: block; padding: 24px 18px 64px; }
-  .im-docs-toc { position: fixed; z-index: 51; top: 0; bottom: 0; left: 0; width: min(300px, 84vw); padding: 76px 22px 25px; border-right: 1px solid var(--im-line); background: var(--im-bg); box-shadow: 18px 0 50px rgba(20, 26, 28, .12); transform: translateX(-105%); transition: transform .24s ease; }
+  .im-docs-toc { position: fixed; z-index: 51; top: 0; bottom: 0; left: 0; width: min(300px, 84vw); max-height: none; padding: 76px 22px 25px; border-right: 1px solid var(--im-line); border-radius: 0; background: var(--im-bg); box-shadow: 18px 0 50px rgba(20, 26, 28, .12); transform: translateX(-105%); transition: transform .24s ease; }
   .im-docs-toc.is-open { transform: translateX(0); }
   .im-toc-overlay { position: fixed; z-index: 50; inset: 0; display: block; visibility: hidden; opacity: 0; background: rgba(18, 23, 25, .4); transition: opacity .2s ease, visibility .2s ease; }
   .im-toc-overlay.is-open { visibility: visible; opacity: 1; }

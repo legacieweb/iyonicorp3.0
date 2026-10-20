@@ -104,7 +104,7 @@ const providers = [
   { name: 'SendGrid', description: 'Cloud email API' },
   { name: 'Mailgun', description: 'API-first email platform' },
   { name: 'AWS SES', description: 'Amazon Simple Email Service' },
-  { name: 'Sendinblue', description: 'Email & marketing automation' },
+  { name: 'Sendinblue', description: 'Email delivery service' },
   { name: 'Postmark', description: 'Transactional email' },
 ];
 
@@ -163,9 +163,9 @@ export const IyonicMailerDocs: React.FC = () => {
     <>
       <SEO
         title="IyonicMailer API Documentation | Iyonicorp"
-        description="IyonicMailer API documentation. Send transactional and marketing email via the REST API, manage verified sending providers, and review plan limits and billing."
+        description="IyonicMailer API documentation. Send transactional and application email via the REST API, manage verified sending providers, and review plan limits and billing."
         canonical="https://iyonicorp.com/iyonic-mailer/docs"
-        keywords="IyonicMailer, email API, email marketing API, SMTP, transactional email, API keys, billing"
+        keywords="IyonicMailer, email API, SMTP, transactional email, API keys, billing"
       />
 
       <div className="im-docs">
@@ -216,7 +216,7 @@ export const IyonicMailerDocs: React.FC = () => {
                 <span className="im-doc-num">01</span>
                 <div>
                   <h2>Overview</h2>
-                  <p>IyonicMailer sends transactional and marketing email through your verified email provider.</p>
+                  <p>IyonicMailer routes transactional and application email through your verified sending provider.</p>
                 </div>
               </div>
 
@@ -225,7 +225,7 @@ export const IyonicMailerDocs: React.FC = () => {
                   <p className="im-docs-eyebrow"><span /> THE EMAIL API</p>
                   <h1 className="im-docs-title">Email that<br /><em>moves at your pace.</em></h1>
                   <p className="im-docs-intro">
-                    One dependable API for transactional and marketing email. Bring a verified provider, add your key,
+                    A dependable delivery API for product, account, and service messages. Bring a verified provider, add your key,
                     and ship from the backend you already trust.
                   </p>
                   <div className="im-hero-actions">
