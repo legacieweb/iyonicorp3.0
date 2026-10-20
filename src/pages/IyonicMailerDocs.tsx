@@ -7,9 +7,13 @@ import {
   KeyRound,
   CreditCard,
   ArrowRight,
+  ArrowUpRight,
+  CheckCircle2,
+  CircleDot,
   Menu,
   Lock,
   Globe,
+  ShieldCheck,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import SEO from '../components/SEO';
@@ -120,22 +124,17 @@ export const IyonicMailerDocs: React.FC = () => {
   const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({});
 
   useEffect(() => {
-    const handleHash = () => {
-      const hash = location.hash.replace(/^#/, '');
-      if (hash && sectionRefs.current[hash as SectionId]) {
-        setMobileTocOpen(false);
-        sectionRefs.current[hash as SectionId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    };
-    handleHash();
-    window.addEventListener('hashchange', handleHash);
-    return () => window.removeEventListener('hashchange', handleHash);
-  }, [location.hash]);
+    const section = new URLSearchParams(location.search).get('section') as SectionId | null;
+    if (section && tocItems.some((item) => item.id === section)) {
+      setMobileTocOpen(false);
+      sectionRefs.current[section]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [location.search]);
 
   const navigateToSection = (event: React.MouseEvent<HTMLAnchorElement>, id: SectionId) => {
     event.preventDefault();
     setMobileTocOpen(false);
-    navigate({ pathname: '/iyonic-mailer/docs', hash: `#${id}` });
+    navigate({ pathname: '/iyonic-mailer/docs', search: `?section=${id}` });
   };
 
   useEffect(() => {
@@ -175,11 +174,7 @@ export const IyonicMailerDocs: React.FC = () => {
             <span className="im-docs-brand-icon"><Mail size={19} strokeWidth={2.2} /></span>
             <span>Iyonic<span>Mailer</span></span>
           </Link>
-          <nav className="im-docs-nav-center" aria-label="Documentation">
-            {tocItems.map((item) => (
-              <a key={item.id} href={`#/iyonic-mailer/docs#${item.id}`} onClick={(event) => navigateToSection(event, item.id)}>{item.label}</a>
-            ))}
-          </nav>
+          <div className="im-docs-context"><span className="im-context-dot" /> DEVELOPER DOCS <span>/</span> REST API</div>
           <div className="im-docs-nav-actions">
             <button
               type="button"
@@ -209,7 +204,7 @@ export const IyonicMailerDocs: React.FC = () => {
             <nav className="im-toc-list" role="tablist">
               {tocItems.map((item) => (
                 <span className={`im-toc-item ${activeSection === item.id ? 'is-active' : ''}`} key={item.id}>
-                  <a href={`#/iyonic-mailer/docs#${item.id}`} onClick={(event) => navigateToSection(event, item.id)}>{item.label}</a>
+                  <a href={`#/iyonic-mailer/docs?section=${item.id}`} onClick={(event) => navigateToSection(event, item.id)}>{item.label}</a>
                 </span>
               ))}
             </nav>
@@ -225,12 +220,37 @@ export const IyonicMailerDocs: React.FC = () => {
                 </div>
               </div>
 
-              <p className="im-docs-eyebrow"><span /> REST API</p>
-              <h1 className="im-docs-title">Send your first<br /><em>transactional email.</em></h1>
-              <p className="im-docs-intro">
-                IyonicMailer lets you send email from your backend using a single secret API key. Create a verified
-                provider in your workspace, then call <code>POST /api/mailer/v1/send</code> to deliver to one recipient.
-              </p>
+              <div className="im-hero">
+                <div className="im-hero-copy">
+                  <p className="im-docs-eyebrow"><span /> THE EMAIL API</p>
+                  <h1 className="im-docs-title">Email that<br /><em>moves at your pace.</em></h1>
+                  <p className="im-docs-intro">
+                    One dependable API for transactional and marketing email. Bring a verified provider, add your key,
+                    and ship from the backend you already trust.
+                  </p>
+                  <div className="im-hero-actions">
+                    <button type="button" onClick={() => navigate('/iyonic-mailer/dashboard')} className="im-hero-primary">Open your console <ArrowUpRight size={15} /></button>
+                    <a href="#/iyonic-mailer/docs?section=api" onClick={(event) => navigateToSection(event, 'api')} className="im-hero-secondary">Explore the API <ArrowRight size={14} /></a>
+                  </div>
+                  <div className="im-hero-stats">
+                    <span><b>REST</b> JSON API</span><span><b>HTTPS</b> encrypted</span><span><b>1</b> recipient / request</span>
+                  </div>
+                </div>
+                <div className="im-delivery-card" aria-label="Email delivery flow">
+                  <div className="im-delivery-top"><span><CircleDot size={14} /> DELIVERY PIPELINE</span><i>LIVE</i></div>
+                  <div className="im-delivery-flow">
+                    <div className="im-flow-node is-active"><span className="im-flow-icon"><Mail size={17} /></span><div><small>01 · REQUEST</small><b>Your application</b></div><CheckCircle2 size={16} /></div>
+                    <div className="im-flow-line"><span /></div>
+                    <div className="im-flow-node"><span className="im-flow-icon"><ShieldCheck size={17} /></span><div><small>02 · VERIFIED</small><b>Your provider</b></div><CheckCircle2 size={16} /></div>
+                    <div className="im-flow-line"><span /></div>
+                    <div className="im-flow-node"><span className="im-flow-icon is-mint"><ArrowRight size={17} /></span><div><small>03 · DELIVERED</small><b>Customer inbox</b></div><span className="im-flow-status">202</span></div>
+                  </div>
+                  <div className="im-delivery-foot"><span className="im-live-pulse" /> Request accepted <code>· 184 ms</code></div>
+                </div>
+              </div>
+
+              <div className="im-overview-setup">
+                <div className="im-setup-heading"><div><span className="im-overline">GET STARTED</span><h3>From key to first send</h3></div><span className="im-setup-time">4 STEPS · ABOUT 5 MIN</span></div>
 
               <ol className="im-doc-steps">
                 {getStartedSteps.map((step, index) => (
@@ -245,7 +265,7 @@ export const IyonicMailerDocs: React.FC = () => {
               </ol>
 
               <CodeBlock
-                label="QUICK START"
+                label="YOUR FIRST REQUEST · BASH"
                 text={`# 1. Save your secret server-side (keep this out of source control)
 IYONIC_MAILER_API_URL=https://api.iyonicorp.com/api/mailer/v1
 IYONIC_MAILER_API_KEY=im_sk_replace_with_your_secret_key
@@ -258,6 +278,7 @@ curl "$IYONIC_MAILER_API_URL/send" \\
 `}
                 language="bash"
               />
+              </div>
             </section>
 
             <section id="authentication" ref={(el) => (sectionRefs.current.authentication = el)} className="im-doc-section">
