@@ -1,328 +1,520 @@
-import React, { useState } from 'react';
-import { Mail, Send, Shield, Settings } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Copy,
+  Check,
+  Mail,
+  Settings,
+  KeyRound,
+  CreditCard,
+  ArrowRight,
+  Menu,
+  Lock,
+  Globe,
+} from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import SEO from '../components/SEO';
+import { useToast } from '../context/ToastContext';
+import './iyonic-mailer-docs.css';
 
-const ApiMethod: React.FC<{ method: string; endpoint: string; description?: string; children?: React.ReactNode }> = ({ method, endpoint, description, children }) => {
-  const methodColors = {
-    GET: 'bg-blue-100 text-blue-800',
-    POST: 'bg-emerald-100 text-emerald-800',
-    PATCH: 'bg-amber-100 text-amber-800',
-    DELETE: 'bg-red-100 text-red-800'
+type SectionId = 'overview' | 'authentication' | 'api' | 'providers' | 'plans';
+
+const MethodBadge: React.FC<{ method: string }> = ({ method }) => {
+  const colorMap: Record<string, string> = {
+    GET: 'get',
+    POST: 'post',
+    PATCH: 'patch',
+    DELETE: 'delete',
+  };
+  const cls = `im-method ${colorMap[method.toUpperCase()] || 'post'}`;
+  return <span className={cls}>{method}</span>;
+};
+
+const ApiEndpoint: React.FC<{
+  method: string;
+  path: string;
+  description?: string;
+  children?: React.ReactNode;
+}> = ({ method, path, description, children }) => (
+  <div className="im-endpoint">
+    <div className="im-endpoint-head">
+      <MethodBadge method={method} />
+      <code>{path}</code>
+    </div>
+    {description && <div className="im-endpoint-desc"><p>{description}</p></div>}
+    {children}
+  </div>
+);
+
+interface CodeBlockProps {
+  label: string;
+  text: string;
+  language?: string;
+}
+const CodeBlock: React.FC<CodeBlockProps> = ({ label, text, language = 'bash' }) => {
+  const { showToast } = useToast();
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      showToast('Copied to clipboard', 'success');
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      showToast('Could not copy. Select the text manually.', 'error');
+    }
   };
 
   return (
-    <div className="border border-gray-200 rounded-xl p-4 mb-4">
-      <div className="flex items-center space-x-3 mb-2">
-        <span className={`px-3 py-1 rounded-lg text-xs font-bold ${methodColors[method as keyof typeof methodColors]}`}>
-          {method}
-        </span>
-        <code className="text-gray-800 font-mono text-sm bg-gray-50 px-2 py-1 rounded">{endpoint}</code>
+    <div className="im-doc-code">
+      <div className="im-code-head">
+        <span>{label}</span>
+        <button type="button" onClick={copy} aria-label={`Copy ${label}`}>
+          {copied ? (<><Check size={13} /> Copied</>) : (<><Copy size={13} /> Copy</>)}
+        </button>
       </div>
-      {description && <p className="text-sm text-gray-600 mb-2">{description}</p>}
-      {children}
+      <pre className={`language-${language}`}><code className={`language-${language}`}>{text}</code></pre>
     </div>
   );
 };
 
+const getStartedSteps: Array<{ title: string; description: string }> = [
+  { title: 'Create an account', description: 'Sign up for an Iyonicorp account and open IyonicMailer in your console.' },
+  { title: 'Verify an email provider', description: 'Configure and verify an SMTP or supported provider in Console → IyonicMailer → Email account before sending.' },
+  { title: 'Create an API key', description: 'Open Console → IyonicMailer → API keys. Create a named key and copy it once; the secret is only shown at creation.' },
+  { title: 'Send from your server', description: 'Store the key in a server-side .env file and call the send endpoint from your backend.' },
+];
+
+const statusCodes = [
+  { code: '202', label: 'Accepted', description: 'The email was accepted and queued for delivery.' },
+  { code: '400', label: 'Bad Request', description: 'One or more required fields are missing, empty, or invalid.' },
+  { code: '401', label: 'Unauthorized', description: 'The API key is missing, invalid, or revoked.' },
+  { code: '403', label: 'Forbidden', description: 'Your account is suspended or unavailable.' },
+  { code: '409', label: 'Conflict', description: 'A verified email provider is required before you can send.' },
+  { code: '429', label: 'Too Many Requests', description: 'Your plan has reached its monthly email limit. Upgrade to send more.' },
+  { code: '502', label: 'Bad Gateway', description: 'The email could not be sent. Check your provider settings and try again.' },
+];
+
+const providers = [
+  { name: 'SMTP', description: 'Your own mail server' },
+  { name: 'SendGrid', description: 'Cloud email API' },
+  { name: 'Mailgun', description: 'API-first email platform' },
+  { name: 'AWS SES', description: 'Amazon Simple Email Service' },
+  { name: 'Sendinblue', description: 'Email & marketing automation' },
+  { name: 'Postmark', description: 'Transactional email' },
+];
+
+const tocItems: Array<{ id: SectionId; label: string }> = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'authentication', label: 'Authentication' },
+  { id: 'api', label: 'API reference' },
+  { id: 'providers', label: 'Providers' },
+  { id: 'plans', label: 'Plans & billing' },
+];
+
 export const IyonicMailerDocs: React.FC = () => {
-  const [activeSection, setActiveSection] = useState<'getting-started' | 'api' | 'environment' | 'billing'>('getting-started');
+  const navigate = useNavigate();
+  const [mobileTocOpen, setMobileTocOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<SectionId>('overview');
+  const sectionRefs = useRef<Partial<Record<SectionId, HTMLElement | null>>>({});
 
-  const endpoints = [
-    {
-      method: 'POST',
-      endpoint: '/api/mailer/v1/send',
-      description: 'Send one email. Authenticate with an IyonicMailer API key created in Console → API keys.',
-      example: `curl "$IYONIC_MAILER_API_URL/send" \\
-  -H "Content-Type: application/json" \\
-  -H "x-api-key: $IYONIC_MAILER_API_KEY" \\
-  -d '{
-    "to": "customer@example.com",
-    "subject": "Welcome",
-    "html": "<h1>Hello</h1><p>Welcome to our service.</p>",
-    "text": "Hello. Welcome to our service."
-  }'`
-    }
-  ];
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash.replace(/^#/, '');
+      if (hash && sectionRefs.current[hash as SectionId]) {
+        setMobileTocOpen(false);
+        sectionRefs.current[hash as SectionId]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
-  const getStartedSteps = [
-    {
-      title: 'Create an account',
-      description: 'Sign up for an Iyonicorp account and open IyonicMailer from your console.',
-      icon: Mail
-    },
-    {
-      title: 'Create an API key',
-      description: 'Open Console → API keys. Create a named key and copy it once; the secret is only shown at creation.',
-      icon: Shield
-    },
-    {
-      title: 'Set up email delivery',
-      description: 'Add and verify an email provider in your IyonicMailer email settings before sending.',
-      icon: Settings
-    },
-    {
-      title: 'Connect your app',
-      description: 'Save the key in a server-side .env file, then call the send endpoint from your backend.',
-      icon: Send
-    }
-  ];
+  useEffect(() => {
+    const elements = tocItems
+      .map((item) => sectionRefs.current[item.id])
+      .filter((el): el is HTMLElement => Boolean(el));
+    if (elements.length === 0) return;
 
-  const embeddingSteps = [
-    {
-      title: 'Add server environment variables',
-      description: 'IyonicMailer API keys are private server credentials. Do not put them in HTML or browser JavaScript.',
-      code: `# .env (keep this file out of source control)
-IYONIC_MAILER_API_URL=https://api.iyonicorp.com/api/mailer/v1
-IYONIC_MAILER_API_KEY=im_sk_replace_with_your_secret_key`
-    },
-    {
-      title: 'Load your environment',
-      description: 'Load environment variables on your server (for example, with dotenv in Node.js).',
-      code: `# Install dotenv once in your Node.js project:
-npm install dotenv
-
-# Load your .env values in your server entry file:
-import 'dotenv/config';
-
-if (!process.env.IYONIC_MAILER_API_KEY) {
-  throw new Error('Missing IYONIC_MAILER_API_KEY');
-}`
-    },
-    {
-      title: 'Send an email from your backend',
-      description: 'Send from your backend. The secret is read from the environment and never returned to the browser.',
-      code: `const response = await fetch(
-  process.env.IYONIC_MAILER_API_URL + '/send',
-  {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.IYONIC_MAILER_API_KEY,
-    },
-    body: JSON.stringify({
-      to: 'customer@example.com',
-      subject: 'Welcome',
-      text: 'Welcome to our service.',
-      html: '<h1>Welcome</h1>',
-    }),
-  },
-);
-
-if (!response.ok) throw new Error(await response.text());
-console.log(await response.json());`
-    },
-    {
-      title: 'Protect the secret',
-      description: 'Use the base URL and endpoint below. Set both values in local development and your production secret manager.',
-      code: `# .gitignore
-.env
-.env.*
-!.env.example
-
-# .env.example (safe to commit; no real secret)
-IYONIC_MAILER_API_URL=https://api.iyonicorp.com/api/mailer/v1
-IYONIC_MAILER_API_KEY=`
-    }
-  ];
-
-  const quickStartCode = `# 1. Add these values to your server's .env file.
-IYONIC_MAILER_API_URL=https://api.iyonicorp.com/api/mailer/v1
-IYONIC_MAILER_API_KEY=im_sk_your_secret_key
-
-# 2. Send from a server terminal (after loading .env).
-curl "$IYONIC_MAILER_API_URL/send" \\
-  -H "Content-Type: application/json" \\
-  -H "x-api-key: $IYONIC_MAILER_API_KEY" \\
-  -d '{"to":"customer@example.com","subject":"Hello","text":"Welcome!"}'
-
-# Keep .env out of Git and never expose this key in browser code.`;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible) {
+          const id = (visible.target as HTMLElement).getAttribute('id') as SectionId;
+          setActiveSection(id);
+        }
+      },
+      { rootMargin: '-40% 0px -50% 0px', threshold: [0, 0.25, 0.5, 0.75, 1] },
+    );
+    elements.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <>
       <SEO
         title="IyonicMailer API Documentation | Iyonicorp"
-        description="IyonicMailer API setup, server-side .env examples, email endpoint reference, plan limits, and billing."
+        description="IyonicMailer API documentation. Send transactional and marketing email via the REST API, manage verified sending providers, and review plan limits and billing."
+        canonical="https://iyonicorp.com/iyonic-mailer/docs"
+        keywords="IyonicMailer, email API, email marketing API, SMTP, transactional email, API keys, billing"
       />
 
-      <div className="min-h-screen bg-white">
-        {/* Header */}
-        <header className="border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Mail className="w-8 h-8 text-indigo-600" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">IyonicMailer</h1>
-                <p className="text-sm text-gray-500">API Documentation</p>
-              </div>
-            </div>
-            <nav className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
-              {(['getting-started', 'api', 'environment', 'billing'] as const).map((section) => (
-                <button
-                  key={section}
-                  onClick={() => setActiveSection(section)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    activeSection === section
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  {{ 'getting-started': 'Getting started', api: 'API reference', environment: 'Environment setup', billing: 'Plans & billing' }[section]}
-                </button>
-              ))}
-            </nav>
+      <div className="im-docs">
+        <header className="im-docs-nav">
+          <Link to="/iyonic-mailer" className="im-docs-brand" aria-label="IyonicMailer home">
+            <span className="im-docs-brand-icon"><Mail size={19} strokeWidth={2.2} /></span>
+            <span>Iyonic<span>Mailer</span></span>
+          </Link>
+          <nav className="im-docs-nav-center" aria-label="Documentation">
+            {tocItems.map((item) => (
+              <a key={item.id} href={`#${item.id}`}>{item.label}</a>
+            ))}
+          </nav>
+          <div className="im-docs-nav-actions">
+            <button
+              type="button"
+              className="im-console-btn"
+              onClick={() => navigate('/iyonic-mailer/dashboard')}
+              aria-label="Open the IyonicMailer console"
+            >
+              <KeyRound size={15} /> Open console
+            </button>
+            <button
+              type="button"
+              className="im-mobile-menu-btn"
+              aria-label="Open documentation menu"
+              aria-expanded={mobileTocOpen}
+              onClick={() => setMobileTocOpen(!mobileTocOpen)}
+            >
+              <Menu size={20} />
+            </button>
           </div>
         </header>
 
-        <div className="max-w-4xl mx-auto px-6 lg:px-8 py-12">
-          {/* Getting Started */}
-          {activeSection === 'getting-started' && (
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">Getting Started</h2>
-              <p className="text-lg text-gray-600 mb-8">
-                IyonicMailer is a white-label email marketing platform that lets you send
-                transactional and marketing emails at any scale. This guide will help you
-                get up and running in minutes.
-              </p>
+        <div className={`im-toc-overlay ${mobileTocOpen ? 'is-open' : ''}`} onClick={() => setMobileTocOpen(false)} aria-hidden="true" />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-                {getStartedSteps.map((step, index) => {
-                  const Icon = step.icon;
-                  return (
-                    <div key={index} className="border border-gray-200 rounded-xl p-6 bg-gray-50/50">
-                      <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center mb-3">
-                        <Icon className="w-5 h-5 text-indigo-600" />
-                      </div>
-                      <h3 className="font-semibold text-gray-900 mb-2">{index + 1}. {step.title}</h3>
-                      <p className="text-sm text-gray-600">{step.description}</p>
-                    </div>
-                  );
-                })}
-              </div>
+        <div className="im-docs-layout">
+          <aside className={`im-docs-toc ${mobileTocOpen ? 'is-open' : ''}`} aria-label="On-page navigation">
+            <p className="im-toc-eyebrow">DOCUMENTATION</p>
+            <nav className="im-toc-list" role="tablist">
+              {tocItems.map((item) => (
+                <span className={`im-toc-item ${activeSection === item.id ? 'is-active' : ''}`} key={item.id}>
+                  <a href={`#${item.id}`} onClick={() => setMobileTocOpen(false)}>{item.label}</a>
+                </span>
+              ))}
+            </nav>
+          </aside>
 
-              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-6">
-                <h3 className="text-lg font-semibold text-indigo-900 mb-3">Quick Start</h3>
-                <div className="bg-white rounded-lg p-4 font-mono text-sm overflow-x-auto">
-                  <code className="text-gray-800">{quickStartCode}</code>
+          <main className="im-docs-main">
+            <section id="overview" ref={(el) => (sectionRefs.current.overview = el)} className="im-doc-section">
+              <div className="im-doc-heading">
+                <span className="im-doc-num">01</span>
+                <div>
+                  <h2>Overview</h2>
+                  <p>IyonicMailer sends transactional and marketing email through your verified email provider.</p>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* API Reference */}
-          {activeSection === 'api' && (
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">REST API Reference</h2>
-              <p className="text-lg text-gray-600 mb-8">Send one transactional email per request. The API key is accepted in the <code className="bg-gray-100 px-2 py-1 rounded">x-api-key</code> header or as a Bearer token. Keep it on your server.</p>
+              <p className="im-docs-eyebrow"><span /> REST API</p>
+              <h1 className="im-docs-title">Send your first<br /><em>transactional email.</em></h1>
+              <p className="im-docs-intro">
+                IyonicMailer lets you send email from your backend using a single secret API key. Create a verified
+                provider in your workspace, then call <code>POST /api/mailer/v1/send</code> to deliver to one recipient.
+              </p>
 
-              <div className="space-y-6">
-                {endpoints.map((endpoint) => (
-                  <ApiMethod
-                    key={endpoint.endpoint}
-                    method={endpoint.method}
-                    endpoint={endpoint.endpoint}
-                    description={endpoint.description}
-                  >
-                    <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm mt-2">
-                      <code>{endpoint.example}</code>
-                    </pre>
-                  </ApiMethod>
+              <ol className="im-doc-steps">
+                {getStartedSteps.map((step, index) => (
+                  <li key={step.title}>
+                    <span>{index + 1}</span>
+                    <div>
+                      <b>{step.title}</b>
+                      <p>{step.description}</p>
+                    </div>
+                  </li>
                 ))}
+              </ol>
+
+              <CodeBlock
+                label="QUICK START"
+                text={`# 1. Save your secret server-side (keep this out of source control)
+IYONIC_MAILER_API_URL=https://api.iyonicorp.com/api/mailer/v1
+IYONIC_MAILER_API_KEY=im_sk_replace_with_your_secret_key
+
+# 2. Send from your backend (after loading .env)
+curl "$IYONIC_MAILER_API_URL/send" \\
+  -H "Content-Type: application/json" \\
+  -H "x-api-key: $IYONIC_MAILER_API_KEY" \\
+  -d '{"to":"customer@example.com","subject":"Hello","text":"Welcome!","html":"<h1>Welcome</h1>"}'
+`}
+                language="bash"
+              />
+            </section>
+
+            <section id="authentication" ref={(el) => (sectionRefs.current.authentication = el)} className="im-doc-section">
+              <div className="im-doc-heading">
+                <span className="im-doc-num">02</span>
+                <div>
+                  <h2>Authentication</h2>
+                  <p>Every request is authenticated with a secret API key.</p>
+                </div>
               </div>
 
-              <div className="mt-8 space-y-4">
-                <h3 className="text-xl font-semibold text-gray-900">Request Bodies</h3>
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="text-left p-3 border-b font-medium">Field</th>
-                      <th className="text-left p-3 border-b font-medium">Type</th>
-                      <th className="text-left p-3 border-b font-medium">Required</th>
-                      <th className="text-left p-3 border-b font-medium">Description</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="p-3 border-b"><code>to</code></td>
-                      <td className="p-3 border-b">string</td>
-                      <td className="p-3 border-b">Yes</td>
-                      <td className="p-3 border-b">One recipient email address</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3 border-b"><code>subject</code></td>
-                      <td className="p-3 border-b">string</td>
-                      <td className="p-3 border-b">Yes</td>
-                      <td className="p-3 border-b">Email subject, 1–255 characters</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3 border-b"><code>html</code></td>
-                      <td className="p-3 border-b">string</td>
-                      <td className="p-3 border-b">One of html or text</td>
-                      <td className="p-3 border-b">HTML message body</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3 border-b"><code>text</code></td>
-                      <td className="p-3 border-b">string</td>
-                      <td className="p-3 border-b">One of html or text</td>
-                      <td className="p-3 border-b">Plain-text message body; may be sent alongside html</td>
-                    </tr>
-                  </tbody>
-                </table>
-                <p className="text-xs text-gray-500">Example success response</p>
-                <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm"><code>{`{\n  "accepted": true,\n  "messageId": "provider-message-id",\n  "usage": { "sentThisMonth": 1, "monthlyLimit": 1000 }\n}`}</code></pre>
-                <p className="text-sm text-gray-600">Common status codes: 400 invalid request, 401 invalid or revoked key, 403 account unavailable, 409 verified email provider required, 429 monthly plan limit reached, 502 provider send failed.</p>
-              </div>
-            </div>
-          )}
+              <p>
+                IyonicMailer keys are private server credentials prefixed with <code>im_sk_</code>. Send the key in the
+                <code> x-api-key </code> header or as a Bearer token. Never put a live key in browser JavaScript, a mobile
+                app, or source control.
+              </p>
 
-          {/* Environment setup */}
-          {activeSection === 'environment' && (
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">Connect with a server-side .env file</h2>
-              <p className="text-lg text-gray-600 mb-8">Create your secret in Console → API keys. Copy it once, store it in your backend environment, and send requests from your server only. Never put this key in a public website or mobile app.</p>
+              <CodeBlock
+                label="HEADER · KEEP THIS SECRET"
+                text={`x-api-key: im_sk_your_secret_key
+# or
+Authorization: Bearer im_sk_your_secret_key`}
+                language="http"
+              />
 
-              <div className="space-y-6">
-                {embeddingSteps.map((step, index) => (
-                  <div key={index} className="border border-gray-200 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Step {index + 1}: {step.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-3">{step.description}</p>
-                    <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
-                      <code>{step.code}</code>
-                    </pre>
-                  </div>
-                ))}
+              <div className="im-doc-callout">
+                <Lock size={17} />
+                <p>
+                  <b>Keep your key on the server.</b> API keys bypass your workspace login. If a key is exposed, revoke it
+                  in Console → IyonicMailer → API keys and create a new one immediately. Keys are hashed at rest and shown
+                  only once at creation.
+                </p>
               </div>
 
-            </div>
-          )}
+              <h3 className="im-doc-sub">Key management (Console)</h3>
+              <p>
+                Manage keys from your IyonicMailer workspace. The endpoints below require your authenticated session cookie
+                from the console, not an API key.
+              </p>
 
-          {/* Plans & billing */}
-          {activeSection === 'billing' && (
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">Plans, API key limits & billing</h2>
-              <p className="text-lg text-gray-600 mb-8">Each plan sets the maximum number of active API keys and API email sends in a calendar month. Key limits apply account-wide; revoking a key frees a slot immediately.</p>
-              <table className="w-full border-collapse mb-8">
+              <ApiEndpoint method="GET" path="/api/iyonicmailer/keys" description="List the API keys for your IyonicMailer workspace." />
+              <ApiEndpoint
+                method="POST"
+                path="/api/iyonicmailer/keys"
+                description="Create a new key. Send a JSON body with a name. The full secret is returned once in the response."
+              >
+                <CodeBlock
+                  label="REQUEST"
+                  text={`curl https://api.iyonicorp.com/api/iyonicmailer/keys \\
+  -H "Content-Type: application/json" \\
+  -H "x-auth-token: $JWT_OR_COOKIE" \\
+  -d '{"name":"production-server"}'
+
+# Response (secret shown only here)
+{"id":"key_abc123","name":"production-server","key_prefix":"im_sk_...","secret":"im_sk_live_..."}`}
+                  language="bash"
+                />
+              </ApiEndpoint>
+              <ApiEndpoint
+                method="POST"
+                path="/api/iyonicmailer/keys/:keyId/revoke"
+                description="Revoke an active key. It stops sending immediately and frees a plan slot."
+              >
+                <CodeBlock
+                  label="REVOKE A KEY"
+                  text={`curl -X POST https://api.iyonicorp.com/api/iyonicmailer/keys/$KEY_ID/revoke \\
+  -H "x-auth-token: $JWT_OR_COOKIE"`}
+                  language="bash"
+                />
+              </ApiEndpoint>
+            </section>
+
+            <section id="api" ref={(el) => (sectionRefs.current.api = el)} className="im-doc-section">
+              <div className="im-doc-heading">
+                <span className="im-doc-num">03</span>
+                <div>
+                  <h2>API reference</h2>
+                  <p>Send a single transactional email to one recipient per request.</p>
+                </div>
+              </div>
+
+              <ApiEndpoint
+                method="POST"
+                path="https://api.iyonicorp.com/api/mailer/v1/send"
+                description="Send one email to a single recipient. The API key is accepted in the x-api-key header or as a Bearer token."
+              />
+
+              <h3 className="im-doc-sub">Request body</h3>
+              <table className="im-doc-table">
                 <thead>
-                  <tr className="bg-gray-50">
-                    <th className="text-left p-4 border-b font-medium">Plan</th>
-                    <th className="text-left p-4 border-b font-medium">Price / 30 days</th>
-                    <th className="text-left p-4 border-b font-medium">Active API keys</th>
-                    <th className="text-left p-4 border-b font-medium">API emails / month</th>
+                  <tr>
+                    <th>Field</th>
+                    <th>Type</th>
+                    <th>Required</th>
+                    <th>Description</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td className="p-4 border-b">Free</td><td className="p-4 border-b">$0</td><td className="p-4 border-b">2</td><td className="p-4 border-b">1,000</td></tr>
-                  <tr><td className="p-4 border-b">Launch</td><td className="p-4 border-b">$10</td><td className="p-4 border-b">10</td><td className="p-4 border-b">10,000</td></tr>
-                  <tr><td className="p-4 border-b">Growth</td><td className="p-4 border-b">$35</td><td className="p-4 border-b">25</td><td className="p-4 border-b">100,000</td></tr>
-                  <tr><td className="p-4 border-b">Scale</td><td className="p-4 border-b">$70</td><td className="p-4 border-b">100</td><td className="p-4 border-b">500,000</td></tr>
+                  <tr>
+                    <td><code>to</code></td>
+                    <td>string</td>
+                    <td>Yes</td>
+                    <td>One recipient email address.</td>
+                  </tr>
+                  <tr>
+                    <td><code>subject</code></td>
+                    <td>string</td>
+                    <td>Yes</td>
+                    <td>Email subject, 1–255 characters.</td>
+                  </tr>
+                  <tr>
+                    <td><code>html</code></td>
+                    <td>string</td>
+                    <td>One of html or text</td>
+                    <td>HTML message body.</td>
+                  </tr>
+                  <tr>
+                    <td><code>text</code></td>
+                    <td>string</td>
+                    <td>One of html or text</td>
+                    <td>Plain-text body. May be sent alongside html.</td>
+                  </tr>
                 </tbody>
               </table>
-              <div className="bg-gray-50 rounded-xl p-6"><h3 className="text-lg font-semibold text-gray-900 mb-2">Pay for a plan</h3><p className="text-sm text-gray-600">Subscribe in Console → Plans & billing using your IyonicPay wallet or Paystack checkout. Paid subscriptions run for 30 days. IyonicPay converts plan prices from USD for supported wallet currencies; the checkout shows the charge before payment.</p></div>
+
+              <CodeBlock
+                label="SEND AN EMAIL"
+                text={`curl https://api.iyonicorp.com/api/mailer/v1/send \\
+  -H "Content-Type: application/json" \\
+  -H "x-api-key: im_sk_YOUR_API_KEY" \\
+  -d '{
+    "to": "customer@example.com",
+    "subject": "Welcome",
+    "html": "<h1>Hello</h1><p>Welcome to our service.</p>",
+    "text": "Hello. Welcome to our service."
+  }'`}
+                language="bash"
+              />
+
+              <h3 className="im-doc-sub">Response</h3>
+              <CodeBlock
+                label="202 ACCEPTED"
+                text={`{
+  "accepted": true,
+  "messageId": "provider-message-id",
+  "usage": {
+    "sentThisMonth": 1,
+    "monthlyLimit": 1000
+  }
+}`}
+                language="json"
+              />
+
+              <h3 className="im-doc-sub">Status codes</h3>
+              <table className="im-doc-table">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Status</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {statusCodes.map((item) => (
+                    <tr key={item.code}>
+                      <td><code>{item.code}</code></td>
+                      <td>{item.label}</td>
+                      <td>{item.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+
+            <section id="providers" ref={(el) => (sectionRefs.current.providers = el)} className="im-doc-section">
+              <div className="im-doc-heading">
+                <span className="im-doc-num">04</span>
+                <div>
+                  <h2>Verified providers</h2>
+                  <p>Configure a sending provider before your first send.</p>
+                </div>
+              </div>
+
+              <p>
+                IyonicMailer sends through an email provider you verify in your workspace. Set your credentials in
+                Console → IyonicMailer → Email account, then verify deliverability. Sending fails with a
+                <code> 409 </code> until a provider is verified.
+              </p>
+
+              <div className="im-doc-callout">
+                <Globe size={17} />
+                <p><b>Provider choice is yours.</b> Bring your own SMTP or connect a supported provider. The address
+                your messages send from is set by your verified provider, not by the API request.</p>
+              </div>
+
+              <div className="im-doc-grid cards">
+                {providers.map((provider) => (
+                  <div className="im-provider" key={provider.name}>
+                    <div className="im-provider-head"><Settings size={16} /> <strong>{provider.name}</strong></div>
+                    <small>{provider.description}</small>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section id="plans" ref={(el) => (sectionRefs.current.plans = el)} className="im-doc-section">
+              <div className="im-doc-heading">
+                <span className="im-doc-num">05</span>
+                <div>
+                  <h2>Plans & billing</h2>
+                  <p>Each plan sets active API-key and monthly email limits.</p>
+                </div>
+              </div>
+
+              <p>
+                Key and email limits apply account-wide. Revoking a key frees a slot immediately. Subscriptions run for
+                30 days. Pay in USD with your IyonicPay wallet or via Paystack checkout.
+              </p>
+
+              <table className="im-doc-table">
+                <thead>
+                  <tr>
+                    <th>Plan</th>
+                    <th>Price / 30 days</th>
+                    <th>Active API keys</th>
+                    <th>API emails / month</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>Free</td><td>$0</td><td>2</td><td>1,000</td></tr>
+                  <tr><td>Launch</td><td>$10</td><td>10</td><td>10,000</td></tr>
+                  <tr><td>Growth</td><td>$35</td><td>25</td><td>100,000</td></tr>
+                  <tr><td>Scale</td><td>$70</td><td>100</td><td>500,000</td></tr>
+                </tbody>
+              </table>
+
+              <div className="im-doc-callout warning">
+                <KeyRound size={17} />
+                <p><b>Subscribe in your console.</b> Open Console → IyonicMailer → Plans & billing. IyonicPay converts
+                plan prices from USD for supported wallet currencies; the checkout shows the charge before payment.</p>
+              </div>
+            </section>
+
+            <div className="im-doc-bottom">
+              <CreditCard size={38} />
+              <div>
+                <b>Ready to send?</b>
+                <span>Open your IyonicMailer console to create a key and verify a provider.</span>
+              </div>
+              <a href="/iyonic-mailer/dashboard">
+                Open console <ArrowRight size={15} />
+              </a>
             </div>
-          )}
+          </main>
         </div>
+
+        <footer className="im-docs-footer">
+          <span><Mail size={16} /> IYONICMAILER · DEVELOPER DOCUMENTATION</span>
+          <span><KeyRound size={13} /> One secret key · HTTPS only</span>
+          <Link to="/iyonic-mailer">Product overview</Link>
+        </footer>
       </div>
     </>
   );
 };
+
+export default IyonicMailerDocs;
