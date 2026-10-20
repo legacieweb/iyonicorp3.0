@@ -65,7 +65,7 @@
 .im-toc-item a:hover { color: var(--im-ink); }
 .im-toc-item.is-active::before { content: ''; position: absolute; top: 6px; bottom: 6px; left: -1px; width: 2px; border-radius: 2px; background: var(--im-accent); }
 .im-toc-item.is-active a, .im-toc-item a:focus-visible { color: var(--im-accent); }
-.im-docs-main { min-width: 0; max-width: 960px; }
+.im-docs-main { grid-column: 2; min-width: 0; max-width: 960px; width: 100%; }
 .im-toc-overlay { display: none; }
 
 /* Opening frame */

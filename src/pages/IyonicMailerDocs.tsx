@@ -127,14 +127,18 @@ export const IyonicMailerDocs: React.FC = () => {
     const section = new URLSearchParams(location.search).get('section') as SectionId | null;
     if (section && tocItems.some((item) => item.id === section)) {
       setMobileTocOpen(false);
-      sectionRefs.current[section]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      requestAnimationFrame(() => {
+        sectionRefs.current[section]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
     }
   }, [location.search]);
 
   const navigateToSection = (event: React.MouseEvent<HTMLAnchorElement>, id: SectionId) => {
     event.preventDefault();
     setMobileTocOpen(false);
+    setActiveSection(id);
     navigate({ pathname: '/iyonic-mailer/docs', search: `?section=${id}` });
+    sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   useEffect(() => {
