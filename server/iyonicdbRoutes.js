@@ -855,7 +855,7 @@ const updateDocument = async (db, userId, projectId, collection, documentId, doc
 };
 
 const updateSqlRow = async (db, userId, projectId, tableName, rowId, row, subscription) => {
-  if (!identifierPattern.test(tableName) || !uuidPattern.test(String(rowId)) || !row || typeof row !== 'object' || Array.isArray(row)) {
+  if (!identifierPattern.test(tableName) || !rowId || typeof rowId !== 'string' || !row || typeof row !== 'object' || Array.isArray(row)) {
     throw Object.assign(new Error('Provide a valid table, row ID, and JSON object.'), { status: 400 });
   }
   const values = Object.entries(row);

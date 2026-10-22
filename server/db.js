@@ -11,6 +11,15 @@ const __dirname = path.dirname(__filename);
 // Load env
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
+// Override the default pg-types parser for `timestamp without time zone` (OID 1114).
+// postgres-date interprets bare timestamps as local time, but our application
+// servers send UTC ISO strings.  Appending 'Z' forces UTC interpretation so
+// round-tripped timestamps are not shifted by the host's UTC offset.
+pkg.types.setTypeParser(1114, (text) => {
+  if (text === null) return null;
+  return new Date(text.replace(' ', 'T') + 'Z');
+});
+
 // ✅ Safe handling of DATABASE_URL
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -27,6 +36,12 @@ const useSSL =
 const pool = new Pool({
   connectionString: databaseUrl,
   ssl: useSSL ? { rejectUnauthorized: false } : false,
+});
+
+// Ensure every connection uses UTC so CURRENT_TIMESTAMP and timestamp
+// round-trips stay consistent regardless of the host timezone.
+pool.on('connect', (client) => {
+  client.query("SET TIME ZONE 'UTC'");
 });
 
 // ✅ Test connection immediately (helps debugging)
