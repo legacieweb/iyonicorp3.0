@@ -1738,6 +1738,27 @@ export const mountIyonicDbRoutes = (app, authenticateToken, db, Paystack, databa
     }
   });
 
+  app.patch('/api/iyonicdb/keys/:keyId/project', authenticateToken, async (req, res) => {
+    const projectId = req.body?.projectId;
+    if (!uuidPattern.test(String(projectId || ''))) return res.status(400).json({ message: 'Choose a valid destination project.' });
+    try {
+      const project = await getProject(db, req.user.id, projectId);
+      if (!project) return res.status(404).json({ message: 'Destination project not found.' });
+      const result = await db.query(
+        `UPDATE iyonicdb_api_keys
+         SET project_id = $1
+         WHERE id = $2 AND user_id = $3 AND revoked_at IS NULL
+         RETURNING id, project_id`,
+        [project.id, req.params.keyId, req.user.id]
+      );
+      if (!result.rowCount) return res.status(404).json({ message: 'Active API key not found.' });
+      res.json({ id: result.rows[0].id, projectId: result.rows[0].project_id, projectName: project.name });
+    } catch (error) {
+      console.error('IyonicDB API key project change failed:', error);
+      res.status(500).json({ message: 'Could not change the API key project.' });
+    }
+  });
+
   app.post('/api/iyonicdb/billing/initialize', authenticateToken, async (req, res) => {
     const plan = PLANS[req.body?.planId];
     if (!plan) return res.status(400).json({ message: 'Choose a valid IyonicDB plan.' });
